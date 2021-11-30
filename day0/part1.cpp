@@ -1,4 +1,4 @@
-B#include <iostream>
+#include <iostream>
 #include <iomanip>
 #include <cstdlib>
  
