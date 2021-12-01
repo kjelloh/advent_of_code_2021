@@ -41,19 +41,20 @@ Result part1(auto const pData) {
 }
 Result part2(auto const pData) {
     std::string sdata{ pData };
+    std::array<int, 3> w = { 0,0,0 }; // Initial "window"
+    auto prev{ 0 }; // previous value for adjacent compare
+    int count{ 0 }; // accumulate call count to skip incomplete depths
     const std::regex ws_re("\\s+"); // whitespace
     auto sdepths = IContainer<std::sregex_token_iterator>{ std::sregex_token_iterator(sdata.begin(), sdata.end(), ws_re, -1) };
     auto depths = sdepths
         | std::views::transform([](auto const s) {return std::stoi(s); })
-        | std::views::transform([](auto const d) {
-            static std::array<int,3> w = {0,0,0};
+        | std::views::transform([&w](auto const d) {
             std::rotate(std::rbegin(w), std::rbegin(w) + 1, std::rend(w));
             w[0] = d;
             return w; })
         | std::views::transform([](auto const a) {return std::accumulate(std::begin(a),std::end(a),0); })
-        | std::views::transform([](auto const d) {static auto prev{ 0 }; auto result = d > prev; prev = d; return result; });
-    auto result = std::accumulate(std::begin(depths), std::end(depths), 0, [](auto const& acc, auto const& b) {
-        static int count{ 0 };
+        | std::views::transform([&prev](auto const d) {auto result = d > prev; prev = d; return result; });
+    auto result = std::accumulate(std::begin(depths), std::end(depths), 0, [&count](auto const& acc, auto const& b) {
         return (++count > 3 and b) ? acc + 1 : acc; });
     return result;
 }
