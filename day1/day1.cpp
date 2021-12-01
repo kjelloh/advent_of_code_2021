@@ -8,7 +8,7 @@
 #include <numeric>
 #include <array>
 
-extern char const* pTest = R"(199
+char const* pTest = R"(199
 200
 208
 210
@@ -34,7 +34,7 @@ Result part1(auto const pData) {
     auto sdepths = IContainer<std::sregex_token_iterator>{ std::sregex_token_iterator(sdata.begin(), sdata.end(), ws_re, -1) };
     auto depths = sdepths
         | std::views::transform([](auto const s) {return std::stoi(s); })
-        | std::views::transform([](auto const d) {static auto prev{ 0 }; auto result = d > prev; prev = d; return result;});
+        | std::views::transform([](auto const d) {static auto prev{ 0 }; std::cout << "\nd=" << d << " ";auto result = d > prev; prev = d; return result;});
     auto result = std::accumulate(std::begin(depths), std::end(depths), 0, [](auto const& acc, auto const& b) {return b ? acc + 1 : acc; });
     return result-1;
 }
@@ -57,13 +57,13 @@ Result part2(auto const pData) {
     return result;
 }
 
-
 int main()
 {
     std::cout << "\nHello :)";
-    // auto result = part1(pTest);
-    auto result = part2(pData);
-    std::cout << "\nResult=" << result;
+    std::cout << "\nresult[part 1 test] : " << part1(pTest);
+    std::cout << "\nresult[part 1] : " << part1(pData);
+    std::cout << "\nresult[part 2 test]" << part2(pTest);
+    std::cout << "\nresult[part 2] : " << part2(pData);
     std::cout << "\nPress any key...";
     std::cin.get();
     std::cout << "\n";
