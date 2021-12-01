@@ -63,8 +63,9 @@ int main()
     std::cout << "\nHello :)";
     std::cout << "\nresult[part 1 test] : " << part1(pTest);
     std::cout << "\nresult[part 1] : " << part1(pData);
-    std::cout << "\nresult[part 2 test]" << part2(pTest);
+    std::cout << "\nresult[part 2 test] : " << part2(pTest);
     std::cout << "\nresult[part 2] : " << part2(pData);
+    std::cout << "\nbye!";
     std::cout << "\nPress any key...";
     std::cin.get();
     std::cout << "\n";
