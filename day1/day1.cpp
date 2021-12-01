@@ -32,9 +32,10 @@ Result part1(auto const pData) {
     std::string sdata{ pData };
     const std::regex ws_re("\\s+"); // whitespace
     auto sdepths = IContainer<std::sregex_token_iterator>{ std::sregex_token_iterator(sdata.begin(), sdata.end(), ws_re, -1) };
+    auto prev{ 0 };
     auto depths = sdepths
         | std::views::transform([](auto const s) {return std::stoi(s); })
-        | std::views::transform([](auto const d) {static auto prev{ 0 }; std::cout << "\nd=" << d << " ";auto result = d > prev; prev = d; return result;});
+        | std::views::transform([&prev](auto const d) {auto result = d > prev; prev = d; return result; });
     auto result = std::accumulate(std::begin(depths), std::end(depths), 0, [](auto const& acc, auto const& b) {return b ? acc + 1 : acc; });
     return result-1;
 }
