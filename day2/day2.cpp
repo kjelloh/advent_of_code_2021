@@ -103,7 +103,7 @@ Result part1_result(char const* pData) {
 
 Result part2_result(char const* pData) {
     Result result{};
-    part2::Position position{ 0,0 };
+    part2::Position position{ 0,0,0 };
     std::string sdata{ pData };
     const std::regex ws_re("\\s+");
     auto sCommands = IContainer<std::sregex_token_iterator>{ std::sregex_token_iterator(sdata.begin(), sdata.end(), ws_re, -1) };
