@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <regex>
-#include <ranges>
 #include <utility> // std::pair
 
 extern char const* pData;
