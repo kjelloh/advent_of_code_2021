@@ -63,16 +63,17 @@ namespace part1 {
 }
 namespace part2 {
     struct Position {
+        size_t m_aim;
         size_t m_x; // horizontal
         size_t m_z; // vertical
         void move_to(Command const& command) {
             // std::cout << "\nmove_to " << command.first << " " << command.second;
-            switch (command_of_string(std::get<std::string>(command))) {
-            case eCommand_Forward: m_x += std::get<size_t>(command); break;
-            case eCommand_Down: m_z += std::get<size_t>(command); break;
-            case eCommand_Up: m_z -= std::get<size_t>(command); break;
+            switch (command_of_string(command.first)) {
+            case eCommand_Forward: m_x += command.second; m_z += m_aim * command.second; break;
+            case eCommand_Down: m_aim += std::get<size_t>(command); break;
+            case eCommand_Up: m_aim -= std::get<size_t>(command); break;
             }
-            // std::cout << "\n==> Moved To {x=" << m_x << ",z=" << m_z << "}";
+            // std::cout << "\n==> Moved To {aim=" << m_aim << ",x = " << m_x << ", z = " << m_z << " }";
         }
     };
 }
@@ -100,11 +101,35 @@ Result part1_result(char const* pData) {
     return result;
 }
 
+Result part2_result(char const* pData) {
+    Result result{};
+    part2::Position position{ 0,0 };
+    std::string sdata{ pData };
+    const std::regex ws_re("\\s+");
+    auto sCommands = IContainer<std::sregex_token_iterator>{ std::sregex_token_iterator(sdata.begin(), sdata.end(), ws_re, -1) };
+    auto state{ 0 };
+    Command command{};
+    for (auto const& s : sCommands) {
+        switch (state % 2) {
+        case 0:command.first = s; break;
+        case 1: {
+            command.second = std::stoi(s);
+            position.move_to(command);
+        } break;
+        }
+        ++state;
+    }
+    result = position.m_x * position.m_z;
+    return result;
+}
+
 int main()
 {
     std::cout << "\nHello :)";
     std::cout << "\nresult[part 1 test] : " << part1_result(pTest);
     std::cout << "\nresult[part 1] : " << part1_result(pData);
+    std::cout << "\nresult[part 2 test] : " << part2_result(pTest);
+    std::cout << "\nresult[part 2] : " << part2_result(pData);
     std::cout << "\nPress <Enter>...";
     std::cin.get();
     std::cout << "\nBye!";
