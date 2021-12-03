@@ -8,77 +8,151 @@
 #include <map> 
 #include <numeric>
 #include <bitset>
+#include <array>
+#include <utility> // std::pair
 
 extern char const* pTest1;
 extern char const* pData;
 
 using Result = size_t;
-using BinaryNumber = std::string;
-using DiagnosticReport = std::vector<BinaryNumber>;
-
-DiagnosticReport diagnostic_report(char const* pData) {
-    DiagnosticReport result{};
-    std::istringstream in{ pData };
-    BinaryNumber entry{};
-    while (in >> entry) {
-        std::cout << "\nentry : " << entry;
-        result.push_back(entry);
-    }
-    return result;
-}
-
-using Rates = std::map<int, Result>;
-
-Rates rates_of_ones_in_report(DiagnosticReport const& r) {
-    Rates result;
-    for (auto const& e : r) {
-        for (int i = 0; i < e.size(); i++) {
-            result[i] += (e[i] == '1')?1:0;
-        }
-    }
-    return result;
-}
-
-void print_rates(Rates const& rates) {
-    std::cout << "\nprint_rates : ";
-    for (auto [i,r] : rates) {
-        std::cout << "{index=" << i << ",rate=" << r << "}";
-    }
-}
-
-BinaryNumber to_rate(Rates const& rates,auto rate_digit_op) {
-    BinaryNumber result;
-    for (int i = 0; i < rates.size(); i++) {
-        result += rate_digit_op(rates.at(i));
-    }
-    return result;
-}
-
-Result to_result(BinaryNumber const& b) {
-    Result result{};
-    for (char ch : b) {
-        result *= 2;
-        result += (ch - '0');
-    }
-    return result;
-}
 
 namespace part2 {
+
+    struct Meta {
+        bool active_oxygen_generator_rating{true};
+        bool active_CO2_scrubber_rating{ true };
+    };
+    using Entry = std::pair<Meta, size_t>;
+    using Report = std::vector<Entry>;
+
+    template <int BIT_COUNT>
+    struct Rates {
+        size_t oxygen_generator_rating_count{};
+        size_t CO2_scrubber_rating_count{};
+        std::array<size_t, BIT_COUNT> bit_counts;
+    };
+
+    template <int BIT_COUNT>
+    Rates<BIT_COUNT> rates_of_report(Report const& v,auto predicate) {
+        Rates<BIT_COUNT> result{};
+        result = std::accumulate(std::begin(v), std::end(v), Rates<BIT_COUNT>{}, [&predicate](auto acc, auto entry) {
+            if (entry.first.active_oxygen_generator_rating) ++acc.oxygen_generator_rating_count;
+            if (entry.first.active_CO2_scrubber_rating) ++acc.CO2_scrubber_rating_count;
+            if (predicate(entry)) {
+                std::cout << "\n\tprocess " << std::bitset<BIT_COUNT>{entry.second}.to_string();
+                std::bitset<BIT_COUNT> bit_set{ entry.second };
+                for (int i = 0; i < BIT_COUNT; i++) {
+                    if (bit_set[BIT_COUNT - i - 1]) ++acc.bit_counts[i];
+                }
+            }
+            return acc;
+            });
+        std::cout << "\nrates : oxygen_generator_rating_count=" << result.oxygen_generator_rating_count;
+        std::cout << "\nrates : CO2_scrubber_rating_count=" << result.CO2_scrubber_rating_count;
+        std::cout << "\nrates : ";
+        for (auto n : result.bit_counts) std::cout << " " << n;
+        return result;
+    };
+
+    auto active_oxygen_generator_rating = [](auto entry) {
+        return entry.first.active_oxygen_generator_rating;
+    };
+
+    auto active_CO2_scrubber_rating = [](auto entry) {
+        return entry.first.active_CO2_scrubber_rating;
+    };
+
+    template <int BIT_COUNT>
     Result answer(char const* pData) {
         Result result{};
-        auto report = diagnostic_report(pData);
-        std::cout << "\nreport size : " << report.size();
-        auto rates_of_ones = rates_of_ones_in_report(report);
-        print_rates(rates_of_ones);
-        auto gamma_rate = to_rate(rates_of_ones, [report_entry_count = report.size()](auto const& count_of_ones) {
-            return (count_of_ones > report_entry_count/2)?'1':'0';
-        });
-        auto epsilon_rate = to_rate(rates_of_ones, [report_entry_count = report.size()](auto const& count_of_ones) {
-            return (count_of_ones < report_entry_count / 2) ? '1' : '0';
-        });
-        std::cout << "\ngamma rate : " << gamma_rate;
-        std::cout << "\nepsilon rate : " << epsilon_rate;
-        result = to_result(gamma_rate) * to_result(epsilon_rate);
+        std::cout << "\npart 2 :)";
+        // #1 Tokenize input to vector if integers (diagnostic report data)
+        Report v{};
+        std::istringstream in{ pData };
+        std::string sNumber{};
+        while (in >> sNumber) v.push_back(Entry{ Meta{true},std::bitset<BIT_COUNT>{sNumber}.to_ullong() });
+        for (auto const& n : v) std::cout
+            << "\nentry : meta{active_oxygen_generator_rating="
+            << n.first.active_oxygen_generator_rating
+            << "} rates {"
+            << std::bitset<BIT_COUNT>{n.second}.to_string()
+            << "}";
+
+        // #2 std::accumulate bit-counts for each "column" (digit index)
+        auto rates = rates_of_report<BIT_COUNT>(v, active_oxygen_generator_rating);
+        // #3 transform the diagnostic report according to the "oxygen generator rating" criteria until one remains
+        std::cout << "\n<< oxygen_generator_rating >>";
+        for (int i = 0; (i < BIT_COUNT) and (rates.oxygen_generator_rating_count > 1);  i++) {
+            std::cout << "\nindex:" << i+1;
+            size_t zero_bit_count_i = rates.oxygen_generator_rating_count - rates.bit_counts[i];
+            bool most_common_digit_i_is_one = (rates.bit_counts[i] >= zero_bit_count_i);
+            if (rates.bit_counts[i] == zero_bit_count_i) {
+                std::cout << " equal one and zero counts ==> Keep if '1'";
+            }
+            std::transform(std::begin(v), std::end(v), std::begin(v), [&i,&most_common_digit_i_is_one](auto entry) {
+                if (entry.first.active_oxygen_generator_rating) {
+                    std::bitset<BIT_COUNT> bit_set{ entry.second };
+                    std::cout << "\ntransform " << bit_set.to_string() << "[" << i+1 << "]";
+                    bool do_keep = (most_common_digit_i_is_one == bit_set[BIT_COUNT - i - 1]);
+                    if (do_keep) {
+                        std::cout << " Keep :)";
+                    }
+                    entry.first.active_oxygen_generator_rating = do_keep;
+                }
+                return entry;
+                });
+            rates = rates_of_report<BIT_COUNT>(v, active_oxygen_generator_rating);
+        }
+        auto oxygen_generator_rating_iter = std::find_if(std::begin(v), std::end(v), [](auto entry) {
+            return entry.first.active_oxygen_generator_rating;
+            });
+        std::cout << "\noxygen_generator_rating" << std::bitset<BIT_COUNT>{oxygen_generator_rating_iter->second}.to_string();
+
+        // #4 do the same according to the "CO2 scrubber rating" criteria until one remains
+        rates = rates_of_report<BIT_COUNT>(v, active_CO2_scrubber_rating);
+        std::cout << "\n<< CO2_scrubber_rating >>";
+        for (int i = 0; (i < BIT_COUNT) and (rates.CO2_scrubber_rating_count > 1); i++) {
+            std::cout << "\nindex:" << i + 1;
+            size_t zero_bit_count_i = rates.CO2_scrubber_rating_count - rates.bit_counts[i];
+            bool most_common_digit_i_is_one = (rates.bit_counts[i] >= zero_bit_count_i);
+            if (most_common_digit_i_is_one) {
+                std::cout << "\nKeep if ZERO (minority)";
+            }
+            else {
+                std::cout << "\nKeep if ONE (minority)";
+            }
+            if (rates.bit_counts[i] == zero_bit_count_i) {
+                std::cout << " equal one and zero counts ==> keep if '0'";
+            }
+            std::transform(std::begin(v), std::end(v), std::begin(v), [&i, &most_common_digit_i_is_one](auto entry) {
+                if (entry.first.active_CO2_scrubber_rating) {
+                    std::bitset<BIT_COUNT> bit_set{ entry.second };
+                    std::cout << "\ntransform " << bit_set.to_string() << "[" << i + 1 << "]";
+                    // Keep if have digit in minority
+                    bool do_keep{};
+                    if (most_common_digit_i_is_one) do_keep = (bit_set[BIT_COUNT - i - 1] == false); // Keep '0'
+                    else do_keep = (bit_set[BIT_COUNT - i - 1] == true); // keep '1'
+                    if (do_keep) {
+                        std::cout << " Keep :)";
+                    }
+                    entry.first.active_CO2_scrubber_rating = do_keep;
+                }
+                return entry;
+                });
+            rates = rates_of_report<BIT_COUNT>(v, active_CO2_scrubber_rating);
+        }
+        auto CO2_scrubber_rating_iter = std::find_if(std::begin(v), std::end(v), [](auto entry) {
+            return entry.first.active_CO2_scrubber_rating;
+            });
+        std::cout << "\aCO2_scrubber_rating" << std::bitset<BIT_COUNT>{CO2_scrubber_rating_iter->second}.to_string();
+
+        // #finally the result life support rating = oxygen generator rating x CO2 scrubber rating
+        result = oxygen_generator_rating_iter->second * CO2_scrubber_rating_iter->second;
+        // Constraints
+        // #1 Do NOT copy report entries around (we need only to transform meta-data about the entries)
+        // #2 Process binary numbers as integers (and use math and not topology to do the matching, filtering and and counting)
+        // #3 Identify and use as much C++ standard library functionality as possible (avoid NIH)
+
         std::cout << "\n";
         return result;
     }
@@ -130,10 +204,10 @@ namespace part1 {
 int main(int argc, char *argv[]) {
     std::cout << "\nWelcome :)";
     std::map<std::string, Result> answer;
-    answer["part 1 test"] = part1::answer(pTest1);
+    // answer["part 1 test"] = part1::answer(pTest1);
     // answer["part 1"] = part1::answer(pData);
-    answer["part 2 test"] = part2::answer(pTest1);
-    answer["part 2"] = part2::answer(pData);
+    answer["part 2 test"] = part2::answer<5>(pTest1);
+    answer["part 2"] = part2::answer<12>(pData);
 
     for (auto [caption, result] : answer) {
         std::cout << "\nanswer[" << caption << "] : " << result;
