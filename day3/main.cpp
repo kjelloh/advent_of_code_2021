@@ -13,6 +13,76 @@ extern char const* pTest1;
 extern char const* pData;
 
 using Result = size_t;
+using BinaryNumber = std::string;
+using DiagnosticReport = std::vector<BinaryNumber>;
+
+DiagnosticReport diagnostic_report(char const* pData) {
+    DiagnosticReport result{};
+    std::istringstream in{ pData };
+    BinaryNumber entry{};
+    while (in >> entry) {
+        std::cout << "\nentry : " << entry;
+        result.push_back(entry);
+    }
+    return result;
+}
+
+using Rates = std::map<int, Result>;
+
+Rates rates_of_ones_in_report(DiagnosticReport const& r) {
+    Rates result;
+    for (auto const& e : r) {
+        for (int i = 0; i < e.size(); i++) {
+            result[i] += (e[i] == '1')?1:0;
+        }
+    }
+    return result;
+}
+
+void print_rates(Rates const& rates) {
+    std::cout << "\nprint_rates : ";
+    for (auto [i,r] : rates) {
+        std::cout << "{index=" << i << ",rate=" << r << "}";
+    }
+}
+
+BinaryNumber to_rate(Rates const& rates,auto rate_digit_op) {
+    BinaryNumber result;
+    for (int i = 0; i < rates.size(); i++) {
+        result += rate_digit_op(rates.at(i));
+    }
+    return result;
+}
+
+Result to_result(BinaryNumber const& b) {
+    Result result{};
+    for (char ch : b) {
+        result *= 2;
+        result += (ch - '0');
+    }
+    return result;
+}
+
+namespace part2 {
+    Result answer(char const* pData) {
+        Result result{};
+        auto report = diagnostic_report(pData);
+        std::cout << "\nreport size : " << report.size();
+        auto rates_of_ones = rates_of_ones_in_report(report);
+        print_rates(rates_of_ones);
+        auto gamma_rate = to_rate(rates_of_ones, [report_entry_count = report.size()](auto const& count_of_ones) {
+            return (count_of_ones > report_entry_count/2)?'1':'0';
+        });
+        auto epsilon_rate = to_rate(rates_of_ones, [report_entry_count = report.size()](auto const& count_of_ones) {
+            return (count_of_ones < report_entry_count / 2) ? '1' : '0';
+        });
+        std::cout << "\ngamma rate : " << gamma_rate;
+        std::cout << "\nepsilon rate : " << epsilon_rate;
+        result = to_result(gamma_rate) * to_result(epsilon_rate);
+        std::cout << "\n";
+        return result;
+    }
+}
 
 namespace part1 {
     Result answer(char const* pData) {
@@ -59,8 +129,15 @@ namespace part1 {
 
 int main(int argc, char *argv[]) {
     std::cout << "\nWelcome :)";
-    std::cout << "\nanswer[part 1 test] : " << part1::answer(pTest1);
-    std::cout << "\nanswer[part 1] : " << part1::answer(pData);
+    std::map<std::string, Result> answer;
+    answer["part 1 test"] = part1::answer(pTest1);
+    // answer["part 1"] = part1::answer(pData);
+    answer["part 2 test"] = part2::answer(pTest1);
+    answer["part 2"] = part2::answer(pData);
+
+    for (auto [caption, result] : answer) {
+        std::cout << "\nanswer[" << caption << "] : " << result;
+    }
     std::cout << "\nPress <enter>...";
     std::cin.get();
     std::cout << "Bye!";
