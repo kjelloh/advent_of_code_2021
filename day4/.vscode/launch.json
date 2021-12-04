@@ -24,6 +24,19 @@
             ],
             "preLaunchTask": "C/C++: g++-8 build active file",
             "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "g++-11 - Build and debug active file",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}.out",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "C/C++: g++-11 build active file"
         }
     ]
 }
