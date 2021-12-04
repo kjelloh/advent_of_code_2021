@@ -9,13 +9,18 @@
 
 template<int N>
 struct Env {
-    char const* pData;
-    std::vector<int> draws{};
     using Row = std::array<int,N>;
     using Board = std::array<Row,N>;
-    static int const BOARD_SIZE = N;
+    using Mark = std::array<std::array<bool,N>,N>;
+    using BoardsMark = std::vector<Mark>;
 
+    char const* pData;
+    std::vector<int> draws{};
     std::vector<Board> boards{};
+    BoardsMark bms{};
+    int last_call{};
+
+    static int const BOARD_SIZE = N;
 };
 
 using Environment = Env<5>;
@@ -110,6 +115,7 @@ void create_boards() {
 
 void print_board_state(auto& board,auto& bm) {
     std::cout << "\nBOARD STATE";
+    std::cout << " bm.size=" << bm.size();
     for (int i = 0; i < env.BOARD_SIZE; i++) {
         std::cout << "\n";
         std::copy(std::begin(board[i]),std::end(board[i]),std::ostream_iterator<int>(std::cout," "));
@@ -142,16 +148,19 @@ void mark_boards(auto& bms,auto number) {
         mark_board(env.boards[i],bms[i],number);
         print_board_state(env.boards[i],bms[i]);
     }
+    env.last_call = number;
 }
 
 bool is_winning_board(auto& bm) {
-    bool result{};
+    std::cout << "\nis_winning_board:";
+    bool result{false};
     if (std::any_of(std::begin(bm),std::end(bm),[](auto& bm_row){
         return std::all_of(std::begin(bm_row),std::end(bm_row),[](auto& b) {
             return b;
         });
     })) result = true;
     else {
+        std::cout << "\nacc bm.size=" << bm.size();
         auto acc = std::accumulate(std::begin(bm),std::end(bm),bm[0],[](auto& acc,auto& bm_row) {
             for (int i = 0; i<acc.size(); i++) acc[i]&=bm_row[i];
             // print column flags
@@ -165,24 +174,50 @@ bool is_winning_board(auto& bm) {
             return b;
         })) result = true;
     }
-    if (result) std::cout << "\nWinning Board!";
+    if (result) std::cout << "YES";
     return result;
 }
 
 void play() {
-    using Mark = std::array<std::array<bool,Environment::BOARD_SIZE>,Environment::BOARD_SIZE>;
-    using BoardsMark = std::vector<Mark>;
-    BoardsMark bms{env.boards.size(),Mark{}};
+    env.bms = Environment::BoardsMark{env.boards.size(),Environment::Mark{}};
+    std::cout << "\nbms.size=" << env.bms.size();
     for (auto const& number : env.draws) {
-        mark_boards(bms,number);
-        if (std::any_of(std::begin(bms),std::end(bms),[](auto& bm) {
+        mark_boards(env.bms,number);
+        if (std::any_of(std::begin(env.bms),std::end(env.bms),[](auto& bm) {
             return is_winning_board(bm);
         })) break;
         
     }
-    print_board_states(bms);
+    print_board_states(env.bms);
 }
-auto calculate_answer() {return 0;}
+
+size_t sum_unmarked_numbers(auto& board, auto& bm) {
+    size_t result{};
+    for (int i=0;i<board.size();i++) {
+        for (int j=0;j<board[i].size();j++) {
+            if (bm[i][j] == false) {
+                std::cout << " sum:" << board[i][j];
+                result += board[i][j];
+            }
+        }
+
+    }
+    std::cout << "\nsum=" << result;
+    return result;
+}
+
+auto calculate_answer() {
+    size_t result{};
+    for (int i=0;i<env.boards.size();i++) {
+        if (is_winning_board(env.bms[i])) {
+            // Sum all unmarked numbers on this winning board
+            auto sum = sum_unmarked_numbers(env.boards[i],env.bms[i]);
+            std::cout << "\nlast call = " << env.last_call;
+            result = sum * env.last_call;
+        }
+    }
+    return result;
+}
 void print_answer(auto answer) {std::cout << "\nanswer=" << answer;}
 
 namespace part1 {
@@ -202,9 +237,10 @@ namespace part1 {
 
 int main(int argc, char *argv[]) {
     part1::solve();
+    std::cout << "\n";
 }
 
-char const* pTest = R"(19,7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1
+char const* pTest = R"(7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1
 
 22 13 17 11  0
  8  2 23  4 24
