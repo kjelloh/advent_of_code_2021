@@ -53,8 +53,8 @@ namespace tokenize {
 extern char const* pTest;
 extern char const* pData; 
 
-Environment env{pTest};
-// Environment env{pData};
+// Environment env{pTest};
+Environment env{pData};
 
 void read_draws(std::istringstream& in) {
     std::string line{};
