@@ -177,9 +177,10 @@ bool is_winning_board(auto& bm) {
         });
     })) result = true;
     else {
-        auto acc = std::accumulate(std::begin(bm),std::end(bm),bm[0],[](auto& acc,auto& bm_row) {
-            for (int i = 0; i<acc.size(); i++) acc[i]&=bm_row[i];
-            return acc;
+        auto acc = std::accumulate(std::begin(bm),std::end(bm),bm[0],[](auto const& acc,auto const& bm_row) {
+            auto new_acc{ acc };
+            for (int i = 0; i<acc.size(); i++) new_acc[i]&=bm_row[i];
+            return new_acc;
         });
         if (std::any_of(std::begin(acc),std::end(acc),[](auto b) {
             return b;
