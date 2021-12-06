@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <numeric>
+#include <utility>
 
 extern char const* pTest;
 extern char const* pData;
@@ -106,17 +107,17 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
-    // auto answer = part1::answer(pTest);
-    // std::cout << "\nanswer[part 1 test] = " << answer;
-    // answer = part1::answer(pData);
-    // std::cout << "\nanswer[part 1] = " << answer;
-    auto answer = part2::answer<80>(pTest);
-    std::cout << "\nanswer[part 2 test] = " << answer;
-    answer = part2::answer<80>(pData);
-    std::cout << "\nanswer[part 1 with part 2] = " << answer;
-    answer = part2::answer<256>(pData);
-    std::cout << "\nanswer[part 2] = " << answer;
-
+    std::vector<std::pair<std::string, Answer>> answers{};
+    answers.push_back({ "answer[part 1 test]",part1::answer(pTest) });
+    answers.push_back({ "answer[part 1]",part1::answer(pData) });
+    answers.push_back({ "answer[part 1 test with part 2]",part2::answer<80>(pTest) });
+    answers.push_back({ "answer[part 1 with part 2]",part2::answer<80>(pData) });
+    answers.push_back({ "answer[part 2]", part2::answer<256>(pData) });
+    for (auto const& answer : answers) {
+        std::cout << "\n" << answer.first << " " << answer.second;
+    }
+    std::cout << "\nPress <enter>...";
+    std::cin.get();
     std::cout << "\n";
 }
 
