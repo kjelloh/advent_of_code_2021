@@ -103,6 +103,8 @@ int main(int argc, char *argv[])
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
+  std::cout << "\nPress <enter>...";
+  std::cin.get();
   std::cout << "\n";
   return 0;
 }
