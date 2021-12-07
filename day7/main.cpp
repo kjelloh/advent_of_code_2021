@@ -31,11 +31,9 @@ namespace part1 {
     Result result{};
     std::stringstream in{pData};
     auto positions = parse(in);
-    for (auto const& position : positions) {
-      std::cout << " " << position;
-    }
-    // We are looking for the medoid point
-    // Part 1 - do it the naive way O(2)
+    // for (auto const& position : positions) {
+    //   std::cout << " " << position;
+    // }
     std::vector<size_t> distance_sums{};
     for (int i=0;i<positions.size();i++) {
       size_t distance_sum = 0;
@@ -43,13 +41,13 @@ namespace part1 {
         auto distance = std::abs(positions[j] - positions[i]);
         distance_sum += distance;
       }
-      std::cout << " i:" << i;
+      // std::cout << " i:" << i;
       distance_sums.push_back(distance_sum);
     }
-    std::cout << "\ndistance_sums ";
-    for (auto const& distance_sum : distance_sums) {
-      std::cout << " " << distance_sum;
-    }
+    // std::cout << "\ndistance_sums ";
+    // for (auto const& distance_sum : distance_sums) {
+    //   std::cout << " " << distance_sum;
+    // }
     auto iter = std::min_element(distance_sums.begin(),distance_sums.end());
     std::cout << "\nmin travel is " << *iter << " to point " << std::distance(distance_sums.begin(),iter);
     result = *iter;
@@ -62,11 +60,9 @@ namespace part2 {
     Result result{};
     std::stringstream in{pData};
     auto positions = parse(in);
-    for (auto const& position : positions) {
-      std::cout << " " << position;
-    }
-    // We are actually NOT looking for the medoid point
-    // e are looking at any x-position in teh range of crab positions
+    // for (auto const& position : positions) {
+    //   std::cout << " " << position;
+    // }
     auto max_iter = std::max_element(positions.begin(),positions.end());
     auto min_iter = std::min_element(positions.begin(),positions.end());
     std::cout << "\nposition range " << *min_iter << "..." << *max_iter;
@@ -76,20 +72,20 @@ namespace part2 {
       size_t distance_sum = 0;
       for (int j = 0; j<positions.size();j++) {
         auto distance = std::abs(positions[j] - i);
-        std::cout << "\n" << positions[j] << " to " << i;
+        // std::cout << "\n" << positions[j] << " to " << i;
         size_t travel_cost = 0;
         for (int d=1;d<=distance;d++) {
           travel_cost += d;          
         }
-        std::cout << " " << travel_cost << " Fuel"; 
+        // std::cout << " " << travel_cost << " Fuel"; 
         distance_sum += travel_cost;
       }
       distance_sums.push_back(distance_sum);
     }
-    std::cout << "\ndistance_sums ";
-    for (auto const& distance_sum : distance_sums) {
-      std::cout << " " << distance_sum;
-    }
+    // std::cout << "\ndistance_sums ";
+    // for (auto const& distance_sum : distance_sums) {
+    //   std::cout << " " << distance_sum;
+    // }
     auto iter = std::min_element(distance_sums.begin(),distance_sums.end());
     std::cout << "\nmin travel is " << *iter << " to point " << std::distance(distance_sums.begin(),iter);
     result = *iter;
@@ -100,8 +96,8 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
