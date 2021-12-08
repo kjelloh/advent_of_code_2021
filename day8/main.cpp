@@ -17,6 +17,8 @@
 
 char const* pNaiveTest = R"(abcefg cf acdeg acdfg bcdf abdfg abdefg acf abcdefg abcdfg |
 cf acdeg acdfg bcdf)"; // results in display 1234
+char const* pSingleTest = R"(acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab |
+cdfeb fcadb cdfeb cdbaf)";
 extern char const* pTest;
 extern char const* pData;
 
@@ -55,10 +57,11 @@ Entries parse(std::istream& in) {
     if (left.size() > 0) {
       // std::cout << "\nleft:\"" << left << "\"";
       std::stringstream sl{left};
-      for (int i=0; i<4;i++) {
-        std::string s{};
-        sl>>s;
-        entry.up[i] = s;
+      std::string s{};
+      int i{0};
+      while (sl >> s) {
+        std::sort(s.begin(), s.end());
+        entry.up[i++] = s;
         // std::cout << "\ndp[" << i << "]:" << s;
       }
     }
@@ -68,6 +71,7 @@ Entries parse(std::istream& in) {
       for (int i=0; i<4;i++) {
         std::string s{};
         sr>>s;
+        std::sort(s.begin(), s.end());
         entry.dp[i] = s;
         // std::cout << "\ndp[" << i << "]:" << s;
       }
@@ -150,6 +154,7 @@ namespace part2 {
   char digit_of_pattern(std::string const& pattern,auto const& rewiring) {
     char result{'?'};
     auto rewired_pattern = rewired(pattern,rewiring);
+    std::sort(rewired_pattern.begin(), rewired_pattern.end());
     if (SEGMENTS_TO_DIGIT.contains(rewired_pattern)) {
       result = SEGMENTS_TO_DIGIT.at(rewired_pattern);
       std::cout << "\n\n\n\tdigit_of_pattern " << pattern << " is " << result;
@@ -191,8 +196,8 @@ namespace part2 {
       size_t loop_count{0};
       ReWiring rewiring{init_rewiring()};
       auto rewiring_pattern = rewired("abcdefg",rewiring);
-      bool invalid_display_number{true};
-      while (invalid_display_number) {
+      bool invalid_rewiring{true};
+      while (invalid_rewiring) {
         // try a rewiring permutation
         if (++loop_count%1 == 0) {
           std::cout << "\n\tTry #" << loop_count << " with rewiring " << rewiring_pattern;
@@ -211,7 +216,7 @@ namespace part2 {
           return digit_of_pattern(p, rewiring);
         });
         std::cout << "\ntransformed: " << unique_digits << " | " << displayed_number;
-        invalid_display_number = (displayed_number.find('?') != std::string::npos); // found '?' = invalid display digit
+        invalid_rewiring = (unique_digits.find('?') != std::string::npos); // found '?' = in unique digits transform
         // Try next permutation of rewiring
         auto try_next_permutation = std::next_permutation(rewiring_pattern.begin(), rewiring_pattern.end());
         if (try_next_permutation) {
@@ -244,9 +249,10 @@ int main(int argc, char *argv[])
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
   // answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pNaiveTest)});
-  answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  // answers.push_back({"Part 2 Naive Test",part2::solve_for(pNaiveTest)});
+  // answers.push_back({"Part 2 Single Test",part2::solve_for(pSingleTest)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+  answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
