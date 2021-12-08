@@ -14,7 +14,6 @@
 #include <map>
 #include <algorithm>
 
-
 char const* pNaiveTest = R"(abcefg cf acdeg acdfg bcdf abdfg abdefg acf abcdefg abcdfg |
 cf acdeg acdfg bcdf)"; // results in display 1234
 char const* pSingleTest = R"(acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab |
@@ -157,7 +156,7 @@ namespace part2 {
     std::sort(rewired_pattern.begin(), rewired_pattern.end());
     if (SEGMENTS_TO_DIGIT.contains(rewired_pattern)) {
       result = SEGMENTS_TO_DIGIT.at(rewired_pattern);
-      std::cout << "\n\n\n\tdigit_of_pattern " << pattern << " is " << result;
+      // std::cout << "\n\n\n\tdigit_of_pattern " << pattern << " is " << result;
     }
     return result;
   }
@@ -191,7 +190,7 @@ namespace part2 {
      */
     for (auto const& entry : entries ) {
       // Brute force - test all rewiring permutations until we get a valid display output
-      std::cout << "\nentry:";
+      // std::cout << "\nentry:";
       std::string displayed_number{"????"};
       size_t loop_count{0};
       ReWiring rewiring{init_rewiring()};
@@ -199,23 +198,23 @@ namespace part2 {
       bool invalid_rewiring{true};
       while (invalid_rewiring) {
         // try a rewiring permutation
-        if (++loop_count%1 == 0) {
-          std::cout << "\n\tTry #" << loop_count << " with rewiring " << rewiring_pattern;
-        }
+//        if (++loop_count%1 == 0) {
+//          std::cout << "\n\tTry #" << loop_count << " with rewiring " << rewiring_pattern;
+//        }
         // We should get a valid digit for all 10 unique patterns?
-        std::cout << "\ntransform: ";
+//        std::cout << "\ntransform: ";
         std::string unique_digits{"??????????"};
         std::transform(entry.up.begin(),entry.up.end(),unique_digits.begin(),[&rewiring](auto const& p){
-          std::cout << " " << p;
+//          std::cout << " " << p;
           return digit_of_pattern(p, rewiring);
         });
-        std::cout << " | ";
+//        std::cout << " | ";
         // we must get a valdid digit for all 4 digit patterns (brute force)
         std::transform(entry.dp.begin(), entry.dp.end(), displayed_number.begin(), [&rewiring](auto const& p){
-          std::cout << " " << p;
+//          std::cout << " " << p;
           return digit_of_pattern(p, rewiring);
         });
-        std::cout << "\ntransformed: " << unique_digits << " | " << displayed_number;
+//        std::cout << "\ntransformed: " << unique_digits << " | " << displayed_number;
         invalid_rewiring = (unique_digits.find('?') != std::string::npos); // found '?' = in unique digits transform
         // Try next permutation of rewiring
         auto try_next_permutation = std::next_permutation(rewiring_pattern.begin(), rewiring_pattern.end());
@@ -232,11 +231,11 @@ namespace part2 {
           break; // out of permutations
         }
       };
-      std::cout << "\nsignals ";
-      for (auto const& pattern : entry.dp) {
-        std::cout << " " << pattern;
-      }
-      std::cout << " is number " << displayed_number;
+//      std::cout << "\nsignals ";
+//      for (auto const& pattern : entry.dp) {
+//        std::cout << " " << pattern;
+//      }
+//      std::cout << " is number " << displayed_number;
 
       result += std::stoi(displayed_number);
     }
@@ -247,11 +246,11 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Naive Test",part2::solve_for(pNaiveTest)});
-  // answers.push_back({"Part 2 Single Test",part2::solve_for(pSingleTest)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+  answers.push_back({"Part 2 First Entry Test",part2::solve_for(pSingleTest)});
+  answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
