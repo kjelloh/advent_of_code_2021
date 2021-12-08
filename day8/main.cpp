@@ -11,7 +11,12 @@
 #include <sstream>
 #include <array>
 #include <numeric>
+#include <map>
+#include <algorithm>
 
+
+char const* pNaiveTest = R"(abcefg cf acdeg acdfg bcdf abdfg abdefg acf abcdefg abcdfg |
+cf acdeg acdfg bcdf)"; // results in display 1234
 extern char const* pTest;
 extern char const* pData;
 
@@ -34,18 +39,35 @@ Entries parse(std::istream& in) {
   while (std::getline(in, sToken)) {
     // std::cout << "\nsToken:" << sToken;
     std::string left{};
-    if (sToken[sToken.size()-1] == '|') left = "";
-    else if (auto pos = sToken.find('|'); pos != std::string::npos) {
-      left = sToken.substr(pos+1);
+    std::string right{};
+    if (sToken[sToken.size()-1] == '|') {
+      left = sToken.substr(0,sToken.size()-1);
+      right = "";
     }
-    else left = sToken;
+    else if (auto pos = sToken.find('|'); pos != std::string::npos) {
+      left = sToken.substr(0,pos-1);
+      right = sToken.substr(pos+1);
+    }
+    else {
+      right = sToken;
+    }
     
     if (left.size() > 0) {
       // std::cout << "\nleft:\"" << left << "\"";
-      std::stringstream ss{left};
+      std::stringstream sl{left};
       for (int i=0; i<4;i++) {
         std::string s{};
-        ss>>s;
+        sl>>s;
+        entry.up[i] = s;
+        // std::cout << "\ndp[" << i << "]:" << s;
+      }
+    }
+    if (right.size() > 0) {
+      // std::cout << "\nright:\"" << left << "\"";
+      std::stringstream sr{right};
+      for (int i=0; i<4;i++) {
+        std::string s{};
+        sr>>s;
         entry.dp[i] = s;
         // std::cout << "\ndp[" << i << "]:" << s;
       }
@@ -74,17 +96,156 @@ namespace part1 {
 }
 
 namespace part2 {
+  using ReWiring = std::map<char,char>;
+
+  const std::map<std::string,char> SEGMENTS_TO_DIGIT{
+  /*
+   0:      1:      2:      3:      4:
+  aaaa    ....    aaaa    aaaa    ....
+ b    c  .    c  .    c  .    c  b    c
+ b    c  .    c  .    c  .    c  b    c
+  ....    ....    dddd    dddd    dddd
+ e    f  .    f  e    .  .    f  .    f
+ e    f  .    f  e    .  .    f  .    f
+  gggg    ....    gggg    gggg    ....
+
+   5:      6:      7:      8:      9:
+  aaaa    aaaa    aaaa    aaaa    aaaa
+ b    .  b    .  .    c  b    c  b    c
+ b    .  b    .  .    c  b    c  b    c
+  dddd    dddd    ....    dddd    dddd
+ .    f  e    f  .    f  e    f  .    f
+ .    f  e    f  .    f  e    f  .    f
+  gggg    gggg    ....    gggg    gggg
+   */
+   {"abcefg",'0'}
+  ,{"cf",'1'}
+  ,{"acdeg",'2'}
+  ,{"acdfg",'3'}
+  ,{"bcdf",'4'}
+  ,{"abdfg",'5'}
+  ,{"abdefg",'6'}
+  ,{"acf",'7'}
+  ,{"abcdefg",'8'}
+  ,{"abcdfg",'9'}};
+
+  ReWiring init_rewiring() {
+    ReWiring result{};
+    for (int i = 0; i<8;i++) {
+      result['a'+i] = ('a'+i);
+    }
+    return result;
+  }
+
+  std::string rewired(std::string const& pattern,auto const& rewiring) {
+    std::string result{pattern};
+    for (int i=0;i< pattern.size();i++) {
+      result[i] = rewiring.at(pattern[i]);
+//      std::cout << "\nrewired " << pattern[i];
+//      std::cout << " to " << result[i];
+    }
+    return result;
+  }
+
+  char digit_of_pattern(std::string const& pattern,auto const& rewiring) {
+    char result{'?'};
+    auto rewired_pattern = rewired(pattern,rewiring);
+    if (SEGMENTS_TO_DIGIT.contains(rewired_pattern)) {
+      result = SEGMENTS_TO_DIGIT.at(rewired_pattern);
+      std::cout << "\n\n\n\tdigit_of_pattern " << pattern << " is " << result;
+    }
+    return result;
+  }
+  bool is_valid_digit(auto const& pattern,auto const& rewiring) {
+    bool result{false};
+    // is valid digit is rewiring of pattern lights up a digit
+    auto digit = digit_of_pattern(pattern, rewiring);
+    result = (digit>='0' and digit<='9');
+    return result;
+  }
+    
   Result solve_for(char const* pData) {
-      return {};
+    Result result{};
+    std::stringstream in{pData};
+    auto entries = parse(in);
+    /*
+     Find out how to permutate the 10 unique patterns so that they map to
+     correct digits '0'...'9' on the display.
+     
+     Then translate the 4 digit drive signals to the correct ones and
+     interpret the displayed number.
+     */
+    /*
+    {
+      // Test
+      for (auto const& entry : SEGMENTS_TO_DIGIT) {
+        auto digit = digit_of_pattern(entry.first,rewiring);
+        std::cout << "\ndigit_of_pattern " << entry.first << " is " << digit;
+      }
+    }
+     */
+    for (auto const& entry : entries ) {
+      // Brute force - test all rewiring permutations until we get a valid display output
+      std::cout << "\nentry:";
+      std::string displayed_number{"????"};
+      size_t loop_count{0};
+      ReWiring rewiring{init_rewiring()};
+      auto rewiring_pattern = rewired("abcdefg",rewiring);
+      bool invalid_display_number{true};
+      while (invalid_display_number) {
+        // try a rewiring permutation
+        if (++loop_count%1 == 0) {
+          std::cout << "\n\tTry #" << loop_count << " with rewiring " << rewiring_pattern;
+        }
+        // We should get a valid digit for all 10 unique patterns?
+        std::cout << "\ntransform: ";
+        std::string unique_digits{"??????????"};
+        std::transform(entry.up.begin(),entry.up.end(),unique_digits.begin(),[&rewiring](auto const& p){
+          std::cout << " " << p;
+          return digit_of_pattern(p, rewiring);
+        });
+        std::cout << " | ";
+        // we must get a valdid digit for all 4 digit patterns (brute force)
+        std::transform(entry.dp.begin(), entry.dp.end(), displayed_number.begin(), [&rewiring](auto const& p){
+          std::cout << " " << p;
+          return digit_of_pattern(p, rewiring);
+        });
+        std::cout << "\ntransformed: " << unique_digits << " | " << displayed_number;
+        invalid_display_number = (displayed_number.find('?') != std::string::npos); // found '?' = invalid display digit
+        // Try next permutation of rewiring
+        auto try_next_permutation = std::next_permutation(rewiring_pattern.begin(), rewiring_pattern.end());
+        if (try_next_permutation) {
+          // One more permuation to try
+          for (int i = 0;i<7;i++) {
+            rewiring['a'+i] = rewiring_pattern[i];
+            // std::cout << "\n\t" << static_cast<char>('a'+i) << " -> " << rewiring_pattern[i];
+          }
+        }
+        else {
+          std::cout << "\nfailed: Out of permutations before valid display number!";
+          std::cout << "\nTry count = " << loop_count;
+          break; // out of permutations
+        }
+      };
+      std::cout << "\nsignals ";
+      for (auto const& pattern : entry.dp) {
+        std::cout << " " << pattern;
+      }
+      std::cout << " is number " << displayed_number;
+
+      result += std::stoi(displayed_number);
+    }
+    return result;
   }
 }
 
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(pNaiveTest)});
+  answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
