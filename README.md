@@ -54,9 +54,16 @@ struct IContainer {
             return w; })
         | std::views::transform([](auto const a) {return std::accumulate(std::begin(a),std::end(a),0); })
         | std::views::transform([&prev](auto const d) {auto result = d > prev; prev = d; return result; });
+```
 * At first I used static members for the windows w and prev variables but then these values would of course fail to initiate for all but the first call ;)
 # day2
+For this puzzle I struggled mostly with parsing the input.
+* I stuck with the std::sregex_token_iterator IContainer from day 1 as I thought maybe I could use this approach to parse all puzzle inout to come. But the result was that parsing become overly complicated.
 # day3
+The day 3 puzzle was one of those I easilly stumble on due to all samll +/- one and true/false problems.
+* I failed to design the code so that I did not shoot myself in the foot over and over again.
+* For me part of the challange of this puzzle was that I falied to name "things" properly so that my code could "talk" about the problem in a clear way.
+* After I finished I was left with the feeling that this problem was in fact just a transform + accumulate problem? If I have time I want to come back to is and solve it properly.
 # day4
 # day5
 # day6
