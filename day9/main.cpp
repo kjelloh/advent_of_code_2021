@@ -1,10 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <utility>
 #include <sstream>
 #include <algorithm>
-#include <array>
 #include <numeric>
 #include <set>
 #include <iterator>
@@ -79,13 +77,6 @@ bool is_min_point(Point const& p, DepthMap const& map) {
 
 Points find_min_points(auto const& map) {
     Points result{};
-    /*
-    // Test: 2,1,6,6 (2,3,9,15)
-    result.push_back({ 1,0 });
-    result.push_back({ 9,0 });
-    result.push_back({ 2,2 });
-    result.push_back({ 6,4 });
-    */
     for (int y = 0; y < map.size(); y++) {
         // y is down
         for (int x = 0; x < map[y].size(); x++) {
@@ -151,15 +142,6 @@ namespace part2 {
     }
     std::vector<int> basin_sizes_of(Points const& min_points,DepthMap const& map) {
         std::vector<int> result{};
-        /*
-        result.push_back(9);
-        result.push_back(14);
-        result.push_back(9);
-        */
-        if (false) {
-            // basin size of {1,0} is 3
-            std::cout << "\nbasin size of {1,0} = " << basin_size({1,0},map);
-        }
         for (auto const& min_point : min_points) {
             result.push_back(basin_size(min_point,map));
         }
