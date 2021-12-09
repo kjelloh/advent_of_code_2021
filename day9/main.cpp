@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <array>
 #include <numeric>
+#include <set>
+#include <iterator>
 
 extern char const* pTest;
 extern char const* pData;
@@ -43,6 +45,9 @@ enum Increment {
 
 struct Point {
     int x, y; // x horizintal (+ = right), y vertical (+ = down)
+    bool operator<(Point const& other) const {
+        return (x*10000+y < other.x*10000+other.y);
+    }
 };
 using Points = std::vector<Point>;
 
@@ -52,7 +57,7 @@ const Vector RIGHT{ Increment::right,0 };
 const Vector UP{ 0,Increment::up };
 const Vector DOWN{ 0,Increment::down };
 
-Point operator+(Point const& p, Vector const& v) { return {p.x+v.x,p.y+v.y}; }
+Point operator+(Point const& p, Vector const& v) { return { p.x + v.x,p.y + v.y }; }
 
 bool on_map(Point const& p, auto const& map) {
     return (p.x < map[0].size() and p.y < map.size());
@@ -64,11 +69,11 @@ bool is_min_point(Point const& p, DepthMap const& map) {
     Point right = p + RIGHT;
     Point above = p + UP;
     Point below = p + DOWN;
-    Points neighbours{left,right,above,below};
-    result = std::accumulate(neighbours.begin(), neighbours.end(), true, [&map, center = p ](auto acc, auto const& p) {
+    Points neighbours{ left,right,above,below };
+    result = std::accumulate(neighbours.begin(), neighbours.end(), true, [&map, center = p](auto acc, auto const& p) {
         if (on_map(p, map)) acc = acc and (map[center.y][center.x] < map[p.y][p.x]);
         return acc;
-    });
+        });
     return result;
 }
 
@@ -101,27 +106,87 @@ namespace part1 {
         std::stringstream in{ pData };
         auto map = parse(in);
         auto min_points = find_min_points(map);
-        Result result = std::accumulate(min_points.begin(), min_points.end(), Result{ 0 }, [&map](auto acc,auto const& p) {
-            acc += risk_level_of_point(p,map);
+        Result result = std::accumulate(min_points.begin(), min_points.end(), Result{ 0 }, [&map](auto acc, auto const& p) {
+            acc += risk_level_of_point(p, map);
             return acc;
-        });
+            });
         return result;
     }
 }
 
 namespace part2 {
+    using Basin = std::set<Point>;
+    using Frontier = std::set<Point>;
+    Frontier expand_frontier(Frontier const& frontier, Basin const& basin, DepthMap const& map) {
+        Frontier result{};
+        std::vector<Points> points_vector{};
+        std::transform(frontier.begin(), frontier.end(), std::back_inserter(points_vector), [](auto const p) {
+            Points candidates{ {p + LEFT},{p + UP},{p + RIGHT},{p+DOWN} };
+            return candidates;
+            });
+        for (auto const& points : points_vector) {
+            for (auto const& point : points) {
+                if (on_map(point, map) and basin.contains(point) == false) {
+                    if (map[point.y][point.x] < 9) result.insert(point);
+                }
+            }
+        }
+        return result;
+    }
+    Result basin_size(Point const& min_point, DepthMap const& map) {
+        Result result{};
+        Frontier old_frontier{ min_point };
+        Basin basin{};
+        while (true) {
+            auto new_frontier = expand_frontier(old_frontier, basin, map);
+            if (new_frontier.size() == 0) break;
+            for (auto const& point : new_frontier) {
+                basin.insert(point);
+            }
+            old_frontier = new_frontier;
+        }
+        result = basin.size();
+        std::cout << "\nbasin size of {" << min_point.x << "," << min_point.y << "} is " << result;
+        return result;
+    }
+    std::vector<int> basin_sizes_of(Points const& min_points,DepthMap const& map) {
+        std::vector<int> result{};
+        /*
+        result.push_back(9);
+        result.push_back(14);
+        result.push_back(9);
+        */
+        if (false) {
+            // basin size of {1,0} is 3
+            std::cout << "\nbasin size of {1,0} = " << basin_size({1,0},map);
+        }
+        for (auto const& min_point : min_points) {
+            result.push_back(basin_size(min_point,map));
+        }
+        return result;
+    }
     Result solve_for(char const* pData) {
-        return {};
+        Result result{};
+        std::stringstream in{ pData };
+        auto map = parse(in);
+        auto min_points = find_min_points(map);
+        auto basin_sizes = basin_sizes_of(min_points,map);
+        std::sort(basin_sizes.begin(), basin_sizes.end(), std::greater{});
+        result = std::accumulate(basin_sizes.begin(), basin_sizes.begin() + 3, Result{ 1 }, [](auto acc,auto size) {
+            acc *= size;
+            return acc;
+            });
+        return result;
     }
 }
 
 int main(int argc, char* argv[])
 {
     Answers answers{};
-    answers.push_back({ "Part 1 Test",part1::solve_for(pTest) });
-    answers.push_back({ "Part 1     ",part1::solve_for(pData) });
-    // answers.push_back({ "Part 2 Test",part2::solve_for(pTest) });
-    // answers.push_back({ "Part 2     ",part2::solve_for(pData) });
+    // answers.push_back({ "Part 1 Test",part1::solve_for(pTest) });
+    // answers.push_back({ "Part 1     ",part1::solve_for(pData) });
+    answers.push_back({ "Part 2 Test",part2::solve_for(pTest) });
+    answers.push_back({ "Part 2     ",part2::solve_for(pData) });
     for (auto const& answer : answers) {
         std::cout << "\nanswer[" << answer.first << "] " << answer.second;
     }
