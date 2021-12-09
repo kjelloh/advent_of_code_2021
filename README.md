@@ -15,7 +15,7 @@ C++ Source code requires between C++14 and C++20 (C++2a on Visual Studio 2022)
 # day1
 Pitfalls for me in C++ for this puzzle.
 * I wanted to try C++20 std::ranges which was overkill for this puzzle and only created more work than called for.
-* To make the puzzle input become a range of integers I used std::sregex_token_iterator
+* To make the puzzle input become a range of integers I used std::sregex_token_iterator (I think std::istream_iterator would have sufficed for the simple input in this case)
 
 ```
 Result part1(auto const pData) {
@@ -29,7 +29,9 @@ Result part1(auto const pData) {
     auto result = std::accumulate(std::begin(depths), std::end(depths), 0, [](auto const& acc, auto const& b) {return b ? acc + 1 : acc; });
     return result-1;
 }
-* I hand-rolled a helper struct to turn the regex iterator into an actuak range (begin,end)
+```
+* I hand-rolled a helper struct to turn the regex iterator into an actual range (begin,end) (I now think std::ranges::subrange does the very same thing?)
+
 ```
 template <class I>
 struct IContainer {
@@ -37,8 +39,22 @@ struct IContainer {
     I begin() { return iter; }
     I end() { return I{};}
 };
-
-
+```
+* For part 2 I had to add internal states to the range adaptors to handle the 3-value window processing.
+```
+    std::array<int, 3> w = { 0,0,0 }; // Initial "window"
+    auto prev{ 0 }; // previous value for adjacent compare
+    const std::regex ws_re("\\s+"); // whitespace
+    auto sdepths = IContainer<std::sregex_token_iterator>{ std::sregex_token_iterator(sdata.begin(), sdata.end(), ws_re, -1) };
+    auto depths = sdepths
+        | std::views::transform([](auto const s) {return std::stoi(s); })
+        | std::views::transform([&w](auto const d) {
+            std::rotate(std::rbegin(w), std::rbegin(w) + 1, std::rend(w));
+            w[0] = d;
+            return w; })
+        | std::views::transform([](auto const a) {return std::accumulate(std::begin(a),std::end(a),0); })
+        | std::views::transform([&prev](auto const d) {auto result = d > prev; prev = d; return result; });
+* At first I used static members for the windows w and prev variables but then these values would of course fail to initiate for all but the first call ;)
 # day2
 # day3
 # day4
