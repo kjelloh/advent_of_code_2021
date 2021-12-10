@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <ranges>
 #include <stack>
+#include <numeric>
 
 extern char const* pTest;
 extern char const* pData;
@@ -23,7 +24,7 @@ Lines parse(std::istream& in) {
   std::string entry{};
   while (in >> entry) {
     result.push_back(entry);
-    std::cout << "\nentry:" << entry;
+    // std::cout << "\nentry:" << entry;
   }
   return result;
 }
@@ -49,8 +50,8 @@ bool are_matching_chars(char open_char,char close_char) {
   return result; 
 }
 
-auto corrupted = [](Line const& line ){ 
-  bool result{false};
+auto corrupted_char = [](Line const& line)->char { 
+  char result{' '};
   Stack stack{};
   for (auto const& ch : line) {
     if (is_open_char(ch)) {
@@ -60,7 +61,7 @@ auto corrupted = [](Line const& line ){
     else {
       // std::cout << "\nclose: " << ch;
       if (stack.size()==0) {
-        result = true;
+        result = ch;
         break;
       }
       else {
@@ -70,12 +71,18 @@ auto corrupted = [](Line const& line ){
           stack.pop();
         }
         else {
-          result = true;
+          result = ch;
           break;
         }
       }
     } 
   }
+  std::cout << "\nillegal:" << result;
+  return result;
+};
+
+auto corrupted_line = [](Line const& line ) { 
+  bool result{corrupted_char(line) != ' '};
   // std::cout << "\nline: " << line;
   // if (result) std::cout << " CORRUPTED";
   // else std::cout << " not corrupted";
@@ -83,29 +90,42 @@ auto corrupted = [](Line const& line ){
 };
 
 namespace part1 {
+  auto score_acc = [](Result acc, char illegal_char){
+    Result result{acc};
+    switch (illegal_char) {
+    // ): 3 points.
+    // ]: 57 points.
+    // }: 1197 points.
+    // >: 25137 points.      
+      case ')' : result += 3; break; 
+      case '}' : result += 57; break; 
+      case ']' : result += 1197; break; 
+      case '>' : result += 25137; break; 
+    }
+    return result;
+  };
   Result solve_for(char const* pData) {
+    Result result{};
     {
       // Test
       std::string line{"[({(<(())[]>[[{[]{<()<>>"};
-      bool is_corrupted = corrupted(line);
+      bool is_corrupted = corrupted_line(line);
       std::cout << "\nline " << line;
       if (is_corrupted) std::cout << " is corrupted";
       else std::cout << " is ok";
     }
     std::stringstream in{pData};
     auto lines = parse(in);
-    auto corrupted_lines = lines
-      | std::views::filter(corrupted);
-    for (auto const& line : corrupted_lines) {
-      std::cout << "\nkeep line: " << line;
-    }
-    return {};
+    auto illegals = lines | std::views::filter(corrupted_line) | std::views::transform(corrupted_char);
+    result = std::accumulate(illegals.begin(),illegals.end(),Result{},score_acc);
+    return result;
   }
 }
 
 namespace part2 {
   Result solve_for(char const* pData) {
-      return {};
+    Result result{};
+    return result;
   }
 }
 
@@ -113,7 +133,7 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
