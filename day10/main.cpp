@@ -121,8 +121,88 @@ namespace part1 {
 }
 
 namespace part2 {
+  auto incomplete_line = [](Line const& line){
+    return (corrupted_line(line) == false);
+  };
+  char closing_char(char ch) {
+    char result{' '};
+    switch (ch) {
+      case '(' : result = ')'; break;
+      case '{' : result = '}'; break;
+      case '[' : result = ']'; break;
+      case '<' : result = '>'; break;
+      default:
+        std::cout << "\nERROR";
+    }
+    return result;
+  }
+  auto autocomplete = [](Line const& line) {
+    Line result;
+    Stack stack{};
+    for (auto const& ch : line) {
+      if (is_open_char(ch)) {
+        stack.push(ch);
+      }
+      else if (is_close_char((ch))) {
+        if (stack.size()==0) {
+          break;
+        }
+        else {
+          auto open_char = stack.top();
+          if (are_matching_chars(open_char,ch)) {
+            stack.pop();
+          }
+          else {
+            break;
+          }
+        }
+      }
+      else {
+        std::cout << "\nERROR";
+      } 
+    }
+    while (stack.size()>0) {
+      result.push_back(closing_char(stack.top()));
+      stack.pop();
+    }
+    return result;
+  };
+  auto score_acc = [](Result acc, char ch){
+    Result result{acc*5};
+    switch (ch) {
+      // ): 1 point.
+      // ]: 2 points.
+      // }: 3 points.
+      // >: 4 points.
+      case ')' : result += 1; break; 
+      case ']' : result += 2; break; 
+      case '}' : result += 3; break; 
+      case '>' : result += 4; break; 
+      default:
+        std::cout << "\nERROR";
+    }
+    return result;
+  };
+  Result score(Line const& line) {
+    Result result{};
+    result = std::accumulate(line.begin(),line.end(),Result{},score_acc);
+    return result;
+  }
   Result solve_for(char const* pData) {
     Result result{};
+    std::stringstream in{pData};
+    auto lines = parse(in);
+    auto scores_range = lines 
+      | std::views::filter(incomplete_line)
+      | std::views::transform(autocomplete)
+      | std::views::transform(score);
+    for (auto score : scores_range) {
+      std::cout << "\nscore:" << score;
+    }
+    std::vector<Result> scores{};
+    std::copy(scores_range.begin(),scores_range.end(),std::back_inserter(scores));
+    std::sort(scores.begin(),scores.end());
+    result = scores[scores.size()/2];
     return result;
   }
 }
@@ -131,9 +211,9 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
