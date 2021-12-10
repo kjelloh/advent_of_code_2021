@@ -11,15 +11,32 @@ extern char const* pData;
 using Result = size_t;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
+using In = std::vector<std::string>;
+
+In parse(auto& in) {
+    In result{};
+    std::string line{};
+    while (in >> line) {
+        result.push_back(line);
+    }
+    return result;
+}
+
 namespace part1 {
   Result solve_for(char const* pData) {
-      return {};
+      Result result{};
+      std::stringstream in{ pData };
+      auto in_data = parse(in);
+      return result;
   }
 }
 
 namespace part2 {
   Result solve_for(char const* pData) {
-      return {};
+      Result result{};
+      std::stringstream in{ pData };
+      auto in_data = parse(in);
+      return result;
   }
 }
 
