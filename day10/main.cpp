@@ -58,9 +58,10 @@ auto corrupted_char = [](Line const& line)->char {
       // std::cout << "\nopen: " << ch;
       stack.push(ch);
     }
-    else {
+    else if (is_close_char((ch))) {
       // std::cout << "\nclose: " << ch;
       if (stack.size()==0) {
+        std::cout << " ZERO ";
         result = ch;
         break;
       }
@@ -75,6 +76,9 @@ auto corrupted_char = [](Line const& line)->char {
           break;
         }
       }
+    }
+    else {
+      std::cout << "\nERROR";
     } 
   }
   std::cout << "\nillegal:" << result;
@@ -98,22 +102,16 @@ namespace part1 {
     // }: 1197 points.
     // >: 25137 points.      
       case ')' : result += 3; break; 
-      case '}' : result += 57; break; 
-      case ']' : result += 1197; break; 
+      case ']' : result += 57; break; 
+      case '}' : result += 1197; break; 
       case '>' : result += 25137; break; 
+      default:
+        std::cout << "\nERROR";
     }
     return result;
   };
   Result solve_for(char const* pData) {
     Result result{};
-    {
-      // Test
-      std::string line{"[({(<(())[]>[[{[]{<()<>>"};
-      bool is_corrupted = corrupted_line(line);
-      std::cout << "\nline " << line;
-      if (is_corrupted) std::cout << " is corrupted";
-      else std::cout << " is ok";
-    }
     std::stringstream in{pData};
     auto lines = parse(in);
     auto illegals = lines | std::views::filter(corrupted_line) | std::views::transform(corrupted_char);
@@ -132,7 +130,7 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
   answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
