@@ -1,224 +1,154 @@
 #include <iostream>
-#include <sstream>
-#include <iomanip> // std::quoted
-#include <regex>
+#include <vector>
 #include <string>
-#include <ranges>
-#include <string_view>
-#include <map> 
+#include <utility>
+#include <sstream>
+#include <algorithm>
 #include <numeric>
-#include <bitset>
-#include <array>
-#include <utility> // std::pair
 
-extern char const* pTest1;
+extern char const* pTest;
 extern char const* pData;
 
 using Result = size_t;
+using Answers = std::vector<std::pair<std::string, Result>>;
 
-namespace part2 {
+using In = std::vector<std::string>;
 
-    struct Meta {
-        bool active_oxygen_generator_rating{true};
-        bool active_CO2_scrubber_rating{ true };
-    };
-    using Entry = std::pair<Meta, size_t>;
-    using Report = std::vector<Entry>;
-
-    template <int BIT_COUNT>
-    struct Rates {
-        size_t oxygen_generator_rating_count{};
-        size_t CO2_scrubber_rating_count{};
-        std::array<size_t, BIT_COUNT> bit_counts;
-    };
-
-    template <int BIT_COUNT>
-    Rates<BIT_COUNT> rates_of_report(Report const& v,auto predicate) {
-        Rates<BIT_COUNT> result{};
-        result = std::accumulate(std::begin(v), std::end(v), Rates<BIT_COUNT>{}, [&predicate](auto acc, auto entry) {
-            if (entry.first.active_oxygen_generator_rating) ++acc.oxygen_generator_rating_count;
-            if (entry.first.active_CO2_scrubber_rating) ++acc.CO2_scrubber_rating_count;
-            if (predicate(entry)) {
-                std::cout << "\n\tprocess " << std::bitset<BIT_COUNT>{entry.second}.to_string();
-                std::bitset<BIT_COUNT> bit_set{ entry.second };
-                for (int i = 0; i < BIT_COUNT; i++) {
-                    if (bit_set[BIT_COUNT - i - 1]) ++acc.bit_counts[i];
-                }
-            }
-            return acc;
-            });
-        std::cout << "\nrates : oxygen_generator_rating_count=" << result.oxygen_generator_rating_count;
-        std::cout << "\nrates : CO2_scrubber_rating_count=" << result.CO2_scrubber_rating_count;
-        std::cout << "\nrates : ";
-        for (auto n : result.bit_counts) std::cout << " " << n;
-        return result;
-    };
-
-    auto active_oxygen_generator_rating = [](auto entry) {
-        return entry.first.active_oxygen_generator_rating;
-    };
-
-    auto active_CO2_scrubber_rating = [](auto entry) {
-        return entry.first.active_CO2_scrubber_rating;
-    };
-
-    template <int BIT_COUNT>
-    Result answer(char const* pData) {
-        Result result{};
-        std::cout << "\npart 2 :)";
-        // #1 Tokenize input to vector if integers (diagnostic report data)
-        Report v{};
-        std::istringstream in{ pData };
-        std::string sNumber{};
-        while (in >> sNumber) v.push_back(Entry{ Meta{true},std::bitset<BIT_COUNT>{sNumber}.to_ullong() });
-        for (auto const& n : v) std::cout
-            << "\nentry : meta{active_oxygen_generator_rating="
-            << n.first.active_oxygen_generator_rating
-            << "} rates {"
-            << std::bitset<BIT_COUNT>{n.second}.to_string()
-            << "}";
-
-        // #2 std::accumulate bit-counts for each "column" (digit index)
-        auto rates = rates_of_report<BIT_COUNT>(v, active_oxygen_generator_rating);
-        // #3 transform the diagnostic report according to the "oxygen generator rating" criteria until one remains
-        std::cout << "\n<< oxygen_generator_rating >>";
-        for (int i = 0; (i < BIT_COUNT) and (rates.oxygen_generator_rating_count > 1);  i++) {
-            std::cout << "\nindex:" << i+1;
-            size_t zero_bit_count_i = rates.oxygen_generator_rating_count - rates.bit_counts[i];
-            bool most_common_digit_i_is_one = (rates.bit_counts[i] >= zero_bit_count_i);
-            if (rates.bit_counts[i] == zero_bit_count_i) {
-                std::cout << " equal one and zero counts ==> Keep if '1'";
-            }
-            std::transform(std::begin(v), std::end(v), std::begin(v), [&i,&most_common_digit_i_is_one](auto entry) {
-                if (entry.first.active_oxygen_generator_rating) {
-                    std::bitset<BIT_COUNT> bit_set{ entry.second };
-                    std::cout << "\ntransform " << bit_set.to_string() << "[" << i+1 << "]";
-                    bool do_keep = (most_common_digit_i_is_one == bit_set[BIT_COUNT - i - 1]);
-                    if (do_keep) {
-                        std::cout << " Keep :)";
-                    }
-                    entry.first.active_oxygen_generator_rating = do_keep;
-                }
-                return entry;
-                });
-            rates = rates_of_report<BIT_COUNT>(v, active_oxygen_generator_rating);
-        }
-        auto oxygen_generator_rating_iter = std::find_if(std::begin(v), std::end(v), [](auto entry) {
-            return entry.first.active_oxygen_generator_rating;
-            });
-        std::cout << "\noxygen_generator_rating" << std::bitset<BIT_COUNT>{oxygen_generator_rating_iter->second}.to_string();
-
-        // #4 do the same according to the "CO2 scrubber rating" criteria until one remains
-        rates = rates_of_report<BIT_COUNT>(v, active_CO2_scrubber_rating);
-        std::cout << "\n<< CO2_scrubber_rating >>";
-        for (int i = 0; (i < BIT_COUNT) and (rates.CO2_scrubber_rating_count > 1); i++) {
-            std::cout << "\nindex:" << i + 1;
-            size_t zero_bit_count_i = rates.CO2_scrubber_rating_count - rates.bit_counts[i];
-            bool most_common_digit_i_is_one = (rates.bit_counts[i] >= zero_bit_count_i);
-            if (most_common_digit_i_is_one) {
-                std::cout << "\nKeep if ZERO (minority)";
-            }
-            else {
-                std::cout << "\nKeep if ONE (minority)";
-            }
-            if (rates.bit_counts[i] == zero_bit_count_i) {
-                std::cout << " equal one and zero counts ==> keep if '0'";
-            }
-            std::transform(std::begin(v), std::end(v), std::begin(v), [&i, &most_common_digit_i_is_one](auto entry) {
-                if (entry.first.active_CO2_scrubber_rating) {
-                    std::bitset<BIT_COUNT> bit_set{ entry.second };
-                    std::cout << "\ntransform " << bit_set.to_string() << "[" << i + 1 << "]";
-                    // Keep if have digit in minority
-                    bool do_keep{};
-                    if (most_common_digit_i_is_one) do_keep = (bit_set[BIT_COUNT - i - 1] == false); // Keep '0'
-                    else do_keep = (bit_set[BIT_COUNT - i - 1] == true); // keep '1'
-                    if (do_keep) {
-                        std::cout << " Keep :)";
-                    }
-                    entry.first.active_CO2_scrubber_rating = do_keep;
-                }
-                return entry;
-                });
-            rates = rates_of_report<BIT_COUNT>(v, active_CO2_scrubber_rating);
-        }
-        auto CO2_scrubber_rating_iter = std::find_if(std::begin(v), std::end(v), [](auto entry) {
-            return entry.first.active_CO2_scrubber_rating;
-            });
-        std::cout << "\aCO2_scrubber_rating" << std::bitset<BIT_COUNT>{CO2_scrubber_rating_iter->second}.to_string();
-
-        // #finally the result life support rating = oxygen generator rating x CO2 scrubber rating
-        result = oxygen_generator_rating_iter->second * CO2_scrubber_rating_iter->second;
-        // Constraints
-        // #1 Do NOT copy report entries around (we need only to transform meta-data about the entries)
-        // #2 Process binary numbers as integers (and use math and not topology to do the matching, filtering and and counting)
-        // #3 Identify and use as much C++ standard library functionality as possible (avoid NIH)
-
-        std::cout << "\n";
-        return result;
+In parse(auto& in) {
+    In result{};
+    std::string line{};
+    while (in >> line) {
+        result.push_back(line);
     }
+    return result;
 }
 
 namespace part1 {
-    Result answer(char const* pData) {
+    Result solve_for(char const* pData) {
+        std::cout << "\n<solve_for>";
         Result result{};
-        std::istringstream in{ pData };
-        std::string sBits{};
-        std::vector<std::string> v{};
-        std::map<int, std::vector<char>> m{};
-        while (in >> sBits) {
-            std::cout << "\nbits : " << sBits;
-            for (int i = 0;  i < sBits.size();i++) {
-                m[i].push_back(sBits[i]);
+        std::stringstream in{ pData };
+        auto report = parse(in);
+        const size_t COLUMN_COUNT{ report[0].size() };
+        const size_t ENTRY_COUNT{report.size()};
+        // count '1' in each column of report
+        std::vector<int> counts(COLUMN_COUNT,0);
+        for (int i = 0; i < report[0].size(); i++) {
+            for (auto const& entry : report) {
+                counts[i] += (entry[i] == '1') ? 1 : 0;
             }
         }
-        std::string gamma_rate_s{ sBits };
-        std::string epsilon_rate_s{ sBits };
-        for (auto [i,v] : m) {
-            int count_zeroes = std::accumulate(std::begin(v), std::end(v), 0, [](auto acc, auto ch) {
-                return acc += (ch == '0')?1:0; });
-            int count_ones = std::accumulate(std::begin(v), std::end(v), 0, [](auto acc, auto ch) {
-                return acc += (ch == '1')?1:0; });
-            gamma_rate_s[i] = (count_zeroes > count_ones) ? '0' : '1';
-            epsilon_rate_s[i] = (count_zeroes < count_ones) ? '0' : '1';
+        std::string s_gamma_rate(COLUMN_COUNT,'0');
+        for (int i = 0; i < COLUMN_COUNT; i++) {
+            s_gamma_rate[i] = (counts[i] > ENTRY_COUNT - counts[i])?'1':'0';
         }
-        std::cout << "\ngamma rate : " << gamma_rate_s;
-        Result gamma_rate{};
-        for (char ch : gamma_rate_s) {
-            gamma_rate *= 2;
-            gamma_rate += (ch - '0');
+        std::string s_epsilon_rate(COLUMN_COUNT, '0');
+        for (int i = 0; i < COLUMN_COUNT; i++) {
+            s_epsilon_rate[i] = (s_gamma_rate[i] == '1') ? '0' : '1';
         }
-        std::cout << "\ngamma_rate : " << gamma_rate;
-        std::cout << "\nepsilon rate : " << epsilon_rate_s;
-        Result epsilon_rate{};
-        for (char ch : epsilon_rate_s) {
-            epsilon_rate *= 2;
-            epsilon_rate += (ch - '0');
-        }
-        std::cout << "\nepsilon_rate : " << epsilon_rate;
+        auto gamma_rate = std::accumulate(s_gamma_rate.begin(), s_gamma_rate.end(), Result{}, [](auto acc,auto digit) {
+            acc *= 2;
+            acc += (digit == '1') ? 1 : 0;
+            return acc;
+        });
+        auto epsilon_rate = std::accumulate(s_epsilon_rate.begin(), s_epsilon_rate.end(), Result{}, [](auto acc, auto digit) {
+            acc *= 2;
+            acc += (digit == '1') ? 1 : 0;
+            return acc;
+            });
+        std::cout << "\ns_gamma_rate " << s_gamma_rate << " = " << gamma_rate;
+        std::cout << "\ns_epsilon_rate " << s_epsilon_rate << " = " << epsilon_rate;
         result = gamma_rate * epsilon_rate;
-        std::cout << "\n";
         return result;
     }
 }
 
-int main(int argc, char *argv[]) {
-    std::cout << "\nWelcome :)";
-    std::map<std::string, Result> answer;
-    // answer["part 1 test"] = part1::answer(pTest1);
-    // answer["part 1"] = part1::answer(pData);
-    answer["part 2 test"] = part2::answer<5>(pTest1);
-    answer["part 2"] = part2::answer<12>(pData);
+namespace part2 {
+    Result to_result(auto entry) {
+        auto result = std::accumulate(entry.begin(), entry.end(), Result{ 0 }, [](auto acc, auto digit) {
+            acc *= 2;
+            acc += (digit - '0');
+            return acc;
+            });
+        return result;
+    }
+    Result solve_for_ogr(auto report) {
+        Result result{};
+        for (int i = 0; report.size() > 1; i++) {
+            Result count{ 0 };
+            for (auto const& entry : report) {
+                count += (entry[i] == '1') ? 1 : 0;
+            }
+            bool one_is_in_majority{ (count >= report.size() - count) };
+            In reduced_report{};
+            for (auto const& entry : report) {
+                if (one_is_in_majority) {
+                    if (entry[i] == '1') reduced_report.push_back(entry);
+                }
+                else {
+                    if (entry[i] == '0') reduced_report.push_back(entry);
+                }
+            }
+            report = reduced_report;
+        }
+        result = to_result(report[0]);
+        return result;
+    }
+    Result solve_for_csr(auto report) {
+        Result result{};
+        for (int i = 0; report.size() > 1; i++) {
+            Result count{ 0 };
+            for (auto const& entry : report) {
+                count += (entry[i] == '1') ? 1 : 0;
+            }
+            bool one_is_in_majority{ (count >= report.size() - count) };
+            In reduced_report{};
+            for (auto const& entry : report) {
+                if (one_is_in_majority) {
+                    // keep entries with digit i in minority
+                    if (entry[i] == '0') reduced_report.push_back(entry);
+                }
+                else {
+                    if (entry[i] == '1') reduced_report.push_back(entry);
+                }
+            }
+            report = reduced_report;
+        }
+        result = to_result(report[0]);
+        return result;
+    }
 
-    for (auto [caption, result] : answer) {
-        std::cout << "\nanswer[" << caption << "] : " << result;
+    Result solve_for(char const* pData) {
+        std::cout << "\n<solve_for>";
+        Result result{};
+        std::stringstream in{ pData };
+        auto report = parse(in);
+        auto oxygen_generator_rating = solve_for_ogr(report);
+        auto CO2_scrubber_rating = solve_for_csr(report);
+        std::cout << "\noxygen_generator_rating " << oxygen_generator_rating;
+        std::cout << "\nCO2_scrubber_rating " << CO2_scrubber_rating;
+        result = oxygen_generator_rating * CO2_scrubber_rating;
+        return result;
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    Answers answers{};
+    answers.push_back({ "Part 1 Test",part1::solve_for(pTest) });
+    answers.push_back({"Part 1     ",part1::solve_for(pData)});
+    answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+    answers.push_back({"Part 2     ",part2::solve_for(pData)});
+    for (auto const& answer : answers) {
+        std::cout << "\nanswer[" << answer.first << "] " << answer.second;
     }
     std::cout << "\nPress <enter>...";
     std::cin.get();
-    std::cout << "Bye!";
+    std::cout << "\n";
     return 0;
 }
 
-char const* pTest1 = R"(00100
+char const* pTest = R"(00100
 11110
 10110
 10111
@@ -229,7 +159,7 @@ char const* pTest1 = R"(00100
 10000
 11001
 00010
-01010)";;
+01010)";
 char const* pData = R"(000010000011
 001010000111
 011010000010
@@ -1230,4 +1160,3 @@ char const* pData = R"(000010000011
 011100100110
 111000101010
 001111001000)";
-
