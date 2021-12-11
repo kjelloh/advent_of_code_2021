@@ -56,37 +56,39 @@ namespace part1 {
       int flash_count{0};
       int step{0};
       while (true) {
-        // increment
-        for_each(grid,[&grid](int r,int c){
-          ++grid[r][c];
-        });
-        // flash until no more to flash
-        while (true) {
-          int cashed_flash_count{flash_count};
-          // find all == 9+1 and "flash"
-          for_each(grid,[&grid,&flash_count](int r,int c){
-            if (grid[r][c] > '9') {
-              // energy > '9' "to flash" and '0'-1 as "already flashed"
-              flash(grid,r,c);
-              ++flash_count;                  
-            }
+        {
+          // increment
+          for_each(grid,[&grid](int r,int c){
+            ++grid[r][c];
           });
-          if (flash_count==cashed_flash_count) break;      
+          // flash until no more to flash
+          while (true) {
+            int cashed_flash_count{flash_count};
+            // find all == 9+1 and "flash"
+            for_each(grid,[&grid,&flash_count](int r,int c){
+              if (grid[r][c] > '9') {
+                // energy > '9' "to flash" and '0'-1 as "already flashed"
+                flash(grid,r,c);
+                ++flash_count;                  
+              }
+            });
+            if (flash_count==cashed_flash_count) break;      
+          }
+          // print flashed grid (before resetting flashed to '0')
+          // std::cout << "\n";
+          // for_each(grid,[&grid](int r,int c){
+          //     std::cout << " " << grid[r][c];
+          // });
+          // set energy of flashed to 0
+          for_each(grid,[&grid](int r,int c){
+              grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
+          });
+          // print flashed grid (after resetting flashed to '0')
+          // std::cout << "\n";
+          // for_each(grid,[&grid](int r,int c){
+          //     std::cout << " " << grid[r][c];
+          // });
         }
-        // print flashed grid (before resetting flashed to '0')
-        // std::cout << "\n";
-        // for_each(grid,[&grid](int r,int c){
-        //     std::cout << " " << grid[r][c];
-        // });
-        // set energy of flashed to 0
-        for_each(grid,[&grid](int r,int c){
-            grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
-        });
-        // print flashed grid (after resetting flashed to '0')
-        // std::cout << "\n";
-        // for_each(grid,[&grid](int r,int c){
-        //     std::cout << " " << grid[r][c];
-        // });
         // do loop checks (break if done)
         ++step;
         std::cout << "\nafter step: " << step << " flash_count: " << flash_count;
@@ -109,50 +111,38 @@ namespace part2 {
         int cashed_flash_count{flash_count};
         {
           // increment
-          for (auto& row : grid) {
-            for (auto& digit : row) {
-              ++digit;
-            }
-          }
-        }
-        {
+          for_each(grid,[&grid](int r,int c){
+            ++grid[r][c];
+          });
+          // flash until no more to flash
           while (true) {
             int cashed_flash_count{flash_count};
             // find all == 9+1 and "flash"
-            for (int r=0;r<grid.size();r++) {
-              for (int c=0; c<grid[0].size();c++) {
-                if (grid[r][c] > '9') {
-                  // energy > '9' "to flash" and '0'-1 as "already flashed"
-                  flash(grid,r,c);
-                  ++flash_count;                  
-                }
+            for_each(grid,[&grid,&flash_count](int r,int c){
+              if (grid[r][c] > '9') {
+                // energy > '9' "to flash" and '0'-1 as "already flashed"
+                flash(grid,r,c);
+                ++flash_count;                  
               }
-            }
+            });
             if (flash_count==cashed_flash_count) break;      
           }
-          std::cout << "\n";
-          for (auto& row : grid) {
-            std::cout << "\n";
-            for (auto& digit : row) {
-              std::cout << " " << digit;
-            }
-          }
-          {
-            // set energy of flashed to 0
-            for (auto& row : grid) {
-              for (auto& digit : row) {
-                digit = (digit==' ')?'0':digit;
-              }
-            }
-          }
-          std::cout << "\n";
-          for (auto& row : grid) {
-            std::cout << "\n";
-            for (auto& digit : row) {
-              std::cout << " " << digit;
-            }
-          }
+          // print flashed grid (before resetting flashed to '0')
+          // std::cout << "\n";
+          // for_each(grid,[&grid](int r,int c){
+          //     std::cout << " " << grid[r][c];
+          // });
+          // set energy of flashed to 0
+          for_each(grid,[&grid](int r,int c){
+              grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
+          });
+          // print flashed grid (after resetting flashed to '0')
+          // std::cout << "\n";
+          // for_each(grid,[&grid](int r,int c){
+          //     std::cout << " " << grid[r][c];
+          // });
         }
+
         ++step;
         std::cout << "\nafter step: " << step << " flash_count: " << flash_count;
         if ((flash_count - cashed_flash_count)<100) continue;
