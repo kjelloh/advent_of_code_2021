@@ -11,6 +11,65 @@ Projects files includes,
   Visual Studio 2022
 
 C++ Source code requires between C++14 and C++20 (C++2a on Visual Studio 2022)
+# day11
+The lesson after this days puzzle is to remember to KISS (Keep it simple stupid) ;)
+* I tried to be clever form the start and squeeze the processing through standard C++ library algorithms. I failed. I beleive it may still be possible but for this small puzzle I am not sure it is worth the overhead?
+* I failed to see through the weeds of details, that I can mutate the same grid of crabs to get the answer (I do not need a temp grid to mutate and them switch back for each flash mutations of the grid).
+* I want to learn to solve these puzzles in small iterations with a lot of checks and logging of each progress. So I know I am on the right track. I can use the approach applied by the fastest Python programmers when they solve these puzzles :).
+* I Do have a tendancy to go for the cleanest solution right away. But so far this mostly means a get stuck in compiler errors in my "smart" wrapper classes 8-)
+* I am still not satisfied with the final code as it re-uses an automata class for part 1&2 that relies on mutaable referbces to local variables. I suppose we will see more cellular automatas in the 2021 puzzles to come so I try to design my automata in a more elegant way then ;)
+# day9
+Pitfalls for me in C++ for this puzzle.
+* C++ standard library operator<< to std::cout treats size8_t as a char! So when I made a map of size8_t values and tried to print it it got gibberish and lost some hair and time trying to figure out what went wrong.
+* Using std::transform to expand the frontier of a basin I had to remember to use std::back_inserter to get the new candidates into the candidate list. I also had to flatten the candidate list as the transform created a vector of vectors. NOTE that using the begin() interator to the result will compile but fail to expand the output.
+
+```
+        std::vector<Points> points_vector{};
+        std::transform(frontier.begin(), frontier.end(), std::back_inserter(points_vector), [](auto const p) {
+            Points candidates{ {p + LEFT},{p + UP},{p + RIGHT},{p+DOWN} };
+            return candidates;
+            });
+```
+
+* At first I imagined for part 2 that I needed to expand also to diagonal points on the map. But that will leak as the input data does NOT define basin boundaries in this way.
+* To make my own Point struct work in std::set I needed to define an operator< for it. And I defind it by calculating an integer from the x and y coordinates by offsetting the x by 10000. This is a quick-and-dirty way and I would not recommend it (unless you are sure y will never be greater that 10000) ;).
+
+```
+struct Point {
+    int x, y; // x horizintal (+ = right), y vertical (+ = down)
+    bool operator<(Point const& other) const {
+        return (x*10000+y < other.x*10000+other.y);
+    }
+};
+```
+# day4
+For me the Day 4 puzzle challenged me the same way as day 3 did!
+* Again I found myself being dragged into rabbit holes of ever and ever more details and entagled data and logic.
+* In fact - I have a hunch day 4 is day 3 in disguise? I mean, both these puzzles has a grid of data as input. We need to accumulate over rows or columns to extract infromation.
+* If I have time I want to come back to this puzzle and see if I can solve day 3 and day 4 with some common framework? 
+# day3
+Note: 211210 - Solved the puzzle from scratch and got a somewhat cleaner code ;)
+
+Originally - The day 3 puzzle was one of those I easilly stumble on due to all small +/- one and true/false problems.
+* I failed to design the code so that I did not shoot myself in the foot over and over again (detail overflow). Just look at this exmple...
+```
+       result = std::accumulate(std::begin(v), std::end(v), Rates<BIT_COUNT>{}, [&predicate](auto acc, auto entry) {
+            if (entry.first.active_oxygen_generator_rating) ++acc.oxygen_generator_rating_count;
+            if (entry.first.active_CO2_scrubber_rating) ++acc.CO2_scrubber_rating_count;
+            if (predicate(entry)) {
+                std::cout << "\n\tprocess " << std::bitset<BIT_COUNT>{entry.second}.to_string();
+                std::bitset<BIT_COUNT> bit_set{ entry.second };
+                for (int i = 0; i < BIT_COUNT; i++) {
+                    if (bit_set[BIT_COUNT - i - 1]) ++acc.bit_counts[i];
+                }
+            }
+```
+* For me part of the challange of this puzzle was that I falied to name "things" properly so that my code could "talk" about the problem in a clear way.
+* After I finished I was left with the feeling that this problem was in fact just a transform + accumulate problem? If I have time I want to come back to is and solve it properly.
+
+# day2
+For this puzzle I struggled mostly with parsing the input.
+* I stuck with the std::sregex_token_iterator IContainer from day 1 as I thought maybe I could use this approach to parse all puzzle inout to come. But the result was that parsing become overly complicated.
 
 # day1
 Pitfalls for me in C++ for this puzzle.
@@ -56,59 +115,3 @@ struct IContainer {
         | std::views::transform([&prev](auto const d) {auto result = d > prev; prev = d; return result; });
 ```
 * At first I used static members for the windows w and prev variables but then these values would of course fail to initiate for all but the first call ;)
-# day2
-For this puzzle I struggled mostly with parsing the input.
-* I stuck with the std::sregex_token_iterator IContainer from day 1 as I thought maybe I could use this approach to parse all puzzle inout to come. But the result was that parsing become overly complicated.
-# day3
-The day 3 puzzle was one of those I easilly stumble on due to all small +/- one and true/false problems.
-* I failed to design the code so that I did not shoot myself in the foot over and over again (detail overflow). Just look at this exmple...
-```
-       result = std::accumulate(std::begin(v), std::end(v), Rates<BIT_COUNT>{}, [&predicate](auto acc, auto entry) {
-            if (entry.first.active_oxygen_generator_rating) ++acc.oxygen_generator_rating_count;
-            if (entry.first.active_CO2_scrubber_rating) ++acc.CO2_scrubber_rating_count;
-            if (predicate(entry)) {
-                std::cout << "\n\tprocess " << std::bitset<BIT_COUNT>{entry.second}.to_string();
-                std::bitset<BIT_COUNT> bit_set{ entry.second };
-                for (int i = 0; i < BIT_COUNT; i++) {
-                    if (bit_set[BIT_COUNT - i - 1]) ++acc.bit_counts[i];
-                }
-            }
-```
-* For me part of the challange of this puzzle was that I falied to name "things" properly so that my code could "talk" about the problem in a clear way.
-* After I finished I was left with the feeling that this problem was in fact just a transform + accumulate problem? If I have time I want to come back to is and solve it properly.
-# day4
-For me the Day 4 puzzle challenged me the same way as day 3 did!
-* Again I found myself being dragged into rabbit holes of ever and ever more details and entagled data and logic.
-* In fact - I have a hunch day 4 is day 3 in disguise? I mean, both these puzzles has a grid of data as input. We need to accumulate over rows or columns to extract infromation.
-* If I have time I want to come back to this puzzle and see if I can solve day 3 and day 4 with some common framework? 
-# day9
-Pitfalls for me in C++ for this puzzle.
-
-* C++ standard library operator<< to std::cout treats size8_t as a char! So when I made a map of size8_t values and tried to print it it got gibberish and lost some hair and time trying to figure out what went wrong.
-* Using std::transform to expand the frontier of a basin I had to remember to use std::back_inserter to get the new candidates into the candidate list. I also had to flatten the candidate list as the transform created a vector of vectors. NOTE that using the begin() interator to the result will compile but fail to expand the output.
-
-```
-        std::vector<Points> points_vector{};
-        std::transform(frontier.begin(), frontier.end(), std::back_inserter(points_vector), [](auto const p) {
-            Points candidates{ {p + LEFT},{p + UP},{p + RIGHT},{p+DOWN} };
-            return candidates;
-            });
-```
-
-* At first I imagined for part 2 that I needed to expand also to diagonal points on the map. But that will leak as the input data does NOT define basin boundaries in this way.
-* To make my own Point struct work in std::set I needed to define an operator< for it. And I defind it by calculating an integer from the x and y coordinates by offsetting the x by 10000. This is a quick-and-dirty way and I would not recommend it (unless you are sure y will never be greater that 10000) ;).
-
-```
-struct Point {
-    int x, y; // x horizintal (+ = right), y vertical (+ = down)
-    bool operator<(Point const& other) const {
-        return (x*10000+y < other.x*10000+other.y);
-    }
-};
-```
-#day11
-The lesson after this days puzzle is to remember to KISS (Keep it simple stupid) ;)
-* I tried to be clever form the start and squeeze the processing through standard C++ library algorithms. I failed. I beleive it may still be possible but for this small puzzle I am not sure it is worth the overhead?
-* I failed to see through teh weeds of details that I can mutate the same grid of crabs (I do not need a temp grid to mutate and them switch back for each flash mutations of the grid).
-* I want to learn to solve these puzzles in small iterations with a lot of checks and logging of each progress so I know I am on the right track. I Do have a tendancy to go for the cleanest solution right away. But so far this mostly means a get stuck in compiler errors in my "smart" wrapper classes 8-)
-* I am still not satisfied with the final code as it re-uses an automata class for part 1&2 that relies on mutaable referbces to local variables. I suppose we will see more cellular automatas in the 2021 puzzles to come so I try to design my automata in a more elegant way then ;)
