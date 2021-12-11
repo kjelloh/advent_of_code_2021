@@ -56,39 +56,37 @@ namespace part1 {
       int flash_count{0};
       int step{0};
       while (true) {
-        {
-          // increment
-          for_each(grid,[&grid](int r,int c){
-            ++grid[r][c];
+        // increment
+        for_each(grid,[&grid](int r,int c){
+          ++grid[r][c];
+        });
+        // flash until no more to flash
+        while (true) {
+          int cashed_flash_count{flash_count};
+          // find all == 9+1 and "flash"
+          for_each(grid,[&grid,&flash_count](int r,int c){
+            if (grid[r][c] > '9') {
+              // energy > '9' "to flash" and '0'-1 as "already flashed"
+              flash(grid,r,c);
+              ++flash_count;                  
+            }
           });
-          // flash until no more to flash
-          while (true) {
-            int cashed_flash_count{flash_count};
-            // find all == 9+1 and "flash"
-            for_each(grid,[&grid,&flash_count](int r,int c){
-              if (grid[r][c] > '9') {
-                // energy > '9' "to flash" and '0'-1 as "already flashed"
-                flash(grid,r,c);
-                ++flash_count;                  
-              }
-            });
-            if (flash_count==cashed_flash_count) break;      
-          }
-          // print flashed grid (before resetting flashed to '0')
-          std::cout << "\n";
-          for_each(grid,[&grid](int r,int c){
-              std::cout << " " << grid[r][c];
-          });
-          // set energy of flashed to 0
-          for_each(grid,[&grid](int r,int c){
-              grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
-          });
-          // print flashed grid (after resetting flashed to '0')
-          std::cout << "\n";
-          for_each(grid,[&grid](int r,int c){
-              std::cout << " " << grid[r][c];
-          });
+          if (flash_count==cashed_flash_count) break;      
         }
+        // print flashed grid (before resetting flashed to '0')
+        // std::cout << "\n";
+        // for_each(grid,[&grid](int r,int c){
+        //     std::cout << " " << grid[r][c];
+        // });
+        // set energy of flashed to 0
+        for_each(grid,[&grid](int r,int c){
+            grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
+        });
+        // print flashed grid (after resetting flashed to '0')
+        // std::cout << "\n";
+        // for_each(grid,[&grid](int r,int c){
+        //     std::cout << " " << grid[r][c];
+        // });
         // do loop checks (break if done)
         ++step;
         std::cout << "\nafter step: " << step << " flash_count: " << flash_count;
