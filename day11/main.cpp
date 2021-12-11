@@ -30,11 +30,11 @@ In parse(auto& in) {
 void flash(auto& grid, int r,int c) {
   std::cout << "\nflash:{" << r << "," << c << "}=> ++ " ;
   grid[r][c] = ' '; // mark as "flashed"
-  for (int dr : {-1,0,1}) {
-    for (int dc : {-1,0,1}) {
-      if (r+dr >= 0 and r+dr < grid.size() and c+dc>=0 and c+dc < grid[0].size() and grid[r+dr][c+dc]!=' ') {
-        ++grid[r+dr][c+dc];
-        std::cout << "{" << r+dr << "," << c+dc << "}";
+  for (int rr : {r-1,r+0,r+1}) {
+    for (int cc : {c-1,c+0,c+1}) {
+      if (rr >= 0 and rr < grid.size() and cc>=0 and cc < grid[0].size() and grid[rr][cc]!=' ') {
+        ++grid[rr][cc];
+        std::cout << "{" << rr << "," << cc << "}";
       }
     }
   }
@@ -48,6 +48,45 @@ void for_each(auto& grid, auto f) {
   }
 }
 
+struct CrabFlashingAutomata {
+  CrabFlashingAutomata& operator()(In& grid,int& flash_count){
+    {
+      // increment
+      for_each(grid,[&grid](int r,int c){
+        ++grid[r][c];
+      });
+      // flash until no more to flash
+      while (true) {
+        int cashed_flash_count{flash_count};
+        // find all == 9+1 and "flash"
+        for_each(grid,[&grid,&flash_count](int r,int c){
+          if (grid[r][c] > '9') {
+            // energy > '9' "to flash" and '0'-1 as "already flashed"
+            flash(grid,r,c);
+            ++flash_count;                  
+          }
+        });
+        if (flash_count==cashed_flash_count) break;      
+      }
+      // print flashed grid (before resetting flashed to '0')
+      // std::cout << "\n";
+      // for_each(grid,[&grid](int r,int c){
+      //     std::cout << " " << grid[r][c];
+      // });
+      // set energy of flashed to 0
+      for_each(grid,[&grid](int r,int c){
+          grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
+      });
+      // print flashed grid (after resetting flashed to '0')
+      // std::cout << "\n";
+      // for_each(grid,[&grid](int r,int c){
+      //     std::cout << " " << grid[r][c];
+      // });
+    }
+    return *this;
+  }
+};
+
 namespace part1 {
   Result solve_for(char const* pData,int const LOOP_COUNT) {
       Result result{};
@@ -56,39 +95,7 @@ namespace part1 {
       int flash_count{0};
       int step{0};
       while (true) {
-        {
-          // increment
-          for_each(grid,[&grid](int r,int c){
-            ++grid[r][c];
-          });
-          // flash until no more to flash
-          while (true) {
-            int cashed_flash_count{flash_count};
-            // find all == 9+1 and "flash"
-            for_each(grid,[&grid,&flash_count](int r,int c){
-              if (grid[r][c] > '9') {
-                // energy > '9' "to flash" and '0'-1 as "already flashed"
-                flash(grid,r,c);
-                ++flash_count;                  
-              }
-            });
-            if (flash_count==cashed_flash_count) break;      
-          }
-          // print flashed grid (before resetting flashed to '0')
-          // std::cout << "\n";
-          // for_each(grid,[&grid](int r,int c){
-          //     std::cout << " " << grid[r][c];
-          // });
-          // set energy of flashed to 0
-          for_each(grid,[&grid](int r,int c){
-              grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
-          });
-          // print flashed grid (after resetting flashed to '0')
-          // std::cout << "\n";
-          // for_each(grid,[&grid](int r,int c){
-          //     std::cout << " " << grid[r][c];
-          // });
-        }
+        CrabFlashingAutomata{}(grid,flash_count);
         // do loop checks (break if done)
         ++step;
         std::cout << "\nafter step: " << step << " flash_count: " << flash_count;
@@ -109,40 +116,8 @@ namespace part2 {
       int step{0};
       while (true) {
         int cashed_flash_count{flash_count};
-        {
-          // increment
-          for_each(grid,[&grid](int r,int c){
-            ++grid[r][c];
-          });
-          // flash until no more to flash
-          while (true) {
-            int cashed_flash_count{flash_count};
-            // find all == 9+1 and "flash"
-            for_each(grid,[&grid,&flash_count](int r,int c){
-              if (grid[r][c] > '9') {
-                // energy > '9' "to flash" and '0'-1 as "already flashed"
-                flash(grid,r,c);
-                ++flash_count;                  
-              }
-            });
-            if (flash_count==cashed_flash_count) break;      
-          }
-          // print flashed grid (before resetting flashed to '0')
-          // std::cout << "\n";
-          // for_each(grid,[&grid](int r,int c){
-          //     std::cout << " " << grid[r][c];
-          // });
-          // set energy of flashed to 0
-          for_each(grid,[&grid](int r,int c){
-              grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
-          });
-          // print flashed grid (after resetting flashed to '0')
-          // std::cout << "\n";
-          // for_each(grid,[&grid](int r,int c){
-          //     std::cout << " " << grid[r][c];
-          // });
-        }
-
+        CrabFlashingAutomata{}(grid,flash_count);
+        // do loop checks (break if done)
         ++step;
         std::cout << "\nafter step: " << step << " flash_count: " << flash_count;
         if ((flash_count - cashed_flash_count)<100) continue;
