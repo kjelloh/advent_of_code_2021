@@ -27,19 +27,28 @@ In parse(auto& in) {
     return result;
 }
 
-namespace part1 {
-  void flash(auto& grid, int r,int c) {
-    std::cout << "\nflash:{" << r << "," << c << "}=> ++ " ;
-    grid[r][c] = ' '; // mark as "flashed"
-    for (int dr : {-1,0,1}) {
-      for (int dc : {-1,0,1}) {
-        if (r+dr >= 0 and r+dr < grid.size() and c+dc>=0 and c+dc < grid[0].size() and grid[r+dr][c+dc]!=' ') {
-          ++grid[r+dr][c+dc];
-          std::cout << "{" << r+dr << "," << c+dc << "}";
-        }
+void flash(auto& grid, int r,int c) {
+  std::cout << "\nflash:{" << r << "," << c << "}=> ++ " ;
+  grid[r][c] = ' '; // mark as "flashed"
+  for (int dr : {-1,0,1}) {
+    for (int dc : {-1,0,1}) {
+      if (r+dr >= 0 and r+dr < grid.size() and c+dc>=0 and c+dc < grid[0].size() and grid[r+dr][c+dc]!=' ') {
+        ++grid[r+dr][c+dc];
+        std::cout << "{" << r+dr << "," << c+dc << "}";
       }
     }
-  } 
+  }
+}
+
+void for_each(auto& grid, auto f) {
+  for (int r=0;r<grid.size();r++) {
+    for (int c=0; c<grid[0].size();c++) {
+      f(r,c);
+    }
+  }
+}
+
+namespace part1 {
   Result solve_for(char const* pData,int const LOOP_COUNT) {
       Result result{};
       std::stringstream in{ pData };
@@ -49,50 +58,38 @@ namespace part1 {
       while (true) {
         {
           // increment
-          for (auto& row : grid) {
-            for (auto& digit : row) {
-              ++digit;
-            }
-          }
-        }
-        {
+          for_each(grid,[&grid](int r,int c){
+            ++grid[r][c];
+          });
+          // flash until no more to flash
           while (true) {
             int cashed_flash_count{flash_count};
             // find all == 9+1 and "flash"
-            for (int r=0;r<grid.size();r++) {
-              for (int c=0; c<grid[0].size();c++) {
-                if (grid[r][c] > '9') {
-                  // energy > '9' "to flash" and '0'-1 as "already flashed"
-                  flash(grid,r,c);
-                  ++flash_count;                  
-                }
+            for_each(grid,[&grid,&flash_count](int r,int c){
+              if (grid[r][c] > '9') {
+                // energy > '9' "to flash" and '0'-1 as "already flashed"
+                flash(grid,r,c);
+                ++flash_count;                  
               }
-            }
+            });
             if (flash_count==cashed_flash_count) break;      
           }
+          // print flashed grid (before resetting flashed to '0')
           std::cout << "\n";
-          for (auto& row : grid) {
-            std::cout << "\n";
-            for (auto& digit : row) {
-              std::cout << " " << digit;
-            }
-          }
-          {
-            // set energy of flashed to 0
-            for (auto& row : grid) {
-              for (auto& digit : row) {
-                digit = (digit==' ')?'0':digit;
-              }
-            }
-          }
+          for_each(grid,[&grid](int r,int c){
+              std::cout << " " << grid[r][c];
+          });
+          // set energy of flashed to 0
+          for_each(grid,[&grid](int r,int c){
+              grid[r][c] = (grid[r][c] ==' ')?'0':grid[r][c];
+          });
+          // print flashed grid (after resetting flashed to '0')
           std::cout << "\n";
-          for (auto& row : grid) {
-            std::cout << "\n";
-            for (auto& digit : row) {
-              std::cout << " " << digit;
-            }
-          }
+          for_each(grid,[&grid](int r,int c){
+              std::cout << " " << grid[r][c];
+          });
         }
+        // do loop checks (break if done)
         ++step;
         std::cout << "\nafter step: " << step << " flash_count: " << flash_count;
         if (step<LOOP_COUNT) continue;
@@ -104,18 +101,6 @@ namespace part1 {
 }
 
 namespace part2 {
-  void flash(auto& grid, int r,int c) {
-    std::cout << "\nflash:{" << r << "," << c << "}=> ++ " ;
-    grid[r][c] = ' '; // mark as "flashed"
-    for (int dr : {-1,0,1}) {
-      for (int dc : {-1,0,1}) {
-        if (r+dr >= 0 and r+dr < grid.size() and c+dc>=0 and c+dc < grid[0].size() and grid[r+dr][c+dc]!=' ') {
-          ++grid[r+dr][c+dc];
-          std::cout << "{" << r+dr << "," << c+dc << "}";
-        }
-      }
-    }
-  } 
   Result solve_for(char const* pData) {
       Result result{};
       std::stringstream in{ pData };
