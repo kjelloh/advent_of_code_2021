@@ -11,10 +11,10 @@ extern char const* pData;
 using Result = size_t;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
-using In = std::vector<std::string>;
+using Model = std::vector<std::string>;
 
-In parse(auto& in) {
-    In result{};
+Model parse(auto& in) {
+    Model result{};
     std::string line{};
     while (in >> line) {
         result.push_back(line);
@@ -26,7 +26,7 @@ namespace part1 {
   Result solve_for(char const* pData) {
       Result result{};
       std::stringstream in{ pData };
-      auto in_data = parse(in);
+      auto data_model = parse(in);
       return result;
   }
 }
@@ -35,7 +35,7 @@ namespace part2 {
   Result solve_for(char const* pData) {
       Result result{};
       std::stringstream in{ pData };
-      auto in_data = parse(in);
+      auto data_model = parse(in);
       return result;
   }
 }
@@ -50,8 +50,8 @@ int main(int argc, char *argv[])
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
-  std::cout << "\nPress <enter>...";
-  std::cin.get();
+  // std::cout << "\nPress <enter>...";
+  // std::cin.get();
   std::cout << "\n";
   return 0;
 }
