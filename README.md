@@ -81,10 +81,6 @@ For me the Day 4 puzzle challenged me the same way as day 3 did!
 * Again I found myself being dragged into rabbit holes of ever and ever more details and entagled data and logic.
 * In fact - I have a hunch day 4 is day 3 in disguise? I mean, both these puzzles has a grid of data as input. We need to accumulate over rows or columns to extract infromation.
 * If I have time I want to come back to this puzzle and see if I can solve day 3 and day 4 with some common framework? 
-# day5
-# day6
-# day7
-# day8
 # day9
 Pitfalls for me in C++ for this puzzle.
 
@@ -110,4 +106,9 @@ struct Point {
     }
 };
 ```
-
+#day11
+The lesson after this days puzzle is to remember to KISS (Keep it simple stupid) ;)
+* I tried to be clever form the start and squeeze the processing through standard C++ library algorithms. I failed. I beleive it may still be possible but for this small puzzle I am not sure it is worth the overhead?
+* I failed to see through teh weeds of details that I can mutate the same grid of crabs (I do not need a temp grid to mutate and them switch back for each flash mutations of the grid).
+* I want to learn to solve these puzzles in small iterations with a lot of checks and logging of each progress so I know I am on the right track. I Do have a tendancy to go for the cleanest solution right away. But so far this mostly means a get stuck in compiler errors in my "smart" wrapper classes 8-)
+* I am still not satisfied with the final code as it re-uses an automata class for part 1&2 that relies on mutaable referbces to local variables. I suppose we will see more cellular automatas in the 2021 puzzles to come so I try to design my automata in a more elegant way then ;)
