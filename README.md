@@ -11,6 +11,41 @@ Projects files includes,
   Visual Studio 2022
 
 C++ Source code requires between C++14 and C++20 (C++2a on Visual Studio 2022)
+# day 12
+I came this far but this does not work. Why?
+
+```
+Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph,VisitCount visit_count) {
+  Paths result{};
+  Path new_path{};
+  visit_count[v1] += 1;
+  new_path.push_back(v1); // A-end
+  if (v1 != v2) {
+    for (auto const v : graph.at(v1)) { // v: c,start, b, end
+      // v is connected to v1
+      if (visit_count[v]==0 or (v.size() == 1 and std::isupper(v[0]))) {
+        Paths paths = all_paths(v,v2,graph,visit_count); // 
+        for (auto const& path : paths) {
+          new_path.insert(new_path.end(),path.begin(),path.end());
+          result.push_back(new_path);
+          // print
+          {
+            std::cout << "\ncandidate path: ";
+            for (auto const& v : new_path) {
+              std::cout << " -> " << v;
+            }
+          }
+        }
+      }
+    }
+  }
+  else {
+    result.push_back(new_path);
+  }
+  return result;
+}
+```
+
 # day11
 The lesson after this days puzzle is to remember to KISS (Keep it simple stupid) ;)
 * I tried to be clever form the start and squeeze the processing through standard C++ library algorithms. I failed. I beleive it may still be possible but for this small puzzle I am not sure it is worth the overhead?
