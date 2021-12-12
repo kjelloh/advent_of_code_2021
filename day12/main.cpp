@@ -6,8 +6,12 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <ctype.h>
+#include <numeric>
 
 extern char const* pTest;
+extern char const* pTest2;
+extern char const* pTest3;
 extern char const* pData;
 
 using Result = size_t;
@@ -42,20 +46,47 @@ Graph create_adjacent_graph(auto const& edges) {
   }
   return result;
 }
+bool all_lower(std::string const& s) {
+  return std::accumulate(s.begin(),s.end(),true,[](auto acc,auto ch) {return acc &= std::islower(ch);});
+}
 using Path = std::vector<std::string>;
 using Paths = std::vector<Path>;
-
-Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph) {
+using VisitCount = std::map<std::string,int>;
+Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph,VisitCount visit_count) {
   Paths result{};
+  visit_count[v1] += 1;
   if (v1 != v2) {
     for (auto const v : graph.at(v1)) {
       // v is connected to v1
-      // Do NOT backtrack! How?
-      Paths paths = all_paths(v,v2,graph);
-      for (auto const& path : paths) result.push_back(path);
+      if (visit_count[v]==0 or all_lower(v)==false) {
+        Paths paths = all_paths(v,v2,graph,visit_count); // 
+        for (auto const& path : paths) {
+          Path new_path{};
+          new_path.push_back(v1);
+          new_path.insert(new_path.end(),path.begin(),path.end());
+          result.push_back(new_path);
+          // print
+          {
+            std::cout << "\ncandidate path: ";
+            for (auto const& v : new_path) {
+              std::cout << " -> " << v;
+            }
+          }
+        }
+      }
     }
   }
+  else {
+      Path new_path{};
+      new_path.push_back(v1);
+    result.push_back(new_path);
+  }
   return result;
+}
+
+Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph) {
+  VisitCount visit_count{};
+  return all_paths(v1,v2,graph,visit_count);
 }
 
 namespace part1 {
@@ -80,6 +111,14 @@ namespace part1 {
         }
       }
       Paths paths = all_paths("start","end",adjacent_graph);
+      // print
+      {
+        for (auto const path : paths) {
+          std::cout << "\nstart-end : ";
+          for (auto const& v : path) std::cout << " -> " << v;
+        }
+      }
+      result = paths.size();
       return result;
   }
 }
@@ -97,7 +136,9 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1 Test 2",part1::solve_for(pTest2)});
+  answers.push_back({"Part 1 Test 3",part1::solve_for(pTest3)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
@@ -116,6 +157,34 @@ A-b
 b-d
 A-end
 b-end)";
+char const* pTest2 = R"(dc-end
+HN-start
+start-kj
+dc-start
+dc-HN
+LN-dc
+HN-end
+kj-sa
+kj-HN
+kj-dc)";
+char const* pTest3 = R"(fs-end
+he-DX
+fs-he
+start-DX
+pj-DX
+end-zg
+zg-sl
+zg-pj
+pj-he
+RW-he
+fs-DX
+pj-RW
+zg-RW
+start-pj
+he-WI
+zg-he
+pj-fs
+start-RW)";
 char const* pData = R"(yw-MN
 wn-XB
 DG-dc
