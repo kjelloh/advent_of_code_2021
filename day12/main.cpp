@@ -124,10 +124,75 @@ namespace part1 {
 }
 
 namespace part2 {
+  Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph,VisitCount visit_count,bool small_cave_twice) {
+    Paths result{};
+    if (v1 != v2) {
+      auto cashed_visit_count = visit_count; 
+      for (auto const v : graph.at(v1)) {
+        visit_count = cashed_visit_count; // reset to incoming vsiit counts for each sub-path
+        // v is connected to v1
+        if (visit_count[v]==0 or all_lower(v)==false or (visit_count[v]==1 and all_lower(v)==true and !small_cave_twice and v!="start" and v!="end")) {
+          visit_count[v] += 1;
+          small_cave_twice = (visit_count[v]>0 and all_lower(v)==true);
+          Paths paths = all_paths(v,v2,graph,visit_count,small_cave_twice);
+          for (auto const& path : paths) {
+            Path new_path{};
+            new_path.push_back(v1);
+            new_path.insert(new_path.end(),path.begin(),path.end());
+            result.push_back(new_path);
+            // print
+            {
+              std::cout << "\ncandidate path: ";
+              for (auto const& v : new_path) {
+                std::cout << " -> " << v << "[" << visit_count[v] << "]";
+              }
+              std::cout << " small_cave_twice " << small_cave_twice;
+            }
+          }          
+        }
+      }
+    }
+    else {
+        Path new_path{};
+        new_path.push_back(v1);
+      result.push_back(new_path);
+    }
+    return result;
+  }
+  Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph) {
+    VisitCount visit_count{};
+    bool small_cave_twice = false;
+    return all_paths(v1,v2,graph,visit_count,small_cave_twice);
+  }
   Result solve_for(char const* pData) {
       Result result{};
       std::stringstream in{ pData };
-      auto data_model = parse(in);
+      auto edges = parse(in);
+      // print
+      {
+        for (auto const& edge : edges) {
+          std::cout << "\nedge:" << edge.first << " <=> " << edge.second;
+        }
+      }
+      auto adjacent_graph = create_adjacent_graph(edges);
+      // print
+      {
+        for (auto const& entry : adjacent_graph) {
+          std::cout << "\nvertex\"" << entry.first << "\" -> ";
+          for (auto const& vertex : entry.second) {
+            std::cout << " \"" << vertex << "\"";
+          }
+        }
+      }
+      Paths paths = all_paths("start","end",adjacent_graph);
+      // print
+      {
+        for (auto const path : paths) {
+          std::cout << "\nstart-end : ";
+          for (auto const& v : path) std::cout << " -> " << v;
+        }
+      }
+      result = paths.size();
       return result;
   }
 }
@@ -135,12 +200,15 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1 Test 2",part1::solve_for(pTest2)});
-  answers.push_back({"Part 1 Test 3",part1::solve_for(pTest3)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  // answers.push_back({"Part 1 Test 2",part1::solve_for(pTest2)});
+  // answers.push_back({"Part 1 Test 3",part1::solve_for(pTest3)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+
+  answers.push_back({"Part 1 Test",part2::solve_for(pTest)});
+  // answers.push_back({"Part 1 Test 2",part2::solve_for(pTest2)});
+  // answers.push_back({"Part 1 Test 3",part2::solve_for(pTest3)});
+  // answers.push_back({"Part 1     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
