@@ -4,6 +4,8 @@
 #include <utility>
 #include <sstream>
 #include <algorithm>
+#include <map>
+#include <set>
 
 extern char const* pTest;
 extern char const* pData;
@@ -31,15 +33,53 @@ Model parse(auto& in) {
     }
     return result;
 }
+using Graph = std::map<std::string,std::set<std::string>>;
+Graph create_adjacent_graph(auto const& edges) {
+  Graph result;
+  for (auto const& edge : edges) {
+    result[edge.first].insert(edge.second);
+    result[edge.second].insert(edge.first);
+  }
+  return result;
+}
+using Path = std::vector<std::string>;
+using Paths = std::vector<Path>;
+
+Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph) {
+  Paths result{};
+  if (v1 != v2) {
+    for (auto const v : graph.at(v1)) {
+      // v is connected to v1
+      // Do NOT backtrack! How?
+      Paths paths = all_paths(v,v2,graph);
+      for (auto const& path : paths) result.push_back(path);
+    }
+  }
+  return result;
+}
 
 namespace part1 {
   Result solve_for(char const* pData) {
       Result result{};
       std::stringstream in{ pData };
       auto edges = parse(in);
-      for (auto const& edge : edges) {
-        std::cout << "\nedge:" << edge.first << " <=> " << edge.second;
+      // print
+      {
+        for (auto const& edge : edges) {
+          std::cout << "\nedge:" << edge.first << " <=> " << edge.second;
+        }
       }
+      auto adjacent_graph = create_adjacent_graph(edges);
+      // print
+      {
+        for (auto const& entry : adjacent_graph) {
+          std::cout << "\nvertex\"" << entry.first << "\" -> ";
+          for (auto const& vertex : entry.second) {
+            std::cout << " \"" << vertex << "\"";
+          }
+        }
+      }
+      Paths paths = all_paths("start","end",adjacent_graph);
       return result;
   }
 }
