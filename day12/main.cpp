@@ -239,7 +239,7 @@ namespace part2 {
       {
         // breadth first search for valid paths
         Paths candidate_paths{{"start"}};
-        std::set<Path> valid_paths{};
+        std::vector<Path> valid_paths{};
         const size_t LOOP_LOG_THRESHOLD = 10000;
         size_t loop_count{LOOP_LOG_THRESHOLD};
         std::cout << "\n{candidates\t\tmatches} ";
@@ -253,7 +253,7 @@ namespace part2 {
           candidate_paths.pop_back();
           // std::cout << "\ncandidate_path " << to_string(candidate_path);          
           if (is_full_path(candidate_path)) {
-            valid_paths.insert(candidate_path);
+            valid_paths.push_back(candidate_path);
             // std::cout << "\nfound: " << to_string(candidate_path);
           }
           else {
