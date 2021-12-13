@@ -251,21 +251,19 @@ namespace part2 {
           // next candidate
           auto candidate_path = candidate_paths.back();
           candidate_paths.pop_back();
-          // std::cout << "\ncandidate_path " << to_string(candidate_path);          
-          if (is_full_path(candidate_path)) {
-            valid_paths.push_back(candidate_path);
-            // std::cout << "\nfound: " << to_string(candidate_path);
-          }
-          else {
-            // produce new valid candidates paths                        
-            for (auto const& new_candidate_vertex: adjacent_graph[candidate_path.back()]) {
-              auto new_candidate_path = candidate_path;
-              if (is_valid_candidate(new_candidate_path,new_candidate_vertex)) {
-                new_candidate_path.push_back(new_candidate_vertex);
-                candidate_paths.push_back(new_candidate_path);
-                // rotate candidates right to create breadth first (otherwise we will do depth first)
-                // std::rotate(candidate_paths.begin(),candidate_paths.end()-1,candidate_paths.end());
-              }
+          // std::cout << "\ncandidate_path " << to_string(candidate_path);
+          // produce new valid candidates paths                        
+          for (auto const& new_candidate_vertex: adjacent_graph[candidate_path.back()]) {
+            auto new_candidate_path = candidate_path;
+            if (is_valid_candidate(new_candidate_path,new_candidate_vertex)) {
+              new_candidate_path.push_back(new_candidate_vertex);
+              if (is_full_path(new_candidate_path)) {
+                valid_paths.push_back(candidate_path);
+                // std::cout << "\nfound: " << to_string(candidate_path);
+              }                
+              else candidate_paths.push_back(new_candidate_path);
+              // rotate candidates right to create breadth first (otherwise we will do depth first)
+              // std::rotate(candidate_paths.begin(),candidate_paths.end()-1,candidate_paths.end());
             }
           }
         }
