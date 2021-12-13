@@ -63,7 +63,7 @@ std::string to_string(Path const& path) {
 }
 bool is_full_path(Path const& path) {
   bool result (path.back() == "end");
-  if (result) std::cout << "\nis_full_path " << to_string(path);
+  // if (result) std::cout << "\nis_full_path " << to_string(path);
   return result;
 }
 bool is_all_lower(Vertex const& vertex) {
@@ -134,6 +134,88 @@ namespace part1 {
 }
 
 namespace part2 {
+//   std::set<Path> small_test_valid_paths() {
+//     // create set with paths for small test
+//     std::set<Path> result{};
+//     char const* pValidPaths = R"(start,A,b,A,b,A,c,A,end
+// start,A,b,A,b,A,end
+// start,A,b,A,b,end
+// start,A,b,A,c,A,b,A,end
+// start,A,b,A,c,A,b,end
+// start,A,b,A,c,A,c,A,end
+// start,A,b,A,c,A,end
+// start,A,b,A,end
+// start,A,b,d,b,A,c,A,end
+// start,A,b,d,b,A,end
+// start,A,b,d,b,end
+// start,A,b,end
+// start,A,c,A,b,A,b,A,end
+// start,A,c,A,b,A,b,end
+// start,A,c,A,b,A,c,A,end
+// start,A,c,A,b,A,end
+// start,A,c,A,b,d,b,A,end
+// start,A,c,A,b,d,b,end
+// start,A,c,A,b,end
+// start,A,c,A,c,A,b,A,end
+// start,A,c,A,c,A,b,end
+// start,A,c,A,c,A,end
+// start,A,c,A,end
+// start,A,end
+// start,b,A,b,A,c,A,end
+// start,b,A,b,A,end
+// start,b,A,b,end
+// start,b,A,c,A,b,A,end
+// start,b,A,c,A,b,end
+// start,b,A,c,A,c,A,end
+// start,b,A,c,A,end
+// start,b,A,end
+// start,b,d,b,A,c,A,end
+// start,b,d,b,A,end
+// start,b,d,b,end
+// start,b,end)";
+//     std::istringstream lines{pValidPaths};
+//     std::string line{};
+//     while (std::getline(lines,line)) {
+//       std::istringstream vertecies{line};
+//       std::string vertex{};
+//       Path path{};
+//       while (std::getline(vertecies,vertex,',')) {
+//         path.push_back(vertex);
+//       }
+//       result.insert(path);
+//     }
+//     std::cout << "\ntest paths count : " << result.size();
+//     return result;
+//   }
+  bool single_small_cave_max_twice(Path const& path) {
+    bool result{true};
+    std::set<Vertex> small_caves_in_path{};
+    int small_cave_twin_count = std::accumulate(path.begin(),path.end(),int{0},[&small_caves_in_path](auto acc,Vertex const& vertex){
+      if (is_all_lower(vertex)) {
+        // small cave
+        if (small_caves_in_path.contains(vertex)) {
+          // small cave vertex already in preceeding path
+          acc += 1; // count as twin
+        }
+        small_caves_in_path.insert(vertex);
+      }
+      return acc;
+    });
+    result = small_cave_twin_count<=1; // max one twin
+    // std::cout << "\n\t single_small_cave_max_twice for " << to_string(path) << " is " << result;
+    return result;
+  }
+  bool is_valid_candidate(Path const& path) {
+    bool result{false};
+    for (auto const& vertex : path) {
+      if (vertex_count(path,"start")>1) result = false;
+      else if (is_all_lower(vertex) == false or vertex_count(path,vertex)<=1) result = true;
+      else if (single_small_cave_max_twice(path)) result = true;
+      else result = false;
+    }
+    // std::cout << "\nis_valid_candidate " << to_string(path) << " = " << result;
+    return result;
+  }
   Result solve_for(char const* pData) {
       Result result{};
       std::stringstream in{ pData };
@@ -154,6 +236,51 @@ namespace part2 {
           }
         }
       }
+      {
+        // breadth first search for valid paths
+        Paths candidate_paths{{"start"}};
+        std::set<Path> valid_paths{};
+        size_t loop_count{0};
+        while (candidate_paths.size()>0) {
+          if (++loop_count%10000==0) {
+            std::cout << "\ncandidates count: " << candidate_paths.size();
+            std::cout << "\nvalid paths count: " << valid_paths.size();
+          }
+          // next candidate
+          auto candidate_path = candidate_paths.back();
+          candidate_paths.pop_back();
+          // std::cout << "\ncandidate_path " << to_string(candidate_path);          
+          if (is_full_path(candidate_path)) {
+            valid_paths.insert(candidate_path);
+            // std::cout << "\nfound: " << to_string(candidate_path);
+          }
+          else {
+            // produce new valid candidates paths                        
+            for (auto const& new_candidate_vertex: adjacent_graph[candidate_path.back()]) {
+              auto new_candidate_path = candidate_path;
+              new_candidate_path.push_back(new_candidate_vertex);
+              if (is_valid_candidate(new_candidate_path)) {
+                candidate_paths.push_back(new_candidate_path);
+                // rotate candidates right to create breadth first (otherwise we will do depth first)
+                // std::rotate(candidate_paths.begin(),candidate_paths.end()-1,candidate_paths.end());
+              }
+            }
+          }
+        }
+        result = valid_paths.size();
+        {
+          // check against small test result
+          // auto valid_test_paths = small_test_valid_paths();
+          // for (auto const& path : valid_test_paths) {
+          //   if (valid_paths.contains(path)) {
+          //     std::cout << "\nfound : " << to_string(path);
+          //   }
+          //   else {
+          //     std::cout << "\nmissed : " << to_string(path);
+          //   }
+          // }
+        }
+      }
       return result;
   }
 }
@@ -161,15 +288,15 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1 Test 2",part1::solve_for(pTest2)});
-  answers.push_back({"Part 1 Test 3",part1::solve_for(pTest3)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  // answers.push_back({"Part 1 Test 2",part1::solve_for(pTest2)});
+  // answers.push_back({"Part 1 Test 3",part1::solve_for(pTest3)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
 
   // answers.push_back({"Part 1 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 1 Test 2",part2::solve_for(pTest2)});
   // answers.push_back({"Part 1 Test 3",part2::solve_for(pTest3)});
-  // answers.push_back({"Part 1     ",part2::solve_for(pData)});
+  answers.push_back({"Part 1     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
