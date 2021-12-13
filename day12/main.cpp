@@ -187,7 +187,7 @@ namespace part2 {
 //     std::cout << "\ntest paths count : " << result.size();
 //     return result;
 //   }
-  bool single_small_cave_max_twice(Path const& path) {
+  bool single_small_cave_max_twice(Path const& path,Vertex const& vertex_to_add) {
     bool result{true};
     std::set<Vertex> small_caves_in_path{};
     int small_cave_twin_count = std::accumulate(path.begin(),path.end(),int{0},[&small_caves_in_path](auto acc,Vertex const& vertex){
@@ -201,16 +201,16 @@ namespace part2 {
       }
       return acc;
     });
-    result = small_cave_twin_count<=1; // max one twin
+    result = small_cave_twin_count==0; // No twins before adding new_vertex
     // std::cout << "\n\t single_small_cave_max_twice for " << to_string(path) << " is " << result;
     return result;
   }
-  bool is_valid_candidate(Path const& path) {
+  bool is_valid_candidate(Path const& path,Vertex const& vertex_to_add) {
     bool result{false};
     for (auto const& vertex : path) {
-      if (vertex_count(path,"start")>1) result = false;
-      else if (is_all_lower(vertex) == false or vertex_count(path,vertex)<=1) result = true;
-      else if (single_small_cave_max_twice(path)) result = true;
+      if (vertex_to_add == "start") result = false;
+      else if (is_all_lower(vertex_to_add) == false or vertex_count(path,vertex_to_add)==0) result = true;
+      else if (single_small_cave_max_twice(path,vertex_to_add)) result = true;
       else result = false;
     }
     // std::cout << "\nis_valid_candidate " << to_string(path) << " = " << result;
@@ -240,11 +240,13 @@ namespace part2 {
         // breadth first search for valid paths
         Paths candidate_paths{{"start"}};
         std::set<Path> valid_paths{};
-        size_t loop_count{0};
+        const size_t LOOP_LOG_THRESHOLD = 10000;
+        size_t loop_count{LOOP_LOG_THRESHOLD};
+        std::cout << "\n{candidates\t\tmatches} ";
         while (candidate_paths.size()>0) {
-          if (++loop_count%10000==0) {
-            std::cout << "\ncandidates count: " << candidate_paths.size();
-            std::cout << "\nvalid paths count: " << valid_paths.size();
+          if (loop_count++%10000==0) {
+            std::cout << "\n" << candidate_paths.size();
+            std::cout << "\t\t" << valid_paths.size();
           }
           // next candidate
           auto candidate_path = candidate_paths.back();
@@ -258,8 +260,8 @@ namespace part2 {
             // produce new valid candidates paths                        
             for (auto const& new_candidate_vertex: adjacent_graph[candidate_path.back()]) {
               auto new_candidate_path = candidate_path;
-              new_candidate_path.push_back(new_candidate_vertex);
-              if (is_valid_candidate(new_candidate_path)) {
+              if (is_valid_candidate(new_candidate_path,new_candidate_vertex)) {
+                new_candidate_path.push_back(new_candidate_vertex);
                 candidate_paths.push_back(new_candidate_path);
                 // rotate candidates right to create breadth first (otherwise we will do depth first)
                 // std::rotate(candidate_paths.begin(),candidate_paths.end()-1,candidate_paths.end());
