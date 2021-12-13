@@ -114,10 +114,22 @@ namespace part1 {
 
 namespace part2 {
   Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto data_model = parse(in);
-      return result;
+    Result result{};
+    std::stringstream in{ pData };
+    auto puzzle_model = parse(in);
+    Dots paper{puzzle_model.dots};
+    for (auto const& a_fold : puzzle_model.folds) {
+      paper = fold(paper,a_fold);
+    }
+    for (int row=0;row<16;row++) {
+      std::string display_line{};
+      for (int col=0;col<80;col++) {
+        if (paper.contains({col,row})) display_line.append(1,'#');
+        else display_line.append(1,' ');
+      }
+      std::cout << "\n" << display_line;
+    }
+    return result;
   }
 }
 
@@ -125,9 +137,9 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
