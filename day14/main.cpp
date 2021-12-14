@@ -57,65 +57,113 @@ std::string to_log_string(std::string const& polymer) {
     }
     return result;
 }
-namespace part1 {
-  Result solve_for(char const* pData) {
-    Result result{};
-    std::stringstream in{ pData };
-    auto puzzle_model = parse(in);
-    std::cout << "\ntemplate:" << puzzle_model.polymer_template;
-    for (auto const& transform : puzzle_model.transforms) {
-        std::cout << "\n{key:" << transform.rule.first << ",insert:" << transform.rule.second;
+template <int N>
+struct part1 {
+    static Result solve_for(char const* pData) {
+        Result result{};
+        std::stringstream in{ pData };
+        auto puzzle_model = parse(in);
+        std::cout << "\ntemplate:" << puzzle_model.polymer_template;
+        for (auto const& transform : puzzle_model.transforms) {
+            std::cout << "\n{key:" << transform.rule.first << ",insert:" << transform.rule.second;
+        }
+        std::string polymer{ puzzle_model.polymer_template };
+        for (int step = 1; step <= N; step++) {
+            std::string transformed_polymer{ polymer[0] };
+            for (size_t pos = 1; pos < polymer.size(); pos++) {
+                std::string key{ polymer.substr(pos - 1,2) };
+                for (auto const& transform : puzzle_model.transforms) {
+                    if (key == transform.rule.first) {
+                        transformed_polymer += transform.rule.second;
+                        break;
+                    }
+                }
+                transformed_polymer += polymer[pos];
+            }
+            polymer = transformed_polymer;
+            std::cout << "\nAfter step " << step << "\t: [" << polymer.size() << "]" << to_log_string(polymer);
+        }
+        using Counts = std::map<char, size_t>;
+        auto counts = std::accumulate(polymer.begin(), polymer.end(), Counts{}, [](auto acc, char ch) {
+            ++acc[ch];
+            return acc;
+            });
+        using MaxMinFreq = std::pair<size_t, size_t>;
+        MaxMinFreq init{ 0,SIZE_MAX };
+        auto [max_freq, min_freq] = std::accumulate(counts.begin(), counts.end(), init, [](auto acc, auto entry) {
+            acc.first = std::max(acc.first, entry.second);
+            acc.second = std::min(acc.second, entry.second);
+            return acc;
+            });
+        std::cout << "\nmax:" << max_freq << " min:" << min_freq;
+        result = max_freq - min_freq;
+        return result;
     }
-    std::string polymer{ puzzle_model.polymer_template };
-    for (int step = 1; step <= 10;step++) {
-        std::string transformed_polymer{polymer[0]};
-        for (int pos = 1; pos < polymer.size(); pos++) {
-            std::string key{ polymer.substr(pos-1,2) };
-            for (auto const& transform : puzzle_model.transforms) {
-                if (key == transform.rule.first) {
-                    transformed_polymer += transform.rule.second;
-                    break;
+};
+
+template <int N>
+struct part2 {
+    static Result solve_for(char const* pData) {
+        Result result{};
+        std::stringstream in{ pData };
+        auto puzzle_model = parse(in);
+        // keep track of all the pairs and their counts
+        using PairCounts = std::map<std::string, size_t>;
+        PairCounts pair_counts{};
+        auto pt{ puzzle_model.polymer_template };
+        for (size_t pos = 1; pos < pt.size(); pos++) {
+            std::string key{ pt.substr(pos - 1,2) };
+            ++pair_counts[key];
+        }
+        for (int step = 1; step <= N; step++) {
+            PairCounts transformed_counts{};
+            for (auto const& count_entry : pair_counts) {
+                for (auto const& transform : puzzle_model.transforms) {
+                    if (count_entry.first == transform.rule.first) {
+                        // the count_entry split into two new pairs with the same count as the split pair
+                        std::string new_left_pair{ std::string{count_entry.first[0]} + transform.rule.second};
+                        std::string new_right_pair{ std::string{transform.rule.second} + count_entry.first[1]};
+                        transformed_counts[new_left_pair] += count_entry.second;
+                        transformed_counts[new_right_pair] += count_entry.second;
+                    };
                 }
             }
-            transformed_polymer += polymer[pos];
+            pair_counts = transformed_counts;
+            std::cout << "\nAfter step " << step << "\t" << pair_counts.size() << " pairs";
+            for (auto const& entry : pair_counts) {
+                std::cout << "\n\t {pair:" << entry.first << ",count:" << entry.second << "}";
+            }
         }
-        polymer = transformed_polymer;
-        std::cout << "\nAfter step " << step << "\t: [" << polymer.size() << "]" << to_log_string(polymer);
-    }
-    using Counts = std::map<char, size_t>;
-    auto counts = std::accumulate(polymer.begin(), polymer.end(), Counts{}, [](auto acc,char ch) {
-        ++acc[ch];
-        return acc;
-    });
-    using MaxMinFreq = std::pair<size_t, size_t>;
-    MaxMinFreq init{0,SIZE_MAX };
-    auto [max_freq, min_freq] = std::accumulate(counts.begin(), counts.end(), init, [](auto acc,auto entry) {
-        acc.first = std::max(acc.first,entry.second);
-        acc.second = std::min(acc.second, entry.second);
-        return acc;
-    });
-    std::cout << "\nmax:" << max_freq << " min:" << min_freq;
-    result = max_freq - min_freq;
-    return result;
-  }
-}
+        using ElementCounts = std::map<char, size_t>;
+        auto element_counts = std::accumulate(pair_counts.begin(), pair_counts.end(), ElementCounts{}, [](auto acc, auto me) {
+            acc[me.first[0]] += me.second; // count the left char of each pair
+            return acc;
+            });
+        ++element_counts[pt.back()]; // count the left charachter in the last pair (unchanged though all transforms)
+        for (auto const& entry : element_counts) {
+            std::cout << "\n{element:" << entry.first << ",count:" << entry.second << "}";
+        }
+        using MaxMinFreq = std::pair<size_t, size_t>;
+        MaxMinFreq init{ 0,SIZE_MAX };
+        auto [max_freq, min_freq] = std::accumulate(element_counts.begin(), element_counts.end(), init, [](auto acc, auto entry) {
+            acc.first = std::max(acc.first, entry.second);
+            acc.second = std::min(acc.second, entry.second);
+            return acc;
+            });
+        std::cout << "\nmax:" << max_freq << " min:" << min_freq;
+        result = max_freq - min_freq;
+        return result;
 
-namespace part2 {
-  Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto data_model = parse(in);
-      return result;
-  }
-}
+    }
+};
 
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  answers.push_back({"Part 1 Test",part1<10>::solve_for(pTest)});
+  answers.push_back({"Part 1     ",part1<10>::solve_for(pData)});
+  answers.push_back({"Part 2 Test",part2<40>::solve_for(pTest)});
+  answers.push_back({"Part 2     ",part2<40>::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
