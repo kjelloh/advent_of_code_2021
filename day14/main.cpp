@@ -4,6 +4,9 @@
 #include <utility>
 #include <sstream>
 #include <algorithm>
+#include <map>
+#include <numeric>
+#include <stdint.h>
 
 extern char const* pTest;
 extern char const* pData;
@@ -42,17 +45,58 @@ Model parse(auto& in) {
     }
     return result;
 }
-
+std::string to_log_string(std::string const& polymer) {
+    const size_t TRUNCATE_SIZE = 40;
+    const size_t TAIL_SIZE = 10;
+    auto polymer_size = polymer.size();
+    std::string result{polymer.substr(0,TRUNCATE_SIZE)};
+    if (polymer_size > TRUNCATE_SIZE) {
+        result += "...";
+        size_t tail_count = std::min(TAIL_SIZE, polymer_size-TRUNCATE_SIZE-3);
+        result += polymer.substr(polymer_size-tail_count);
+    }
+    return result;
+}
 namespace part1 {
   Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto puzzle_model = parse(in);
-      std::cout << "\ntemplate:" << puzzle_model.polymer_template;
-      for (auto const& transform : puzzle_model.transforms) {
-          std::cout << "\n{key:" << transform.rule.first << ",insert:" << transform.rule.second;
-      }
-      return result;
+    Result result{};
+    std::stringstream in{ pData };
+    auto puzzle_model = parse(in);
+    std::cout << "\ntemplate:" << puzzle_model.polymer_template;
+    for (auto const& transform : puzzle_model.transforms) {
+        std::cout << "\n{key:" << transform.rule.first << ",insert:" << transform.rule.second;
+    }
+    std::string polymer{ puzzle_model.polymer_template };
+    for (int step = 1; step <= 10;step++) {
+        std::string transformed_polymer{polymer[0]};
+        for (int pos = 1; pos < polymer.size(); pos++) {
+            std::string key{ polymer.substr(pos-1,2) };
+            for (auto const& transform : puzzle_model.transforms) {
+                if (key == transform.rule.first) {
+                    transformed_polymer += transform.rule.second;
+                    break;
+                }
+            }
+            transformed_polymer += polymer[pos];
+        }
+        polymer = transformed_polymer;
+        std::cout << "\nAfter step " << step << "\t: [" << polymer.size() << "]" << to_log_string(polymer);
+    }
+    using Counts = std::map<char, size_t>;
+    auto counts = std::accumulate(polymer.begin(), polymer.end(), Counts{}, [](auto acc,char ch) {
+        ++acc[ch];
+        return acc;
+    });
+    using MaxMinFreq = std::pair<size_t, size_t>;
+    MaxMinFreq init{0,SIZE_MAX };
+    auto [max_freq, min_freq] = std::accumulate(counts.begin(), counts.end(), init, [](auto acc,auto entry) {
+        acc.first = std::max(acc.first,entry.second);
+        acc.second = std::min(acc.second, entry.second);
+        return acc;
+    });
+    std::cout << "\nmax:" << max_freq << " min:" << min_freq;
+    result = max_freq - min_freq;
+    return result;
   }
 }
 
@@ -69,7 +113,7 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
