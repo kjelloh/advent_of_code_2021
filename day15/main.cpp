@@ -57,15 +57,15 @@ namespace part1 {
     // Grid size
     auto max_row = visit_cost.size()-1;
     auto max_col = visit_cost[0].size()-1;
-    // print
-    {
-      for (auto const& cost_row : visit_cost) {
-        std::cout << "\n";
-        for (auto const& cost : cost_row) {
-          std::cout << " visit_cost:" << cost;
-        }
-      }
-    }
+    // // print
+    // {
+    //   for (auto const& cost_row : visit_cost) {
+    //     std::cout << "\n";
+    //     for (auto const& cost : cost_row) {
+    //       std::cout << " visit_cost:" << cost;
+    //     }
+    //   }
+    // }
     // initiate cost map
     CostMap cost_map{};
     for (auto const& row : visit_cost) {
@@ -79,24 +79,30 @@ namespace part1 {
 
     Queue to_visit{{0,0}};
     Visited dones{};
+    size_t loop_count{0};
     while (to_visit.size() > 0) {
-      // print
-      {
-        for (auto const& cost_row : cost_map) {
-          std::cout << "\n";
-          for (auto const& cost : cost_row) {
-            if (cost<std::numeric_limits<Cost>::max()) std::cout << "\t" << cost;
-            else std::cout << "\t*";
-          }
-        }
+      if (++loop_count%10000) {
+        std::cout << "\nstep " << loop_count << " to visit " << to_visit.size() << " done " << dones.size();
       }
+      // // print
+      // {
+      //   for (auto const& cost_row : cost_map) {
+      //     std::cout << "\n";
+      //     for (auto const& cost : cost_row) {
+      //       if (cost<std::numeric_limits<Cost>::max()) std::cout << "\t" << cost;
+      //       else std::cout << "\t*";
+      //     }
+      //   }
+      // }
       auto pos = to_visit.back();
       to_visit.pop_back();
-      // print
-      {
-        std::cout << "\nvisits {" << pos.first << "," << pos.second << "}";
-      }     
-      // loop adjacent 
+      dones.insert(pos);
+      // // print
+      // {
+      //   std::cout << "\nvisits {" << pos.first << "," << pos.second << "}";
+      // }     
+      // loop adjacent
+      Visited new_dones{};
       for (auto delta_row : {-1,0,1}) {
         for (auto delta_col : {-1,0,1}) {
           if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip self and diagonals
@@ -107,17 +113,12 @@ namespace part1 {
           if (cost_map[adj.first][adj.second] < cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second]) continue;          
           // Update cost for path pos -> adj
           cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
-          // print
-          {
-            std::cout << "\n\tcost {" << pos.first << "," << pos.second << "}";
-            std::cout << " -> {" << adj.first << "," << adj.second << "} = " << cost_map[adj.first][adj.second];
-          }
-          dones.insert(adj);
+          // // print
+          // {
+          //   std::cout << "\n\tcost {" << pos.first << "," << pos.second << "}";
+          //   std::cout << " -> {" << adj.first << "," << adj.second << "} = " << cost_map[adj.first][adj.second];
+          // }
           to_visit.push_front(adj);
-          // print
-          {
-            std::cout << " done {" << adj.first << "," << adj.second << "}";
-          }
         }
       }
     }
@@ -143,7 +144,7 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
