@@ -53,6 +53,9 @@ namespace part1 {
       }
       cost_map.push_back(cost_row);
     }
+    // Grid size
+    auto max_row = cost_map.size()-1;
+    auto max_col = cost_map[0].size()-1;
     // // print
     // {
     //   for (auto const& cost_row : cost_map) {
@@ -63,15 +66,38 @@ namespace part1 {
     //   }
     // }
     Queue to_visit{{0,0}};
+    Visited processed{};
     while (to_visit.size() > 0) {
-      auto visited = to_visit.back();
+      auto pos = to_visit.back();
+      to_visit.pop_back();
       // print
       {
-        std::cout << "\nvisits {" << visited.first << "," << visited.second << "}";
-      }
+        std::cout << "\nvisits {" << pos.first << "," << pos.second << "}";
+      }     
+      // loop adjacent 
+      for (auto delta_row : {-1,0,1}) {
+        for (auto delta_col : {-1,0,1}) {
+          if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip self and diagonals
+          Position adj{pos.first+delta_row,pos.second+delta_col};
+          if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second>max_col) continue; // skip out of grid
+          if (processed.count(adj)>0) continue; // skip visited
 
-      to_visit.pop_back();
-    }    
+          // Process - TBD
+
+          // Update for next iteration
+          processed.insert(adj);
+          to_visit.push_front(adj);
+          // print
+          {
+            std::cout << " spawned {" << adj.first << "," << adj.second << "}";
+          }
+        }
+      }
+    }
+    // print
+    {
+      std::cout << "\nNode Count " << processed.size(); 
+    }
     return result;
   }
 }
