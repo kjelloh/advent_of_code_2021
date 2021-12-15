@@ -7,6 +7,7 @@
 #include <limits>
 #include <set>
 #include <deque>
+#include <iterator>
 
 char const* pTest0 = R"(1163
 1381
@@ -131,10 +132,114 @@ namespace part1 {
 
 namespace part2 {
   Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto data_model = parse(in);
-      return result;
+    Result result{};
+    std::stringstream in{ pData };
+    auto puzzle_model = parse(in);
+    // Create the ten possible tiles to expand our map with
+    std::vector<Model> tile{puzzle_model};
+    for (int i=1;i<10;i++) { // 9 more tiles
+      auto new_tile{tile[i-1]};
+      for (int row=0;row<new_tile.size();row++) {
+        std::transform(new_tile[row].begin(),new_tile[row].end(),new_tile[row].begin(),[](char digit){
+          return ((digit-'0'+1)%10)+'0';
+        });
+      }
+      tile.push_back(new_tile);
+    }
+    // expand our model
+    Model expanded_model{};
+    auto const in_model_width = puzzle_model[0].size();
+    auto const in_model_height = puzzle_model.size();
+    for (int tile_row=0;tile_row<5;tile_row++) {
+      for (int tile_column=0;tile_column<5;tile_column++) {
+        // tile_row 0: tile[0]...tile[4]
+        // tile_row 1: tile[1]...tile[6]
+        // tile_row 2: tile[2]...tile[7]
+        // tile_row 3: tile[3]...tile[8]
+        // tile_row 4: tile[4]...tile[9]
+
+        for (int row=0;row<in_model_height;row++) {
+          // expanded_model[tile_row*row][tile_column*col] = tile[tile_row][row][col]
+          expanded_model.push_back("");
+          std::copy(tile[tile_row + tile_column][row].begin(),tile[tile_row+tile_column][row].end()
+            ,std::back_inserter(expanded_model[tile_row*in_model_height + row]));
+        }
+     }
+    }
+    puzzle_model = expanded_model; // bam!
+    // initiate visit cost map 
+    CostMap visit_cost{};
+    for (auto const& row : puzzle_model) {
+      CostRow cost_row{};
+      for (auto const& cost_digit : row) {
+        cost_row.push_back(cost_digit-'0');
+      }
+      visit_cost.push_back(cost_row);
+    }
+    // Grid size
+    auto max_row = visit_cost.size()-1;
+    auto max_col = visit_cost[0].size()-1;
+    // print
+    {
+      std::cout << visit_cost.size() << " times " << visit_cost[0].size();
+      for (auto const& cost_row : visit_cost) {
+        std::cout << "\n";
+        for (auto const& cost : cost_row) {
+          std::cout << cost;
+        }
+      }
+    }
+    return 0;
+    // initiate cost map
+    CostMap cost_map{};
+    for (auto const& row : visit_cost) {
+      CostRow cost_row{};
+      for (auto const& cost : row) {
+        cost_row.push_back(std::numeric_limits<Cost>::max());
+      }
+      cost_map.push_back(cost_row);
+    }
+    cost_map[0][0] = 0;
+    // helper to track cheapest path
+    std::vector<std::vector<Position>> parent_map{100,{100,{0,0}}};
+    // Flood fill with min costs from {0,0} to {max_row,max_col}
+    std::set<Position> frontiere{};
+    frontiere.insert({0,0});
+    while (frontiere.size()>0) {
+      std::set<Position> new_frontiere{};
+      for (auto const& pos : frontiere) {
+        for (auto delta_row : {0,1}) {
+          for (auto delta_col : {0,1}){
+            if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip origin and diagonals
+            Position adj{pos.first+delta_row,pos.second+delta_col};
+            if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second > max_col) continue; // skip out-of-bounds
+            if (cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second] < cost_map[adj.first][adj.second]) {
+              cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
+              parent_map[adj.first][adj.second] = pos;
+            }
+            new_frontiere.insert(adj);
+          }
+        }
+      }
+      frontiere = new_frontiere;
+    }
+
+    // backtrack cheapest path
+    {
+      Position pos{max_row,max_col}; // end node
+      std::deque<Position> path{};
+      while (pos != Position{0,0}) {        
+        path.push_front(pos);
+        pos = parent_map[pos.first][pos.second];
+      }
+      // print
+      std::cout << "\ncheapest steps:";
+      for (auto const& pos : path) {
+        std::cout << " " << visit_cost[pos.first][pos.second];
+      }      
+    }
+    result = cost_map.back().back();
+    return result;
   }
 }
 
@@ -142,8 +247,8 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
