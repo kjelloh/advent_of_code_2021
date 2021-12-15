@@ -118,7 +118,7 @@ namespace part1 {
           //   std::cout << "\n\tcost {" << pos.first << "," << pos.second << "}";
           //   std::cout << " -> {" << adj.first << "," << adj.second << "} = " << cost_map[adj.first][adj.second];
           // }
-          to_visit.push_front(adj);
+          to_visit.push_back(adj);
         }
       }
     }
