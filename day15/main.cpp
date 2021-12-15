@@ -45,29 +45,51 @@ namespace part1 {
     //     }
     //   }
     // }
-    CostMap cost_map{};
+    // initiate visit cost map 
+    CostMap visit_cost{};
     for (auto const& row : puzzle_model) {
       CostRow cost_row{};
       for (auto const& cost_digit : row) {
         cost_row.push_back(cost_digit-'0');
       }
-      cost_map.push_back(cost_row);
+      visit_cost.push_back(cost_row);
     }
     // Grid size
-    auto max_row = cost_map.size()-1;
-    auto max_col = cost_map[0].size()-1;
-    // // print
-    // {
-    //   for (auto const& cost_row : cost_map) {
-    //     std::cout << "\n";
-    //     for (auto const& cost : cost_row) {
-    //       std::cout << " cost:" << cost;
-    //     }
-    //   }
-    // }
+    auto max_row = visit_cost.size()-1;
+    auto max_col = visit_cost[0].size()-1;
+    // print
+    {
+      for (auto const& cost_row : visit_cost) {
+        std::cout << "\n";
+        for (auto const& cost : cost_row) {
+          std::cout << " visit_cost:" << cost;
+        }
+      }
+    }
+    // initiate cost map
+    CostMap cost_map{};
+    for (auto const& row : visit_cost) {
+      CostRow cost_row{};
+      for (auto const& cost : row) {
+        cost_row.push_back(std::numeric_limits<Cost>::max());
+      }
+      cost_map.push_back(cost_row);
+    }
+    cost_map[0][0] = 0;
+
     Queue to_visit{{0,0}};
     Visited dones{};
     while (to_visit.size() > 0) {
+      // print
+      {
+        for (auto const& cost_row : cost_map) {
+          std::cout << "\n";
+          for (auto const& cost : cost_row) {
+            if (cost<std::numeric_limits<Cost>::max()) std::cout << "\t" << cost;
+            else std::cout << "\t*";
+          }
+        }
+      }
       auto pos = to_visit.back();
       to_visit.pop_back();
       // print
@@ -81,10 +103,15 @@ namespace part1 {
           Position adj{pos.first+delta_row,pos.second+delta_col};
           if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second>max_col) continue; // skip out of grid
           if (dones.count(adj)>0) continue; // skip dones
-
-          // Process - TBD
-
-          // Update for next iteration
+          // Process adj cost
+          if (cost_map[adj.first][adj.second] < cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second]) continue;          
+          // Update cost for path pos -> adj
+          cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
+          // print
+          {
+            std::cout << "\n\tcost {" << pos.first << "," << pos.second << "}";
+            std::cout << " -> {" << adj.first << "," << adj.second << "} = " << cost_map[adj.first][adj.second];
+          }
           dones.insert(adj);
           to_visit.push_front(adj);
           // print
@@ -98,6 +125,7 @@ namespace part1 {
     {
       std::cout << "\nNode Count " << dones.size(); 
     }
+    result = cost_map.back().back();
     return result;
   }
 }
