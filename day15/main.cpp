@@ -7,6 +7,12 @@
 #include <limits>
 #include <set>
 #include <deque>
+
+char const* pTest0 = R"(1163
+1381
+2136
+3694)";
+
 extern char const* pTest;
 extern char const* pData;
 
@@ -80,27 +86,28 @@ namespace part1 {
     Queue to_visit{{0,0}};
     Visited dones{};
     size_t loop_count{0};
+    std::vector<std::vector<Position>> parent_map{100,{100,{0,0}}};
     while (to_visit.size() > 0) {
       if (++loop_count%10000) {
         std::cout << "\nstep " << loop_count << " to visit " << to_visit.size() << " done " << dones.size();
       }
-      // // print
-      // {
-      //   for (auto const& cost_row : cost_map) {
-      //     std::cout << "\n";
-      //     for (auto const& cost : cost_row) {
-      //       if (cost<std::numeric_limits<Cost>::max()) std::cout << "\t" << cost;
-      //       else std::cout << "\t*";
-      //     }
-      //   }
-      // }
+      // print
+      {
+        for (auto const& cost_row : cost_map) {
+          std::cout << "\n";
+          for (auto const& cost : cost_row) {
+            if (cost<std::numeric_limits<Cost>::max()) std::cout << "\t" << cost;
+            else std::cout << "\t*";
+          }
+        }
+      }
       auto pos = to_visit.back();
       to_visit.pop_back();
       dones.insert(pos);
-      // // print
-      // {
-      //   std::cout << "\nvisits {" << pos.first << "," << pos.second << "}";
-      // }     
+      // print
+      {
+        std::cout << "\nvisits {" << pos.first << "," << pos.second << "}";
+      }     
       // loop adjacent
       Visited new_dones{};
       for (auto delta_row : {-1,0,1}) {
@@ -113,18 +120,33 @@ namespace part1 {
           if (cost_map[adj.first][adj.second] < cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second]) continue;          
           // Update cost for path pos -> adj
           cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
-          // // print
-          // {
-          //   std::cout << "\n\tcost {" << pos.first << "," << pos.second << "}";
-          //   std::cout << " -> {" << adj.first << "," << adj.second << "} = " << cost_map[adj.first][adj.second];
-          // }
-          to_visit.push_back(adj);
+          parent_map[adj.first][adj.second] = pos;
+          // print
+          {
+            std::cout << "\n\tcost {" << pos.first << "," << pos.second << "}";
+            std::cout << " -> {" << adj.first << "," << adj.second << "} = " << cost_map[adj.first][adj.second];
+          }
+          to_visit.push_front(adj);
         }
       }
     }
     // print
     {
       std::cout << "\nNode Count " << dones.size(); 
+    }
+    // backtrack cheapest path
+    {
+      Position pos{max_row,max_col}; // end node
+      std::deque<Position> path{};
+      while (pos != Position{0,0}) {        
+        path.push_front(pos);
+        pos = parent_map[pos.first][pos.second];
+      }
+      // print
+      std::cout << "\ncheapest steps:";
+      for (auto const& pos : path) {
+        std::cout << " " << visit_cost[pos.first][pos.second];
+      }      
     }
     result = cost_map.back().back();
     return result;
@@ -143,8 +165,8 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1 Test",part1::solve_for(pTest0)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
