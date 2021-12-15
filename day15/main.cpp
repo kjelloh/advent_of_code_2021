@@ -28,6 +28,8 @@ using Position = std::pair<int,int>;
 using Cost = size_t;
 using CostRow = std::vector<Cost>;
 using CostMap = std::vector<CostRow>;
+using Queue = std::deque<Position>;
+using Visited = std::set<Position>;
 
 namespace part1 {
   Result solve_for(char const* pData) {
@@ -60,7 +62,16 @@ namespace part1 {
     //     }
     //   }
     // }
-    
+    Queue to_visit{{0,0}};
+    while (to_visit.size() > 0) {
+      auto visited = to_visit.back();
+      // print
+      {
+        std::cout << "\nvisits {" << visited.first << "," << visited.second << "}";
+      }
+
+      to_visit.pop_back();
+    }    
     return result;
   }
 }
