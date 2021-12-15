@@ -24,8 +24,10 @@ Model parse(auto& in) {
     return result;
 }
 
+using Position = std::pair<int,int>;
 using Cost = size_t;
-using Costs = std::vector<std::vector<Cost>>;
+using CostRow = std::vector<Cost>;
+using CostMap = std::vector<CostRow>;
 
 namespace part1 {
   Result solve_for(char const* pData) {
@@ -41,6 +43,24 @@ namespace part1 {
     //     }
     //   }
     // }
+    CostMap cost_map{};
+    for (auto const& row : puzzle_model) {
+      CostRow cost_row{};
+      for (auto const& cost_digit : row) {
+        cost_row.push_back(cost_digit-'0');
+      }
+      cost_map.push_back(cost_row);
+    }
+    // // print
+    // {
+    //   for (auto const& cost_row : cost_map) {
+    //     std::cout << "\n";
+    //     for (auto const& cost : cost_row) {
+    //       std::cout << " cost:" << cost;
+    //     }
+    //   }
+    // }
+    
     return result;
   }
 }
