@@ -66,7 +66,7 @@ namespace part1 {
     //   }
     // }
     Queue to_visit{{0,0}};
-    Visited processed{};
+    Visited dones{};
     while (to_visit.size() > 0) {
       auto pos = to_visit.back();
       to_visit.pop_back();
@@ -80,23 +80,23 @@ namespace part1 {
           if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip self and diagonals
           Position adj{pos.first+delta_row,pos.second+delta_col};
           if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second>max_col) continue; // skip out of grid
-          if (processed.count(adj)>0) continue; // skip visited
+          if (dones.count(adj)>0) continue; // skip dones
 
           // Process - TBD
 
           // Update for next iteration
-          processed.insert(adj);
+          dones.insert(adj);
           to_visit.push_front(adj);
           // print
           {
-            std::cout << " spawned {" << adj.first << "," << adj.second << "}";
+            std::cout << " done {" << adj.first << "," << adj.second << "}";
           }
         }
       }
     }
     // print
     {
-      std::cout << "\nNode Count " << processed.size(); 
+      std::cout << "\nNode Count " << dones.size(); 
     }
     return result;
   }
