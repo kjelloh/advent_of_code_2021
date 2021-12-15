@@ -9,10 +9,56 @@
 #include <deque>
 #include <iterator>
 
-char const* pTest0 = R"(1163
-1381
-2136
-3694)";
+char const* pTest0 = R"(11637517422274862853338597396444961841755517295286
+13813736722492484783351359589446246169155735727126
+21365113283247622439435873354154698446526571955763
+36949315694715142671582625378269373648937148475914
+74634171118574528222968563933317967414442817852555
+13191281372421239248353234135946434524615754563572
+13599124212461123532357223464346833457545794456865
+31254216394236532741534764385264587549637569865174
+12931385212314249632342535174345364628545647573965
+23119445813422155692453326671356443778246755488935
+22748628533385973964449618417555172952866628316397
+24924847833513595894462461691557357271266846838237
+32476224394358733541546984465265719557637682166874
+47151426715826253782693736489371484759148259586125
+85745282229685639333179674144428178525553928963666
+24212392483532341359464345246157545635726865674683
+24611235323572234643468334575457944568656815567976
+42365327415347643852645875496375698651748671976285
+23142496323425351743453646285456475739656758684176
+34221556924533266713564437782467554889357866599146
+33859739644496184175551729528666283163977739427418
+35135958944624616915573572712668468382377957949348
+43587335415469844652657195576376821668748793277985
+58262537826937364893714847591482595861259361697236
+96856393331796741444281785255539289636664139174777
+35323413594643452461575456357268656746837976785794
+35722346434683345754579445686568155679767926678187
+53476438526458754963756986517486719762859782187396
+34253517434536462854564757396567586841767869795287
+45332667135644377824675548893578665991468977611257
+44961841755517295286662831639777394274188841538529
+46246169155735727126684683823779579493488168151459
+54698446526571955763768216687487932779859814388196
+69373648937148475914825958612593616972361472718347
+17967414442817852555392896366641391747775241285888
+46434524615754563572686567468379767857948187896815
+46833457545794456865681556797679266781878137789298
+64587549637569865174867197628597821873961893298417
+45364628545647573965675868417678697952878971816398
+56443778246755488935786659914689776112579188722368
+55172952866628316397773942741888415385299952649631
+57357271266846838237795794934881681514599279262561
+65719557637682166874879327798598143881961925499217
+71484759148259586125936169723614727183472583829458
+28178525553928963666413917477752412858886352396999
+57545635726865674683797678579481878968159298917926
+57944568656815567976792667818781377892989248891319
+75698651748671976285978218739618932984172914319528
+56475739656758684176786979528789718163989182927419
+67554889357866599146897761125791887223681299833479)";
 
 extern char const* pTest;
 extern char const* pData;
@@ -89,10 +135,6 @@ namespace part1 {
     std::set<Position> frontiere{};
     frontiere.insert({0,0});
     while (frontiere.size()>0) {
-      // print
-      {
-
-      }
       std::set<Position> new_frontiere{};
       for (auto const& pos : frontiere) {
         for (auto delta_row : {0,1}) {
@@ -100,7 +142,7 @@ namespace part1 {
             if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip origin and diagonals
             Position adj{pos.first+delta_row,pos.second+delta_col};
             if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second > max_col) continue; // skip out-of-bounds
-            if (cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second] < cost_map[adj.first][adj.second]) {
+            if (cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second] <= cost_map[adj.first][adj.second]) {
               cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
               parent_map[adj.first][adj.second] = pos;
             }
@@ -141,7 +183,7 @@ namespace part2 {
       auto new_tile{tile[i-1]};
       for (int row=0;row<new_tile.size();row++) {
         std::transform(new_tile[row].begin(),new_tile[row].end(),new_tile[row].begin(),[](char digit){
-          return ((digit-'0'+1)%10)+'0';
+          return ((digit-'1'+1)%9)+'1';
         });
       }
       tile.push_back(new_tile);
@@ -151,20 +193,20 @@ namespace part2 {
     auto const in_model_width = puzzle_model[0].size();
     auto const in_model_height = puzzle_model.size();
     for (int tile_row=0;tile_row<5;tile_row++) {
-      for (int tile_column=0;tile_column<5;tile_column++) {
-        // tile_row 0: tile[0]...tile[4]
-        // tile_row 1: tile[1]...tile[6]
-        // tile_row 2: tile[2]...tile[7]
-        // tile_row 3: tile[3]...tile[8]
-        // tile_row 4: tile[4]...tile[9]
+      for (int row=0;row<in_model_height;row++) {
+        expanded_model.push_back("");
+        for (int tile_column=0;tile_column<5;tile_column++) {
+          // tile_row 0: tile[0]...tile[4]
+          // tile_row 1: tile[1]...tile[6]
+          // tile_row 2: tile[2]...tile[7]
+          // tile_row 3: tile[3]...tile[8]
+          // tile_row 4: tile[4]...tile[9]
 
-        for (int row=0;row<in_model_height;row++) {
           // expanded_model[tile_row*row][tile_column*col] = tile[tile_row][row][col]
-          expanded_model.push_back("");
           std::copy(tile[tile_row + tile_column][row].begin(),tile[tile_row+tile_column][row].end()
             ,std::back_inserter(expanded_model[tile_row*in_model_height + row]));
         }
-     }
+      }
     }
     puzzle_model = expanded_model; // bam!
     // initiate visit cost map 
@@ -189,7 +231,6 @@ namespace part2 {
         }
       }
     }
-    return 0;
     // initiate cost map
     CostMap cost_map{};
     for (auto const& row : visit_cost) {
@@ -200,8 +241,9 @@ namespace part2 {
       cost_map.push_back(cost_row);
     }
     cost_map[0][0] = 0;
+
     // helper to track cheapest path
-    std::vector<std::vector<Position>> parent_map{100,{100,{0,0}}};
+    std::vector<std::vector<Position>> parent_map{500,{500,{0,0}}};
     // Flood fill with min costs from {0,0} to {max_row,max_col}
     std::set<Position> frontiere{};
     frontiere.insert({0,0});
@@ -228,10 +270,11 @@ namespace part2 {
     {
       Position pos{max_row,max_col}; // end node
       std::deque<Position> path{};
-      while (pos != Position{0,0}) {        
+      do {        
         path.push_front(pos);
         pos = parent_map[pos.first][pos.second];
-      }
+      } while (pos != Position{0,0});
+      path.push_front(pos);
       // print
       std::cout << "\ncheapest steps:";
       for (auto const& pos : path) {
