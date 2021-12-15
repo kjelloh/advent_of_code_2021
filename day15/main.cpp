@@ -82,58 +82,34 @@ namespace part1 {
       cost_map.push_back(cost_row);
     }
     cost_map[0][0] = 0;
-
-    Queue to_visit{{0,0}};
-    Visited dones{};
-    size_t loop_count{0};
+    // helper to track cheapest path
     std::vector<std::vector<Position>> parent_map{100,{100,{0,0}}};
-    while (to_visit.size() > 0) {
-      if (++loop_count%10000) {
-        std::cout << "\nstep " << loop_count << " to visit " << to_visit.size() << " done " << dones.size();
-      }
+    // Flood fill with min costs from {0,0} to {max_row,max_col}
+    std::set<Position> frontiere{};
+    frontiere.insert({0,0});
+    while (frontiere.size()>0) {
       // print
       {
-        for (auto const& cost_row : cost_map) {
-          std::cout << "\n";
-          for (auto const& cost : cost_row) {
-            if (cost<std::numeric_limits<Cost>::max()) std::cout << "\t" << cost;
-            else std::cout << "\t*";
+
+      }
+      std::set<Position> new_frontiere{};
+      for (auto const& pos : frontiere) {
+        for (auto delta_row : {0,1}) {
+          for (auto delta_col : {0,1}){
+            if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip origin and diagonals
+            Position adj{pos.first+delta_row,pos.second+delta_col};
+            if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second > max_col) continue; // skip out-of-bounds
+            if (cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second] < cost_map[adj.first][adj.second]) {
+              cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
+              parent_map[adj.first][adj.second] = pos;
+            }
+            new_frontiere.insert(adj);
           }
         }
       }
-      auto pos = to_visit.back();
-      to_visit.pop_back();
-      dones.insert(pos);
-      // print
-      {
-        std::cout << "\nvisits {" << pos.first << "," << pos.second << "}";
-      }     
-      // loop adjacent
-      Visited new_dones{};
-      for (auto delta_row : {-1,0,1}) {
-        for (auto delta_col : {-1,0,1}) {
-          if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip self and diagonals
-          Position adj{pos.first+delta_row,pos.second+delta_col};
-          if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second>max_col) continue; // skip out of grid
-          if (dones.count(adj)>0) continue; // skip dones
-          // Process adj cost
-          if (cost_map[adj.first][adj.second] < cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second]) continue;          
-          // Update cost for path pos -> adj
-          cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
-          parent_map[adj.first][adj.second] = pos;
-          // print
-          {
-            std::cout << "\n\tcost {" << pos.first << "," << pos.second << "}";
-            std::cout << " -> {" << adj.first << "," << adj.second << "} = " << cost_map[adj.first][adj.second];
-          }
-          to_visit.push_front(adj);
-        }
-      }
+      frontiere = new_frontiere;
     }
-    // print
-    {
-      std::cout << "\nNode Count " << dones.size(); 
-    }
+
     // backtrack cheapest path
     {
       Position pos{max_row,max_col}; // end node
@@ -165,8 +141,8 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest0)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
