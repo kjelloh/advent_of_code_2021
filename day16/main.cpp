@@ -15,6 +15,28 @@ char const* pTest4 = R"(620080001611562C8802118E34)"; // 12
 char const* pTest5 = R"(C0015000016115A2E0802F182340)"; // 23
 char const* pTest6 = R"(A0016C880162017C3686B18A3D4780)"; // 31
 
+std::vector<std::string> part_2_test_data = {
+  {"C200B40A82"} // finds the sum of 1 and 2, resulting in the value 3.
+  ,{"04005AC33890"} // finds the product of 6 and 9, resulting in the value 54.
+  ,{"880086C3E88112"} // finds the minimum of 7, 8, and 9, resulting in the value 7.
+  ,{"CE00C43D881120"} // finds the maximum of 7, 8, and 9, resulting in the value 9.
+  ,{"D8005AC2A8F0"} // produces 1, because 5 is less than 15.
+  ,{"F600BC2D8F"} // produces 0, because 5 is not greater than 15.
+  ,{"9C005AC2F8F0"} // produces 0, because 5 is not equal to 15.
+  ,{"9C0141080250320F1802104A08"} // produces 1, because 1 + 3 = 2 * 2.
+};
+
+/*
+ C200B40A82 finds the sum of 1 and 2, resulting in the value 3.
+ 04005AC33890 finds the product of 6 and 9, resulting in the value 54.
+ 880086C3E88112 finds the minimum of 7, 8, and 9, resulting in the value 7.
+ CE00C43D881120 finds the maximum of 7, 8, and 9, resulting in the value 9.
+ D8005AC2A8F0 produces 1, because 5 is less than 15.
+ F600BC2D8F produces 0, because 5 is not greater than 15.
+ 9C005AC2F8F0 produces 0, because 5 is not equal to 15.
+ 9C0141080250320F1802104A08 produces 1, because 1 + 3 = 2 * 2.
+ */
+
 extern char const* pData;
 
 using Result = size_t;
@@ -62,7 +84,8 @@ BitString read_bits(int read_count, std::istream& bin,int& acc) {
 using Bin = std::istream;
 
 std::string indent{"\n  "};
-size_t version_acc{0};
+
+size_t version_acc{0}; // Dirty global!
 
 int parse_packet(Bin& bin);
 int parse_packets_size(Bin& bin,int bit_count);
@@ -78,10 +101,11 @@ int parse_packet(Bin& bin) {
   std::cout << indent << "packet version:" << packet_version_bs;
   version_acc += std::bitset<3>{packet_version_bs}.to_ullong();
 
-  auto packet_type_ID = read_bits(3,bin,bits_read);
-  std::cout << indent << "packet type ID:" << packet_type_ID;
+  auto packet_type_ID_bs = read_bits(3,bin,bits_read);
+  std::cout << indent << "packet type ID:" << packet_type_ID_bs;
+  auto packet_type_ID = std::bitset<3>{packet_type_ID_bs}.to_ulong();
   
-  if (packet_type_ID=="100") {
+  if (packet_type_ID ==4) {
     /*
     Packets with type ID 4 represent a literal value. Literal value packets encode a single binary number. To do this, the binary number is padded with leading zeroes until its length is a multiple of four bits, and then it is broken into groups of four bits. Each group is prefixed by a 1 bit except the last group, which is prefixed by a 0 bit. These groups of five bits immediately follow the packet header.
      */
@@ -96,7 +120,7 @@ int parse_packet(Bin& bin) {
       std::cout << indent << "*" << literal_value;
     }
     if (literal_value.size()<=64) {
-      std::cout << indent << "= " << std::bitset<128>{literal_value}.to_ullong();
+      std::cout << indent << "= " << std::bitset<64>{literal_value}.to_ullong();
     }
     else {
       std::cout << indent <<  "OVERFLOW ERROR";
@@ -107,6 +131,40 @@ int parse_packet(Bin& bin) {
     /*
      Every other type of packet (any packet with a type ID other than 4) represent an operator that performs some calculation on one or more sub-packets contained within.
      */
+    /*
+     Packets with type ID 0 are sum packets - their value is the sum of the values of their sub-packets. If they only have a single sub-packet, their value is the value of the sub-packet.
+     Packets with type ID 1 are product packets - their value is the result of multiplying together the values of their sub-packets. If they only have a single sub-packet, their value is the value of the sub-packet.
+     Packets with type ID 2 are minimum packets - their value is the minimum of the values of their sub-packets.
+     Packets with type ID 3 are maximum packets - their value is the maximum of the values of their sub-packets.
+     Packets with type ID 5 are greater than packets - their value is 1 if the value of the first sub-packet is greater than the value of the second sub-packet; otherwise, their value is 0. These packets always have exactly two sub-packets.
+     Packets with type ID 6 are less than packets - their value is 1 if the value of the first sub-packet is less than the value of the second sub-packet; otherwise, their value is 0. These packets always have exactly two sub-packets.
+     Packets with type ID 7 are equal to packets - their value is 1 if the value of the first sub-packet is equal to the value of the second sub-packet; otherwise, their value is 0. These packets always have exactly two sub-packets.
+     */
+    switch (packet_type_ID) {
+      case 0:
+        std::cout << indent << "operation SUM";
+        break;
+      case 1:
+        std::cout << indent << "operation MULTIPLY";
+        break;
+      case 2:
+        std::cout << indent << "operation MINIMUM";
+        break;
+      case 3:
+        std::cout << indent << "operation MAXIMUM";
+        break;
+      case 5:
+        std::cout << indent << "operation IS GREATER";
+        break;
+      case 6:
+        std::cout << indent << "operation IS LESS";
+        break;
+      case 7:
+        std::cout << indent << "operation IS EQUAL";
+        break;
+      default:
+        std::cout << indent << "ERROR - packet_type_ID = ??";
+    }
     
     /*
      An operator packet contains one or more packets. To indicate which subsequent binary data represents its sub-packets, an operator packet can use one of two modes indicated by the bit immediately after the packet header; this is called the length type ID:
@@ -119,7 +177,7 @@ int parse_packet(Bin& bin) {
       std::cout << indent << "<total lengths in bits>";
       auto package_length = read_bits(15, bin,bits_read);
       std::cout << indent << package_length;
-      int bit_count = std::bitset<15>{package_length}.to_ullong();
+      int bit_count = static_cast<int>(std::bitset<15>{package_length}.to_ullong());
       std::cout << indent << "= " << bit_count;
       bits_read += parse_packets_size(bin, bit_count);
     }
@@ -130,7 +188,7 @@ int parse_packet(Bin& bin) {
       std::cout << indent << "<sub packet count>";
       auto package_count_bs = read_bits(11, bin, bits_read);
       std::cout << indent << package_count_bs;
-      int package_count = std::bitset<11>{package_count_bs}.to_ulong();
+      int package_count = static_cast<int>(std::bitset<11>{package_count_bs}.to_ulong());
       std::cout << indent << "= " << package_count;
       bits_read += parse_packets_count(bin,package_count);
     }
@@ -202,10 +260,8 @@ namespace part1 {
 
 namespace part2 {
   Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto data_model = parse(in);
-      return result;
+    // TODO: Refactor part1 to evaluate teh operations (but keep also part1 summing to version_acc...
+    return part1::solve_for(pData);
   }
 }
 
@@ -220,6 +276,10 @@ int main(int argc, char *argv[])
   answers.push_back({"Part 1 Test5",part1::solve_for(pTest5)}); // sum 23
   answers.push_back({"Part 1 Test6",part1::solve_for(pTest6)}); // sum 31
   answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  for (int i=0;i<part_2_test_data.size();i++) {
+    std::string label{std::string{"Part 2 Test"} + std::to_string(i)};
+    answers.push_back({label,part2::solve_for(pTest)});
+  }
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
