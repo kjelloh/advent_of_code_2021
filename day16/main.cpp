@@ -9,6 +9,14 @@
 
 char const* pTest = R"(D2FE28)";
 char const* pTest1 = R"(38006F45291200)";
+char const* pTest2 = R"(EE00D40C823060)";
+
+char const* pTest3 = R"(8A004A801A8002F478)"; // 16
+char const* pTest4 = R"(620080001611562C8802118E34)"; // 12
+char const* pTest5 = R"(C0015000016115A2E0802F182340)"; // 23
+char const* pTest6 = R"(A0016C880162017C3686B18A3D4780)"; // 31
+
+
 extern char const* pData;
 
 using Result = size_t;
@@ -46,21 +54,104 @@ BitString to_bit_string(char hex_digit) {
   return result;
 }
 
-BitString read_bits(int bit_count, std::istream& bin) {
+BitString read_bits(int read_count, std::istream& bin,auto& bit_count) {
   BitString result;
-  std::copy_n(std::istream_iterator<char>{bin},bit_count,std::back_inserter(result));
+  std::copy_n(std::istream_iterator<char>{bin},read_count,std::back_inserter(result));
+  bit_count -= read_count;
   return result;
 }
 
-void parse_packet(std::istream& in);
-void parse_packets_size(std::istream& in,size_t bit_count);
-void parse_packets_count(std::istream& in,size_t package_count);
+std::string indent{"\n  "};
+size_t version_acc{0};
 
-void parse_packet(std::istream& in) {
+void parse_packet(std::istream& bin,auto& bit_count);
+void parse_packets_size(std::istream& bin,auto& bit_count);
+void parse_packets_count(std::istream& bin,auto& bit_count,auto& package_count);
+
+void parse_packet(std::istream& bin,auto& bit_count) {
+  std::cout << indent << "parse_packet bit_count:" << bit_count;
+  indent += "  ";
+  // Every packet begins with a standard header: the first three bits encode the packet version,
+  // and the next three bits encode the packet type ID.
+  if (bit_count<6) {bit_count=0;return;}
+  auto packet_version_bs = read_bits(3,bin,bit_count);
+  std::cout << indent << "packet version:" << packet_version_bs;
+  version_acc += std::bitset<3>{packet_version_bs}.to_ullong();
+
+  auto packet_type_ID = read_bits(3,bin,bit_count);
+  std::cout << indent << "packet type ID:" << packet_type_ID;
   
+  if (packet_type_ID=="100") {
+    /*
+    Packets with type ID 4 represent a literal value. Literal value packets encode a single binary number. To do this, the binary number is padded with leading zeroes until its length is a multiple of four bits, and then it is broken into groups of four bits. Each group is prefixed by a 1 bit except the last group, which is prefixed by a 0 bit. These groups of five bits immediately follow the packet header.
+     */
+    indent += "  ";
+    std::cout << indent << "<Literal Value>";
+    bool not_last_package = true;
+    BitString literal_value{};
+    while (not_last_package) {
+      if (bit_count<5) {bit_count=0;return;}
+      not_last_package = read_bits(1, bin,bit_count) == "1";
+      std::copy_n(std::istream_iterator<char>{bin},4,std::back_inserter(literal_value));
+      std::cout << indent << "*" << literal_value;
+    }
+    if (literal_value.size()<=64) {
+      std::cout << indent << "= " << std::bitset<128>{literal_value}.to_ullong();
+    }
+    else {
+      std::cout << indent <<  "OVERFLOW ERROR";
+    }
+    indent.resize(indent.size()-2);
+  }
+  else {
+    /*
+     Every other type of packet (any packet with a type ID other than 4) represent an operator that performs some calculation on one or more sub-packets contained within.
+     */
+    
+    /*
+     An operator packet contains one or more packets. To indicate which subsequent binary data represents its sub-packets, an operator packet can use one of two modes indicated by the bit immediately after the packet header; this is called the length type ID:
+     */
+    indent += "  ";
+    if (read_bits(1, bin,bit_count) == "0") {
+      if (bit_count<15) {bit_count=0;return;}
+      /*
+       If the length type ID is 0, then the next 15 bits are a number that represents the total length in bits of the sub-packets contained by this packet.
+       */
+      std::cout << indent << "<total lengths in bits>";
+      auto package_length = read_bits(15, bin,bit_count);
+      std::cout << indent << package_length;
+      auto bit_count = std::bitset<15>{package_length}.to_ullong();
+      std::cout << indent << "= " << bit_count;
+      parse_packets_size(bin, bit_count);
+    }
+    else {
+      if (bit_count<11) {bit_count=0;return;}
+      /*
+       If the length type ID is 1, then the next 11 bits are a number that represents the number of sub-packets immediately contained by this packet.
+       */
+      std::cout << indent << "<sub packet count>";
+      auto package_count_bs = read_bits(11, bin, bit_count);
+      std::cout << indent << package_count_bs;
+      auto package_count = std::bitset<11>{package_count_bs}.to_ullong();
+      std::cout << indent << "= " << package_count;
+      parse_packets_count(bin, bit_count, package_count);
+    }
+    indent.resize(indent.size()-2);
+  }
+  indent.resize(indent.size()-2);
 }
-void parse_packets_size(std::istream& in,size_t bit_count) {}
-void parse_packets_count(std::istream& in,size_t package_count) {}
+void parse_packets_size(std::istream& bin,auto& bit_count) {
+  indent += "  ";
+  std::cout << indent << "parse_packets_size bit_count:" << bit_count;
+  while (bit_count > 0) parse_packet(bin, bit_count);
+  indent.resize(indent.size()-2);
+}
+void parse_packets_count(std::istream& bin,auto& bit_count,auto& package_count) {
+  indent += "  ";
+  std::cout << indent << "parse_packets_count bit_count:" << bit_count << " package_count:" << package_count;
+  for (int i=0;i<package_count;i++) parse_packet(bin, bit_count);
+  indent.resize(indent.size()-2);
+}
 
 
 Model parse(auto& in) {
@@ -74,66 +165,11 @@ Model parse(auto& in) {
     bin_digit_string += to_bit_string(hex_digit);
   }
   std::cout << "\nin binary:[" << bin_digit_string.size() << "]" << bin_digit_string;
-  std::string indent{"\n  "};
   std::stringstream bin{bin_digit_string};
 
   // parse the bit stream
-  {
-    // Every packet begins with a standard header: the first three bits encode the packet version,
-    // and the next three bits encode the packet type ID.
-    auto packet_version = read_bits(3,bin);
-    std::cout << indent << "packet version:" << packet_version;
-
-    auto packet_type_ID = read_bits(3,bin);
-    std::cout << indent << "packet type ID:" << packet_type_ID;
-    
-    if (packet_type_ID=="100") {
-      /*
-      Packets with type ID 4 represent a literal value. Literal value packets encode a single binary number. To do this, the binary number is padded with leading zeroes until its length is a multiple of four bits, and then it is broken into groups of four bits. Each group is prefixed by a 1 bit except the last group, which is prefixed by a 0 bit. These groups of five bits immediately follow the packet header.
-       */
-      indent += "  ";
-      std::cout << indent << "<Literal Value>";
-      bool not_last_package = true;
-      BitString literal_value{};
-      while (not_last_package) {
-        not_last_package = read_bits(1, bin) == "1";
-        std::copy_n(std::istream_iterator<char>{bin},4,std::back_inserter(literal_value));
-        std::cout << indent << "*" << literal_value;
-      }
-      if (literal_value.size()<=64) {
-        std::cout << indent << "= " << std::bitset<128>{literal_value}.to_ullong();
-      }
-      else {
-        std::cout << indent <<  "OVERFLOW ERROR";
-      }
-    }
-    else {
-      /*
-       Every other type of packet (any packet with a type ID other than 4) represent an operator that performs some calculation on one or more sub-packets contained within.
-       */
-      
-      /*
-       An operator packet contains one or more packets. To indicate which subsequent binary data represents its sub-packets, an operator packet can use one of two modes indicated by the bit immediately after the packet header; this is called the length type ID:
-       */
-      indent += "  ";
-      if (read_bits(1, bin) == "0") {
-        /*
-         If the length type ID is 0, then the next 15 bits are a number that represents the total length in bits of the sub-packets contained by this packet.
-         */
-        std::cout << indent << "<total lengths in bits>";
-        auto package_length = read_bits(15, bin);
-        std::cout << indent << package_length;
-        std::cout << indent << "= " << std::bitset<15>{package_length}.to_ullong();
-      }
-      else {
-        /*
-         If the length type ID is 1, then the next 11 bits are a number that represents the number of sub-packets immediately contained by this packet.
-         */
-        std::cout << indent << "<sub packet count>";
-      }
-    }
-    std::cout << "\n...TBD";
-  }
+  auto bit_count = bin_digit_string.size();
+  parse_packet(bin, bit_count);
   return result;
 }
 
@@ -141,7 +177,9 @@ namespace part1 {
   Result solve_for(char const* pData) {
     Result result{};
     std::stringstream in{ pData };
+    version_acc = 0;
     auto data_model = parse(in);
+    result = version_acc;
     return result;
   }
 }
@@ -158,8 +196,13 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1 Test1",part1::solve_for(pTest1)});
+//  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+//  answers.push_back({"Part 1 Test1",part1::solve_for(pTest1)});
+//  answers.push_back({"Part 1 Test2",part1::solve_for(pTest2)});
+//  answers.push_back({"Part 1 Test3",part1::solve_for(pTest3)});
+    answers.push_back({"Part 1 Test4",part1::solve_for(pTest4)});
+//  answers.push_back({"Part 1 Test5",part1::solve_for(pTest5)});
+//  answers.push_back({"Part 1 Test6",part1::solve_for(pTest6)});
   // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
