@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <bitset>
 #include <array>
+#include <optional>
 
 char const* pTest = R"(D2FE28)";
 char const* pTest1 = R"(38006F45291200)";
@@ -15,7 +16,6 @@ char const* pTest3 = R"(8A004A801A8002F478)"; // 16
 char const* pTest4 = R"(620080001611562C8802118E34)"; // 12
 char const* pTest5 = R"(C0015000016115A2E0802F182340)"; // 23
 char const* pTest6 = R"(A0016C880162017C3686B18A3D4780)"; // 31
-
 
 extern char const* pData;
 
@@ -59,6 +59,58 @@ BitString read_bits(int read_count, std::istream& bin,auto& bit_count) {
   std::copy_n(std::istream_iterator<char>{bin},read_count,std::back_inserter(result));
   bit_count -= read_count;
   return result;
+}
+
+namespace day15 {
+
+  enum BitStringType {
+    unkown
+    ,literal
+    ,undefined
+  };
+
+  class TypedBitString {
+  public:
+    BitStringType type{undefined};
+    BitString bs{""};
+  };
+
+  using SuccessParseResult = std::pair<TypedBitString,std::istream&>;
+
+  using ParseResult = std::optional<SuccessParseResult>;
+
+  class Parser {
+  public:
+    virtual ParseResult parse(std::istream& bin) = 0;
+  };
+
+  class BinaryLiteral : public Parser {
+  public:
+    // Begin class Parser
+    virtual ParseResult parse(std::istream& bin) {
+      ParseResult result{};
+      TypedBitString out{literal,""};
+      return result;
+    }
+    // End class Parser
+  };
+
+  ParseResult parse(Parser& parser,std::istream& bin) {
+    BitString bs{};
+    std::copy_n(std::istream_iterator<char>{bin},4,std::back_inserter(bs));
+    return {SuccessParseResult{{literal,bs},bin}};
+  }
+
+  void test() {
+    std::string bs{R"(01100010000000001000000000000000000101100001000101010110001011001000100000000010000100011000111000110100)"};
+    std::istringstream bin{bs};
+    BinaryLiteral literal{};
+    auto result = parse(literal,bin);
+    if (result) {
+      std::cout << "\n" << result->first.bs;
+    }
+  }
+
 }
 
 std::string indent{"\n  "};
@@ -195,6 +247,8 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
+  day15::test();
+  return 0;
   Answers answers{};
 //  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
 //  answers.push_back({"Part 1 Test1",part1::solve_for(pTest1)});
