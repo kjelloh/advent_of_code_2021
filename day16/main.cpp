@@ -5,10 +5,6 @@
 #include <sstream>
 #include <algorithm>
 #include <bitset>
-#include <array>
-#include <optional>
-#include <memory>
-#include <variant>
 
 char const* pTest = R"(D2FE28)";
 char const* pTest1 = R"(38006F45291200)";
@@ -56,127 +52,33 @@ BitString to_bit_string(char hex_digit) {
   return result;
 }
 
-BitString read_bits(int read_count, std::istream& bin,auto& bit_count) {
+BitString read_bits(int read_count, std::istream& bin,int& acc) {
   BitString result;
   std::copy_n(std::istream_iterator<char>{bin},read_count,std::back_inserter(result));
-  bit_count -= read_count;
+  acc += read_count;
   return result;
 }
 
-namespace day15 {
-
-  enum BitStringType {
-    unkown
-    ,literal
-    ,packet_version
-    ,packet_type_ID
-    ,undefined
-  };
-
-  class TypedBitString {
-  public:
-    BitStringType type{undefined};
-    BitString bs{""};
-  };
-
-  struct Tree; // forward
-  using TreePointer = std::shared_ptr<Tree>;
-  struct Tree {
-    TypedBitString tbs{};
-    std::pair<TreePointer,TreePointer> childs{};
-  };
-
-  using SuccessParseResult = std::pair<Tree,std::istream&>;
-  using ParseResult = std::optional<SuccessParseResult>;
-
-  class Parser {
-  public:
-    // Begin class Parser
-    virtual ParseResult parse(std::istream& bin) = 0;
-    // End class Parser
-  };
-
-  template <int N, int type>
-  class Bits : public Parser {
-  public:
-    // Begin class Parser
-    virtual ParseResult parse(std::istream& bin) {
-      TypedBitString tbs{static_cast<BitStringType>(type)};
-      std::copy_n(std::istream_iterator<char>{bin},N,std::back_inserter(tbs.bs));
-      return {};
-    }
-    // End class Parser
-  };
-
-  using Packet_Version = Bits<3,packet_version>;
-  using Packet_type_ID = Bits<3,packet_type_ID>;
-
-  class Sequence : public Parser {
-  public:
-    // Begin class Parser
-    virtual ParseResult parse(std::istream& bin) {
-      
-      return {};
-    }
-    // End class Parser
-  private:
-    std::pair<std::shared_ptr<Parser>,std::shared_ptr<Parser>> m_parser_pair;
-  };
-
-  class Literal : public Parser {
-  public:
-    // Begin class Parser
-    virtual ParseResult parse(std::istream& bin) {
-      // try parsing a literal packet
-      
-      return {};
-    }
-    // End class Parser
-  };
-
-  ParseResult parse(std::shared_ptr<Parser> parser,std::istream& bin) {
-    return parser->parse(bin);
-  }
-
-  void test() {
-    std::string bs{R"(01100010000000001000000000000000000101100001000101010110001011001000100000000010000100011000111000110100)"};
-    std::istringstream bin{bs};
-    {
-      auto pv = std::make_shared<Packet_Version>();
-      auto result = parse(pv,bin);
-      if (result) {
-        std::cout << "\n" << result->first.tbs.bs;
-      }
-    }
-    {
-      auto pid = std::make_shared<Packet_type_ID>();
-      auto result = parse(pid,bin);
-      if (result) {
-        std::cout << "\n" << result->first.tbs.bs;
-      }
-    }
-  }
-
-}
+using Bin = std::istream;
 
 std::string indent{"\n  "};
 size_t version_acc{0};
 
-void parse_packet(std::istream& bin,auto& bit_count);
-void parse_packets_size(std::istream& bin,auto& bit_count);
-void parse_packets_count(std::istream& bin,auto& bit_count,auto& package_count);
+int parse_packet(Bin& bin);
+int parse_packets_size(Bin& bin,int bit_count);
+int parse_packets_count(Bin& bin,int package_count);
 
-void parse_packet(std::istream& bin,auto& bit_count) {
-  std::cout << indent << "parse_packet bit_count:" << bit_count;
+int parse_packet(Bin& bin) {
+  int bits_read{0};
+  std::cout << indent << "<parse_packet>";
   indent += "  ";
   // Every packet begins with a standard header: the first three bits encode the packet version,
   // and the next three bits encode the packet type ID.
-  if (bit_count<6) {bit_count=0;return;}
-  auto packet_version_bs = read_bits(3,bin,bit_count);
+  auto packet_version_bs = read_bits(3,bin,bits_read);
   std::cout << indent << "packet version:" << packet_version_bs;
   version_acc += std::bitset<3>{packet_version_bs}.to_ullong();
 
-  auto packet_type_ID = read_bits(3,bin,bit_count);
+  auto packet_type_ID = read_bits(3,bin,bits_read);
   std::cout << indent << "packet type ID:" << packet_type_ID;
   
   if (packet_type_ID=="100") {
@@ -188,9 +90,9 @@ void parse_packet(std::istream& bin,auto& bit_count) {
     bool not_last_package = true;
     BitString literal_value{};
     while (not_last_package) {
-      if (bit_count<5) {bit_count=0;return;}
-      not_last_package = read_bits(1, bin,bit_count) == "1";
+      not_last_package = read_bits(1, bin,bits_read) == "1";
       std::copy_n(std::istream_iterator<char>{bin},4,std::back_inserter(literal_value));
+      bits_read += 4;
       std::cout << indent << "*" << literal_value;
     }
     if (literal_value.size()<=64) {
@@ -210,49 +112,65 @@ void parse_packet(std::istream& bin,auto& bit_count) {
      An operator packet contains one or more packets. To indicate which subsequent binary data represents its sub-packets, an operator packet can use one of two modes indicated by the bit immediately after the packet header; this is called the length type ID:
      */
     indent += "  ";
-    if (read_bits(1, bin,bit_count) == "0") {
-      if (bit_count<15) {bit_count=0;return;}
+    if (read_bits(1, bin,bits_read) == "0") {
       /*
        If the length type ID is 0, then the next 15 bits are a number that represents the total length in bits of the sub-packets contained by this packet.
        */
       std::cout << indent << "<total lengths in bits>";
-      auto package_length = read_bits(15, bin,bit_count);
+      auto package_length = read_bits(15, bin,bits_read);
       std::cout << indent << package_length;
-      auto bit_count = std::bitset<15>{package_length}.to_ullong();
+      int bit_count = std::bitset<15>{package_length}.to_ullong();
       std::cout << indent << "= " << bit_count;
-      parse_packets_size(bin, bit_count);
+      bits_read += parse_packets_size(bin, bit_count);
     }
     else {
-      if (bit_count<11) {bit_count=0;return;}
       /*
        If the length type ID is 1, then the next 11 bits are a number that represents the number of sub-packets immediately contained by this packet.
        */
       std::cout << indent << "<sub packet count>";
-      auto package_count_bs = read_bits(11, bin, bit_count);
+      auto package_count_bs = read_bits(11, bin, bits_read);
       std::cout << indent << package_count_bs;
-      auto package_count = std::bitset<11>{package_count_bs}.to_ullong();
+      int package_count = std::bitset<11>{package_count_bs}.to_ulong();
       std::cout << indent << "= " << package_count;
-      parse_packets_count(bin, bit_count, package_count);
+      bits_read += parse_packets_count(bin,package_count);
     }
     indent.resize(indent.size()-2);
   }
   indent.resize(indent.size()-2);
+  return bits_read;
 }
-void parse_packets_size(std::istream& bin,auto& bit_count) {
+int parse_packets_size(Bin& bin,int bit_count) {
   indent += "  ";
   std::cout << indent << "parse_packets_size bit_count:" << bit_count;
-  while (bit_count > 0) parse_packet(bin, bit_count);
+  int bits_read{0};
+  try {
+    while (bits_read < bit_count) {
+      bits_read += parse_packet(bin);
+      std::cout << indent << "bits_read:" << bits_read;
+    }
+  }
+  catch (std::ios::failure const& e) {
+    std::cout << indent << " bits_read:" << bits_read << " EXCEPTION = " << e.what();
+  }
   indent.resize(indent.size()-2);
+  return bits_read;
 }
-void parse_packets_count(std::istream& bin,auto& bit_count,auto& package_count) {
+int parse_packets_count(std::istream& bin,int package_count) {
   indent += "  ";
-  std::cout << indent << "parse_packets_count bit_count:" << bit_count << " package_count:" << package_count;
-  for (int i=0;i<package_count;i++) parse_packet(bin, bit_count);
+  std::cout << indent << "<parse_packets_count> package_count:" << package_count;
+  int bits_read{0};
+  try {
+    for (int i=0;i<package_count;i++) bits_read += parse_packet(bin);
+  }
+  catch (std::ios::failure const& e) {
+    std::cout << indent << " bits_read:" << bits_read << " EXCEPTION = " << e.what();
+  }
   indent.resize(indent.size()-2);
+  return bits_read;
 }
 
 
-Model parse(auto& in) {
+Model parse(std::istream& in) {
   Model result{};
   std::string line{};
   while (in >> line) {
@@ -266,8 +184,8 @@ Model parse(auto& in) {
   std::stringstream bin{bin_digit_string};
 
   // parse the bit stream
-  auto bit_count = bin_digit_string.size();
-  parse_packet(bin, bit_count);
+  int read_count = parse_packet(bin);
+  std::cout << indent << "<parse> read " << read_count << " of " << bin_digit_string.size();
   return result;
 }
 
@@ -293,17 +211,15 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
-  day15::test();
-  return 0;
   Answers answers{};
-//  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-//  answers.push_back({"Part 1 Test1",part1::solve_for(pTest1)});
-//  answers.push_back({"Part 1 Test2",part1::solve_for(pTest2)});
-//  answers.push_back({"Part 1 Test3",part1::solve_for(pTest3)});
-    answers.push_back({"Part 1 Test4",part1::solve_for(pTest4)});
-//  answers.push_back({"Part 1 Test5",part1::solve_for(pTest5)});
-//  answers.push_back({"Part 1 Test6",part1::solve_for(pTest6)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  answers.push_back({"Part 1 Test1",part1::solve_for(pTest1)});
+  answers.push_back({"Part 1 Test2",part1::solve_for(pTest2)});
+  answers.push_back({"Part 1 Test3",part1::solve_for(pTest3)}); // sum 16
+  answers.push_back({"Part 1 Test4",part1::solve_for(pTest4)}); // sum 12
+  answers.push_back({"Part 1 Test5",part1::solve_for(pTest5)}); // sum 23
+  answers.push_back({"Part 1 Test6",part1::solve_for(pTest6)}); // sum 31
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
