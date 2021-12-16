@@ -7,6 +7,8 @@
 #include <bitset>
 #include <array>
 #include <optional>
+#include <memory>
+#include <variant>
 
 char const* pTest = R"(D2FE28)";
 char const* pTest1 = R"(38006F45291200)";
@@ -66,6 +68,8 @@ namespace day15 {
   enum BitStringType {
     unkown
     ,literal
+    ,packet_version
+    ,packet_type_ID
     ,undefined
   };
 
@@ -75,39 +79,81 @@ namespace day15 {
     BitString bs{""};
   };
 
-  using SuccessParseResult = std::pair<TypedBitString,std::istream&>;
+  struct Tree; // forward
+  using TreePointer = std::shared_ptr<Tree>;
+  struct Tree {
+    TypedBitString tbs{};
+    std::pair<TreePointer,TreePointer> childs{};
+  };
 
+  using SuccessParseResult = std::pair<Tree,std::istream&>;
   using ParseResult = std::optional<SuccessParseResult>;
 
   class Parser {
   public:
+    // Begin class Parser
     virtual ParseResult parse(std::istream& bin) = 0;
+    // End class Parser
   };
 
-  class BinaryLiteral : public Parser {
+  template <int N, int type>
+  class Bits : public Parser {
   public:
     // Begin class Parser
     virtual ParseResult parse(std::istream& bin) {
-      ParseResult result{};
-      TypedBitString out{literal,""};
-      return result;
+      TypedBitString tbs{static_cast<BitStringType>(type)};
+      std::copy_n(std::istream_iterator<char>{bin},N,std::back_inserter(tbs.bs));
+      return {};
     }
     // End class Parser
   };
 
-  ParseResult parse(Parser& parser,std::istream& bin) {
-    BitString bs{};
-    std::copy_n(std::istream_iterator<char>{bin},4,std::back_inserter(bs));
-    return {SuccessParseResult{{literal,bs},bin}};
+  using Packet_Version = Bits<3,packet_version>;
+  using Packet_type_ID = Bits<3,packet_type_ID>;
+
+  class Sequence : public Parser {
+  public:
+    // Begin class Parser
+    virtual ParseResult parse(std::istream& bin) {
+      
+      return {};
+    }
+    // End class Parser
+  private:
+    std::pair<std::shared_ptr<Parser>,std::shared_ptr<Parser>> m_parser_pair;
+  };
+
+  class Literal : public Parser {
+  public:
+    // Begin class Parser
+    virtual ParseResult parse(std::istream& bin) {
+      // try parsing a literal packet
+      
+      return {};
+    }
+    // End class Parser
+  };
+
+  ParseResult parse(std::shared_ptr<Parser> parser,std::istream& bin) {
+    return parser->parse(bin);
   }
 
   void test() {
     std::string bs{R"(01100010000000001000000000000000000101100001000101010110001011001000100000000010000100011000111000110100)"};
     std::istringstream bin{bs};
-    BinaryLiteral literal{};
-    auto result = parse(literal,bin);
-    if (result) {
-      std::cout << "\n" << result->first.bs;
+    {
+      auto pv = std::make_shared<Packet_Version>();
+      auto result = parse(pv,bin);
+      if (result) {
+        std::cout << "\n" << result->first.tbs.bs;
+      }
+    }
+    {
+      auto pid = std::make_shared<Packet_type_ID>();
+      auto result = parse(pid,bin);
+      if (result) {
+        std::cout << "\n" << result->first.tbs.bs;
+      }
     }
   }
 
