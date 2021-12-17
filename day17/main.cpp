@@ -61,6 +61,15 @@ Model parse(auto& in) {
     return {ul,dr};
 }
 
+int x(auto v0, auto n) {
+  if (n > v0) return x(v0,v0);
+  else return (n * v0 + n * (1 - n) / 2);
+}
+
+int y(auto v0,auto n) {
+  return (n*v0+n*(1-n)/2);
+}
+
 namespace part1 {
   Result solve_for(char const* pData) {
       Result result{};
@@ -69,7 +78,16 @@ namespace part1 {
       std::cout << "\ntarget area:"
         << " {x:" << target_area.ul_corner.col() << ",y:" << target_area.ul_corner.row() << "}"
         << " {x:" << target_area.dr_corner.col() << ",y:" << target_area.dr_corner.row() << "}";
-      // 
+      // x,y movement are independent
+      // We are looking for n: x(n) = Sum(vx0,vx0-1,vx0-2,...,vx0-n) is in the target area begin..end
+      // and the same for y.
+      // Now the y coordinat is a geometrical series y0 - (0+1+2+3+4...+n) = y0 - n*(n+1)/2
+      // where y0 = the original y velocity.
+      int x0 = 6;
+      int y0 = 3;
+      for (int n = 0; n < 10; n++) {
+        std::cout << "\n\tn" << n << ": {x:" << x(x0, n) << ",y:" << y(y0, n) << "}";
+      }
       return result;
   }
 }
