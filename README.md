@@ -11,6 +11,54 @@ Projects files includes,
   Visual Studio 2022
 
 C++ Source code requires between C++14 and C++20 (C++2a on Visual Studio 2022)
+# day 17
+Lessons learned in day 17.
+* Don't try to be clever and define a range so that start is closer to 0 than end!
+
+```
+CoordRange coord_range(std::string const& sc1, std::string const& sc2) {
+  auto c1 = std::stoi(sc1);
+  auto c2 = std::stoi(sc2);
+  // Range so that the coord closer to 0 is first
+  if (std::abs(c1) < std::abs(c2)) {
+    return { c1,c2 };
+  }
+  else {
+    return { c2,c1 };
+  }
+}
+```
+  * This messes up all checks of wether a value is "before" or "after" the range!
+  * By having the range defines so that "start" is always less than "end" the check for "before" is simply (coord < start).
+  * I have no idea why I felt it necessary to screw this up? Somehow my intuition was the other way around *sigh*
+  * Here is the "correct" and safe range defintion :)
+```
+CoordRange coord_range(std::string const& sc1, std::string const& sc2) {
+  auto c1 = std::stoi(sc1);
+  auto c2 = std::stoi(sc2);
+  // Range so that the coord closer to 0 is first
+  if (c1 < c2) {
+    return { c1,c2 };
+  }
+  else {
+    return { c2,c1 };
+  }
+}
+```
+* The second trap I fell into was to try to define "before" and "beyond" a range as functions. But I failed to realise that "before" and "beyond" are concepts that depends on the direction we are traveling in!
+* So I needed to define "before" and "beyond" to take a direction and have "in range" call them with zero direction.
+```
+bool beyond_range(int coord, int dc, CoordRange const& range) {
+  return (dc>=0)?(coord > range.second):(coord < range.first);
+}
+bool before_range(int coord, int dc ,CoordRange const& range) {
+  return (dc>=0)?(coord < range.first):(coord > range.second);
+}
+bool in_range(int coord, CoordRange const& range) {
+  return (before_range(coord,0, range) or beyond_range(coord,0,range)) == false;
+}
+```
+
 # day 12
 I came this far but this does not work. Why?
 
@@ -76,6 +124,15 @@ struct Point {
         return (x*10000+y < other.x*10000+other.y);
     }
 };
+bool beyond_range(int coord, CoordRange const& range) {
+  return (coord > range.second);
+}
+bool before_range(int coord, CoordRange const& range) {
+  return (coord < range.first);
+}
+bool in_range(int coord, CoordRange const& range) {
+  return (before_range(coord, range) or beyond_range(coord, range)) == false;
+}
 ```
 # day4
 For me the Day 4 puzzle challenged me the same way as day 3 did!
