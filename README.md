@@ -29,7 +29,7 @@ CoordRange coord_range(std::string const& sc1, std::string const& sc2) {
 }
 ```
   * This messes up all checks of wether a value is "before" or "after" the range!
-  * By having the range defines so that "start" is always less than "end" the check for "before" is simply (coord < start).
+  * By having the range defines so that "start" is always less than "end" the check for "below" and "above" a range is the less-than operator (but see below about "before" and "beyond" still being direction dependent!)
   * I have no idea why I felt it necessary to screw this up? Somehow my intuition was the other way around *sigh*
   * Here is the "correct" and safe range defintion :)
 ```
