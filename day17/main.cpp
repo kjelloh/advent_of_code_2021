@@ -31,6 +31,17 @@ std::pair<std::string, std::string> split(std::string const& token, char delim) 
   return split(token, std::string{ delim });
 }
 
+std::pair<Coord, Coord> coord_range(auto sc1, auto sc2) {
+  auto c1 = std::stoi(sc1);
+  auto c2 = std::stoi(sc2);
+  if (std::abs(c1) < std::abs(c2)) {
+    return { c1,c2 };
+  }
+  else {
+    return { c2,c1 };
+  }
+}
+
 Model parse(auto& in) {
     Model result{};
     std::string line{};
@@ -41,10 +52,12 @@ Model parse(auto& in) {
     auto [head,head_range] = split(left,'=');
     auto [tail,tail_range] = split(right,'=');
     std::cout << "\nhead:" << head_range << " tail:" << tail_range;
-    auto [x1,x2] = split(head_range,"..");
-    auto [y1, y2] = split(tail_range, "..");
-    Position ul{ {std::stoi(x1),std::stoi(y1)} };
-    Position dr{ {std::stoi(x2),std::stoi(y2)} };
+    auto [sx1,sx2] = split(head_range,"..");
+    auto [sy1,sy2] = split(tail_range, "..");
+    auto [x1,x2] = coord_range(sx1,sx2);
+    auto [y1, y2] = coord_range(sy1, sy2);
+    Position ul{ {x1,y1} };
+    Position dr{ {x2,y2} };
     return {ul,dr};
 }
 
@@ -56,6 +69,7 @@ namespace part1 {
       std::cout << "\ntarget area:"
         << " {x:" << target_area.ul_corner.col() << ",y:" << target_area.ul_corner.row() << "}"
         << " {x:" << target_area.dr_corner.col() << ",y:" << target_area.dr_corner.row() << "}";
+      // 
       return result;
   }
 }
@@ -73,7 +87,7 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
