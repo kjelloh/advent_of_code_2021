@@ -47,7 +47,7 @@ CoordRange coord_range(std::string const& sc1, std::string const& sc2) {
 ```
 * The second trap I fell into was to try to define "before" and "beyond" a range as functions. But I failed to realise that "before" and "beyond" are concepts that depends on the direction we are traveling in!
 * So I needed to define "before" and "beyond" to take a direction and have "in range" call them with zero direction.
-* NOTE: This does NOT work either!  
+* I tried this...
 ```
 bool beyond_range(int coord, int dc, CoordRange const& range) {
   return (dc>=0)?(coord > range.second):(coord < range.first);
@@ -59,8 +59,11 @@ bool in_range(int coord, CoordRange const& range) {
   return (before_range(coord,0, range) or beyond_range(coord,0,range)) == false;
 }
 ```
-  * "beyond" and "before" can't be called with velocity (dc) zero.
-  * In the end I scrapped the "beyond" and "before" helper functions and defined "in_range" stand-alone.
+* NOTE: This does NOT work either!
+    * "beyond" and "before" can't be called with velocity (dc) zero.
+    * In the end I scrapped the "beyond" and "before" helper functions and defined "in_range" stand-alone.
+
+* Then my part 2 solution counts the wrong number of hits (WHY?)...
 
 # day 12
 I came this far but this does not work. Why?
