@@ -5,7 +5,7 @@
 #include <sstream>
 #include <algorithm>
 #include <memory>
-
+#include <optional>
 
 extern std::vector<char const*> pTests;
 extern char const* pData;
@@ -16,9 +16,17 @@ struct Result {
 };
 using Answers = std::vector<std::pair<std::string,Result>>;
 
-struct SnailFishNumber {
-  std::shared_ptr<SnailFishNumber> left,right;
+struct LeveledNumber {
+  int level;
+  int value;
 };
+using SnailFishNumber = std::vector<LeveledNumber>;
+
+//struct SnailFishNumber {
+//  std::shared_ptr<SnailFishNumber> left,right;
+//};
+using SnailFishNumbers = std::vector<SnailFishNumber>;
+
 enum TestType {
   unknown_test
   ,sum_test
@@ -67,6 +75,66 @@ Model parse(auto& in) {
   return result;
 }
 
+size_t magnitude(SnailFishNumber const& number) {
+  std::cout << "magnitide NOT YET IMPLEMENTED";
+  return 0;
+}
+
+class Tree {
+public:
+  struct Node {
+    int index{};
+    std::optional<int> value{};
+    std::pair<std::shared_ptr<Node>,std::shared_ptr<Node>> childs{};
+  };
+  void insert(LeveledNumber const& ln){
+    // insert a new node for provided number so that
+    // the sequence of numbers are preserved.
+    // NOTE: We expect this insert to be called in sequence
+    // for numbers 0...n
+    // NOTE: Teh inserted node MUST be at the depth in the tree
+    // as defined by the 'level' property of the provided leveled number.
+    // This ensures that tis tree represents the nesting structure of the
+    // pairs of the corresponding SnailFishNumber.
+    
+    // TODO: Implement this insert :)
+  }
+private:
+  std::shared_ptr<Node> root{std::make_shared<Node>()};
+};
+
+std::string to_string(SnailFishNumber const& snf) {
+  // We need to re-create the binary tree from the vector
+  // of leveled values.
+  Tree tree{};
+  std::string result{};
+  for (auto const& ln : snf) {
+    tree.insert(ln);
+  }
+  return result;
+}
+
+SnailFishNumber to_snailfish_Number(auto line) {
+  SnailFishNumber result{};
+  // Parse [[3,4],5] to {{2,3}{2,4}{1,5}} i.e., a flat array of level,value pairs
+  int nest_level{0};
+  for (auto const& ch : line) {
+    if (ch=='[') {++nest_level; continue;}
+    if (ch==']') {--nest_level; continue;}
+    if (ch==',') continue;
+    result.push_back(LeveledNumber{nest_level,ch-'0'});
+  }
+  return result;
+}
+
+SnailFishNumbers to_snailfish_Numbers(auto lines) {
+  SnailFishNumbers result{};
+  for (auto const& line : lines) {
+    result.push_back(to_snailfish_Number(line));
+  }
+  return result;
+}
+
 namespace part1 {
   Result solve_for(char const* pData) {
     Result result{};
@@ -78,6 +146,77 @@ namespace part1 {
     }
     else {
       std::cout << "\n\tis Puzzle with entry count " << puzzle_model.lines.size();
+      SnailFishNumbers snailfishnumbers{};
+      // A snailfish number is a pair p
+      // add p1,p2 = [p1,p2]
+      // reduce p = explode p* | split n*
+      // p* is first level 4 pair in p
+      // n* is first number >= 10
+      // explode p =
+      //            left_of_p.right += p.left
+      //            right_of_p.left += p.right
+      //            p is replaced by number 0
+      // split n = [round_down(n/2),round_up(n/2)]
+      
+      // We need a datastructure to represent p so that we can
+      // add p1,p2 (p can be a std::pair)
+      // reduce p  (we need to be able to find level 4 p*, find pair left_of_p and right_of_p)
+      // magnitude p (p can be a std::pair)
+      
+      // But lets try a representation of a number paired with its nest level?
+      // [1,2] := {{1,1}{1,2}} i.e., level 1 value 1, level 1 value 2
+      // [[3,4],5] := {{2,3}{2,4}{1,5}}
+      // The sum becomes {{1,1},{1,2}} appended with {{2,3}{2,4}{1,5}} with all levels incremented
+      // ={{2,1}{2,2}{3,3}{3,4}{2,5}} := [[1,2],[[3,4],5]]
+      //
+      // Explode is now a flat array manipulation
+      // [[[[[9,8],1],2],3],4] := {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}}
+      // The pair nested in level is easilly found as being on level 5
+      // So the {5,9},{5,8} "explodes" to the '9' adds to the left and the '8' adds to the right
+      // {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}} explodes to {{4,0}{4,9}{3,2}{2,3}{1,4}} := [[[[0,9],2],3],4]
+      //
+      // Split is now also a flat array manipulation
+      // [[[[0,7],4],[15,[0,13]]],[1,1]] := {{4,0}{4,7}{3,4}{3,15}{4,0}{4,13}{2,1}{2,1}}
+      // {{4,0}{4,7}{3,4}{3,15}{4,0}{4,13}{2,1}{2,1}} splits to {{4,0}{4,7}{3,4}{3,round_down(15/2)}{3,round_up(15/2)}{4,0}{4,13}{2,1}{2,1}}
+      //
+      // Finally the magnitude is an iterative reduction on the flat array (bottom level and up)
+      // [[9,1],[1,9]] := {{2,9}{2,1}{2,1}{2,9}}
+      // magnitude {{2,9}{2,1}{2,1}{2,9}} = magnitude {magnitude {2,9}{2,1} magnitude {2,1}{2,9}}
+      // Note that magnitude reduces a pair into a number and thus a nuber with decreased level
+      // = magnitude {{1,3*9+2*1}{1,3*1+2*9}} = magnitude {{1,29}{1,21}} = {0,3*29+2*21} = 129
+      //
+      auto snail_fish_numbers = to_snailfish_Numbers(puzzle_model.lines);
+      
+      // test that our representation preserves the nesting structure of the input snailfish numbers!
+    
+      {
+        if (snail_fish_numbers.size() == puzzle_model.lines.size()) {
+          for (int i=0;i<snail_fish_numbers.size();i++) {
+            auto snf = snail_fish_numbers[i];
+            auto snf_s = to_string(snf);
+            auto line_s = puzzle_model.lines[i];
+            std::cout << "\n" << line_s;
+            std::cout << " -> {";
+            for (auto const& ln : snf) {
+              std::cout << "{level:" << ln.level << ",val:" << ln.value << "}";
+            }
+            std::cout << "}";
+            std::cout << " -> "<< snf_s;
+            // The representation is correct if our string representation is equal to the original input string :)
+            if (snf_s == line_s) {
+              std::cout << " egual :)";
+            }
+            else {
+              std::cout << " ERROR ";
+            }
+          }
+        }
+        else {
+          std::cout << "\nERROR lines count " << puzzle_model.lines.size() << " != numbers count " << snail_fish_numbers.size();
+        }
+      }
+      
+      result.value = magnitude(snailfishnumbers.back());
     }
     return result;
   }
