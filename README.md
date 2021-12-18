@@ -63,7 +63,10 @@ bool in_range(int coord, CoordRange const& range) {
     * "beyond" and "before" can't be called with velocity (dc) zero.
     * In the end I scrapped the "beyond" and "before" helper functions and defined "in_range" stand-alone.
 
-* Then my part 2 solution counts the wrong number of hits (WHY?)...
+* Then for part 2 I thought I was to test all the listed shots to see how many of them hit the target.
+    * Fortunately it did not take me so much time to parse the list of example shots and apply them to count the hits.
+    * It took me a little longer to realise that this was NOT the task at all.
+* I am a meta-thinker. Meaning, I do what I experience is the intention, not what is actually said...
 
 # day 12
 I came this far but this does not work. Why?
