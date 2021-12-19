@@ -8,49 +8,6 @@
 #include <array>
 #include <numeric>
 
-extern char const* pTest;
-extern char const* pData;
-
-using Result = size_t;
-using Answers = std::vector<std::pair<std::string,Result>>;
-
-// struct Vector {
-//   // std::vector<int> v{0,0,0};
-//   std::array<int,3> v{0,0,0};
-//   Vector(int x=0,int y=0, int z=0) : v{x,y,z} {}
-//   int x() {return v[0];}
-//   int y() {return v[1];}
-//   int z() {return v[2];}
-//   Vector operator-(Vector const& other) {
-//     Vector result{};
-//     std::transform(v.begin(),v.end(),other.v.begin(),result.v.begin(),[](int c1,int c2) {
-//       return c1-c2;
-//     });
-//     return result;
-//   }
-//   bool operator==(Vector const& other) const {
-//     return (v==other.v);
-//   }
-// };
-using Vector = std::array<int,3>;
-using CoordinateSystem = std::array<Vector,3>;
-Vector operator-(Vector const v1,Vector const& v2) {
-  Vector result{};
-  std::transform(v1.begin(),v1.end(),v2.begin(),result.begin(),[](int c1,int c2) {
-    return c1-c2;
-  });
-  return result;
-}
-using Matrix = std::array<std::array<int,3>,3>;
-using Vectors = std::vector<Vector>;
-struct Scanner {
-  int id{};
-  Vectors beacons{};
-};
-using Scanners = std::vector<Scanner>;
-using Model = Scanners;
-using Beacons = Vectors;
-
 std::pair<std::string,std::string> split(std::string const& line,std::string delim) {
   if (auto pos = line.find(delim); pos != std::string::npos) {
     auto left = line.substr(0,pos);
@@ -72,6 +29,38 @@ std::tuple<int,int,int> split_ints(std::string const& line) {
 bool contains(std::string const& token,std::string const& key) {
   return (token.find(key) != std::string::npos);
 }
+
+extern char const* pTest;
+char const* pTest2 = R"(--- scanner 0 ---
+-1,-1,1
+-2,-2,2
+-3,-3,3
+-2,-3,1
+5,6,-4
+8,0,7)";
+extern char const* pData;
+
+using Result = size_t;
+using Answers = std::vector<std::pair<std::string,Result>>;
+
+using Vector = std::array<int,3>;
+using CoordinateSystem = std::array<Vector,3>;
+Vector operator-(Vector const v1,Vector const& v2) {
+  Vector result{};
+  std::transform(v1.begin(),v1.end(),v2.begin(),result.begin(),[](int c1,int c2) {
+    return c1-c2;
+  });
+  return result;
+}
+using Matrix = std::array<std::array<int,3>,3>;
+using Vectors = std::vector<Vector>;
+struct Scanner {
+  int id{};
+  Vectors beacons{};
+};
+using Scanners = std::vector<Scanner>;
+using Model = Scanners;
+using Beacons = Vectors;
 
 Model parse(auto& in) {
     Model result{};
@@ -115,12 +104,21 @@ using RelativeEdges = std::vector<RelativeEdge>;
 // Basically a graph of edges between viewed beacons
 class Shape {
 public:
-  Shape(Scanner const& scanner) : vertecies{scanner.beacons}{
-    for (int i=0;i<vertecies.size();i++) {
-      for (int j=0;j<vertecies.size();j++) {
-        edges.push_back(vertecies[i] - vertecies[j]);
+  Shape(Scanner const& scanner)  {
+    this->insert(scanner.beacons);
+  }
+  Shape& insert(Vectors const& vs) {
+    for (int i=0;i<vs.size();i++) {
+      for (int j=0;j<vs.size();j++) {
+        edges.push_back(vs[i] - vs[j]);
       }
+      vertecies.push_back(vs[i]);
     }
+    return *this;
+  }
+  Shape& insert(Shape const& other) {
+    this->insert(other.vertecies);
+    return *this;
   }
   Vectors vertecies;
   RelativeEdges edges;
@@ -132,8 +130,12 @@ struct View {
   Shape shape(Shape const& shape) const {
     std::string caption{"\nViewer::shape:"};
     // transform shape as defined by this view
+    Vectors beacons{};
+    std::transform(shape.vertecies.begin(),shape.vertecies.end(),std::back_inserter(beacons),[this](auto v){
+      return this->rotation*v;
+    });
     std::cout << caption << " TODO: Transform provided shape as defined by this view";
-    return shape;
+    return Shape{Scanner{0,beacons}};
   }
 };
 
@@ -152,6 +154,11 @@ Rz90 =  0 -1  0
         1  0  0
         0  0  1
 */
+
+Matrix RUnit = {{ // No rotation
+   {1,0,0}
+  ,{0,1,0}
+  ,{0,0,1}}};
 
 // See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
 // To be multipliet with column vector so M x v = v´ (v and v´ column vectors)
@@ -175,6 +182,19 @@ Vector operator*(Matrix const& m,Vector const& v) {
   }
   return result;
 }
+Matrix operator*(Matrix const& m1,Matrix const& m2) {
+  Matrix result{};
+  for (int i=0;i<m1.size();i++) {
+    for (int j=0;j<m2[0].size();j++) {
+      int acc{0};
+      for (int k=0;k<m1.size();k++) {
+        acc += m1[i][k] * m2[k][j];
+      }
+      result[i][j] = acc;
+    }  
+  }
+  return result;
+}
 
 class Viewer {
 public:
@@ -188,8 +208,35 @@ public:
     */
 
     // Create all 24 views
-    CoordinateSystem cs = {{{1,0,0},{0,1,0},{0,0,1}}}; // ordinary cartesian coorodinate system
-        
+    views.push_back({RUnit});
+    // three turns around z-axis
+    views.push_back({Rz90});
+    auto Rz180 = Rz90*Rz90;
+    views.push_back({Rz180});
+    auto Rz270 = Rz90*Rz180;
+    views.push_back({Rz270});
+    // three turns around y-axis
+    views.push_back({Ry90});
+    auto Ry180 = Ry90*Ry90;
+    views.push_back({Ry180});
+    auto Ry270 = Ry90*Ry180;
+    views.push_back({Ry270});
+    // three turns around x-axis
+    views.push_back({Rx90});
+    auto Rx180 = Rx90*Rx90;
+    views.push_back({Rx180});
+    auto Rx270 = Rx90*Rx180;
+    views.push_back({Rx270});
+    // Log
+    {
+      std::cout << "\n<rotations>";
+      for (auto const& m : views) {
+        std::cout << "\n----------";
+        for (auto const& v : m.rotation) {
+          std::cout << "\n" << v[0] << "," << v[1] << "," << v[2];
+        }
+      }
+    }
     std::cout << caption << " TODO: generate all 24 permutations to view a shape";
   }
 };
@@ -213,15 +260,24 @@ Beacons find_beacons(Scanners const& scanners) {
   // Given two scanners are in the same coorodinate system,
   // Then -> Two scanners see the same beacons if > 12 of the "edges" between beacons are the same
   Shape shape_0{scanners[0]};
-  Shape shape_1{scanners[1]};
-  std::copy(shape_0.vertecies.begin(),shape_0.vertecies.end(),std::back_inserter(result));
   Viewer viewer{}; // 24 ways to view beacons seen by a scanner
-  for (auto const& view : viewer.views) {
-    auto viewed_shape_1 = view.shape(shape_1);
-    if (match_count(shape_0,viewed_shape_1)>12) {
-      // The view defines now to orient shape_1 to the same system as shape_0
-      std::copy(shape_1.vertecies.begin(),shape_0.vertecies.end(),std::back_inserter(result));
+  for (int i=0;i<scanners.size();i++) {
+    Shape shape{scanners[i]};
+    for (auto const& view : viewer.views) {
+      auto viewed_shape = view.shape(shape);
+      // print
+      {
+        std::cout << "\nre-oriented beacons";
+        for (auto const& beacon : viewed_shape.vertecies) {
+          std::cout << "\n{" << beacon[0] << "," << beacon[1] << "," << beacon[2] << "}";
+        }
+      }
+      // if (match_count(shape_0,viewed_shape)>12) {
+      //   // Now the applied view defines how to orient shape to the same coordinate system as shape_0
+      //   std::copy(shape.vertecies.begin(),shape.vertecies.end(),std::back_inserter(shape_0.));
+      // }
     }
+
   }
   std::cout << caption << " TODO: Compare all scanner shapes";
   return result;
@@ -252,8 +308,9 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  answers.push_back({"Part 1 Test 2",part1::solve_for(pTest2)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
