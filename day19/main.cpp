@@ -5,6 +5,7 @@
 #include <sstream>
 #include <algorithm>
 #include <tuple>
+#include <array>
 
 extern char const* pTest;
 extern char const* pData;
@@ -141,6 +142,37 @@ struct View {
   }
 };
 
+/*
+For a cartesian coordinate system the rotation matrices are
+
+Rx90 =  1  0  0   Rotate 90 degrees counter clockwise around x-axis
+        0  0 -1
+        0  1  0
+
+Ry90 =  0  0  1
+        0  1  0
+       -1  0  0
+
+Rz90 =  0 -1  0
+        1  0  0
+        0  0  1
+*/
+
+// See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
+std::array<std::array<int,3>,3> Rx90 = {{
+   {1,0,0}
+  ,{0,0,-1}
+  ,{0,1,0}}};
+std::array<std::array<int,3>,3> Ry90 = {{
+   {0,0,1}
+  ,{0,1,0}
+  ,{-1,0,0}}};
+std::array<std::array<int,3>,3> Rz90 = {{
+   {0,-1,0}
+  ,{1,0,0}
+  ,{0,0,-1}}};
+
+
 class Viewer {
 public:
   std::vector<View> views;
@@ -149,10 +181,7 @@ public:
     // Create all 24 views
     std::vector<Vector> faces{{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
     for (Vector const& face : faces) {
-      // for facing {1,0,0} we can choose up as {0,1,0}, {0,-1,0}, {0,0,1} or {0,0,-1}
-      // for facing {-1,0,0} we can choose the same up options
-      // for facing {0,1,0} we can choose up as {1,0,0}, {-1,0,0}, {0,0,1}, {0,0,-1}
-      // ...
+      
     };
     std::cout << caption << " TODO: generate all 24 permutations to view a shape";
   }
