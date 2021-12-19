@@ -11,6 +11,38 @@ Projects files includes,
   Visual Studio 2022
 
 C++ Source code requires between C++14 and C++20 (C++2a on Visual Studio 2022)
+# day 19
+Pitfalls I fell into when solving this puzzle in C++17
+
+* Multidimensional std::array member in a Matric class could not be brace initialised!
+    * It has something to do with what this article "Nested Initializer Lists for Multidimensional Arrays" solves (https://christophercrouzet.com/blog/dev/nested-initializers)?
+    * I have to come back to this Issue. But the bottom line is that I lost valuable time trying to get my code to compile...
+    * The following code does NOT compile
+
+```
+class Matrix {
+  public:
+  std::array<std::array<int,3>,3> m;
+};
+Matrix Rx90 = {{
+   {1,0,0}
+  ,{0,0,-1}
+  ,{0,1,0}}};
+```
+    * Compiler error "error: too many initializers for ‘std::array<std::array<int, 3>, 3>’"
+    * The following code DOES compile
+
+```
+using Matrix = std::array<std::array<int,3>,3>;
+// See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
+// To be multipliet with column vector so M x v = v´ (v and v´ column vectors)
+Matrix Rx90 = {{
+   {1,0,0}
+  ,{0,0,-1}
+  ,{0,1,0}}};
+```
+
+
 # day 17
 Lessons learned in day 17.
 * Don't try to be clever and define a range so that start is closer to 0 than end!
