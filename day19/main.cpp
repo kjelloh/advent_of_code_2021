@@ -13,14 +13,30 @@ using Result = size_t;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
 struct Vector {
-  int x,y,z;
+  std::vector<int> v{0,0,0};
+  Vector(int x=0,int y=0, int z=0) : v{x,y,z} {}
+  int x() {return v[0];}
+  int y() {return v[1];}
+  int z() {return v[2];}
+  Vector operator-(Vector const& other) {
+    Vector result{};
+    std::transform(v.begin(),v.end(),other.v.begin(),std::back_inserter(result.v),[](int c1,int c2) {
+      return c1-c2;
+    });
+    return result;
+  }
+  bool operator==(Vector const& other) const {
+    return (v==other.v);
+  }
 };
 using Vectors = std::vector<Vector>;
 struct Scanner {
   int id{};
   Vectors beacons{};
 };
-using Model = std::vector<Scanner>;
+using Scanners = std::vector<Scanner>;
+using Model = Scanners;
+using Beacons = Vectors;
 
 /*
 In total, each scanner could be in any of 24 different orientations: 
@@ -87,13 +103,104 @@ Model parse(auto& in) {
     return result;
 }
 
+std::vector<Scanner> scanner_permutations(Scanner const& scanner) {
+  std::vector<Scanner> result;
+  std::vector<Vector> faces{{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+  for (Vector const& face : faces) {
+    // for facing {1,0,0} we can choose up as {0,1,0}, {0,-1,0}, {0,0,1} or {0,0,-1}
+    // for facing {-1,0,0} we can choose the same up options
+    // for facing {0,1,0} we can choose up as {1,0,0}, {-1,0,0}, {0,0,1}, {0,0,-1}
+
+  };
+  return result;
+}
+
+using RelativeEdge = Vector;
+using RelativeEdges = std::vector<RelativeEdge>;
+// Basically a graph of edges between viewed beacons
+class Shape {
+public:
+  Shape(Scanner const& scanner) : vertecies{scanner.beacons}{
+    for (int i=0;i<vertecies.size();i++) {
+      for (int j=0;j<vertecies.size();j++) {
+        edges.push_back(vertecies[i] - vertecies[j]);
+      }
+    }
+  }
+  Vectors vertecies;
+  RelativeEdges edges;
+};
+
+// The View defines a rotation that defines how we view a shape
+struct View {
+  Shape shape(Shape const& shape) const {
+    std::string caption{"\nViewer::shape:"};
+    // transform shape as defined by this view
+    std::cout << caption << " TODO: Transform provided shape as defined by this view";
+    return shape;
+  }
+};
+
+class Viewer {
+public:
+  std::vector<View> views;
+  Viewer() {
+    std::string caption{"\nViewer():"};
+    // Create all 24 views
+    std::vector<Vector> faces{{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+    for (Vector const& face : faces) {
+      // for facing {1,0,0} we can choose up as {0,1,0}, {0,-1,0}, {0,0,1} or {0,0,-1}
+      // for facing {-1,0,0} we can choose the same up options
+      // for facing {0,1,0} we can choose up as {1,0,0}, {-1,0,0}, {0,0,1}, {0,0,-1}
+      // ...
+    };
+    std::cout << caption << " TODO: generate all 24 permutations to view a shape";
+  }
+};
+
+int match_count(Shape const& shape_1,Shape const& shape_2) {
+  std::string caption{"\nmatch_count:"};
+
+  // return the number of matching edges between provided shapes
+  int result{0};
+  for (auto const& edge1 : shape_1.edges) {
+    for (auto const& edge2 : shape_2.edges) {
+      if (edge1 == edge2) ++result;
+    }
+  }
+  return result;
+}
+
+Beacons find_beacons(Scanners const& scanners) {
+  std::string caption{"\nfind_beacons:"};
+  Beacons result;
+  // Given two scanners are in the same coorodinate system,
+  // Then -> Two scanners see the same beacons if > 12 of the "edges" between beacons are the same
+  Shape shape_0{scanners[0]};
+  Shape shape_1{scanners[1]};
+  std::copy(shape_0.vertecies.begin(),shape_0.vertecies.end(),std::back_inserter(result));
+  Viewer viewer{}; // 24 ways to view beacons seen by a scanner
+  for (auto const& view : viewer.views) {
+    auto viewed_shape_1 = view.shape(shape_1);
+    if (match_count(shape_0,viewed_shape_1)>12) {
+      // The view defines now to orient shape_1 to the same system as shape_0
+      std::copy(shape_1.vertecies.begin(),shape_0.vertecies.end(),std::back_inserter(result));
+    }
+  }
+  std::cout << caption << " TODO: Compare all scanner shapes";
+  return result;
+}
+
 namespace part1 {
   Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto data_model = parse(in);
-      std::cout << "\nscanner count " << data_model.size();
-      return result;
+    std::string caption{"\nsolve_for:"};
+    Result result{};
+    std::stringstream in{ pData };
+    auto scanners = parse(in);
+    std::cout << caption << " scanner count " << scanners.size();
+    auto beacons = find_beacons(scanners);
+    result = beacons.size();
+    return result;
   }
 }
 
