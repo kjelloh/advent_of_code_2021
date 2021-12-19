@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <tuple>
 #include <array>
+#include <numeric>
 
 extern char const* pTest;
 extern char const* pData;
@@ -13,23 +14,34 @@ extern char const* pData;
 using Result = size_t;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
-struct Vector {
-  std::vector<int> v{0,0,0};
-  Vector(int x=0,int y=0, int z=0) : v{x,y,z} {}
-  int x() {return v[0];}
-  int y() {return v[1];}
-  int z() {return v[2];}
-  Vector operator-(Vector const& other) {
-    Vector result{};
-    std::transform(v.begin(),v.end(),other.v.begin(),std::back_inserter(result.v),[](int c1,int c2) {
-      return c1-c2;
-    });
-    return result;
-  }
-  bool operator==(Vector const& other) const {
-    return (v==other.v);
-  }
-};
+// struct Vector {
+//   // std::vector<int> v{0,0,0};
+//   std::array<int,3> v{0,0,0};
+//   Vector(int x=0,int y=0, int z=0) : v{x,y,z} {}
+//   int x() {return v[0];}
+//   int y() {return v[1];}
+//   int z() {return v[2];}
+//   Vector operator-(Vector const& other) {
+//     Vector result{};
+//     std::transform(v.begin(),v.end(),other.v.begin(),result.v.begin(),[](int c1,int c2) {
+//       return c1-c2;
+//     });
+//     return result;
+//   }
+//   bool operator==(Vector const& other) const {
+//     return (v==other.v);
+//   }
+// };
+using Vector = std::array<int,3>;
+using CoordinateSystem = std::array<Vector,3>;
+Vector operator-(Vector const v1,Vector const& v2) {
+  Vector result{};
+  std::transform(v1.begin(),v1.end(),v2.begin(),result.begin(),[](int c1,int c2) {
+    return c1-c2;
+  });
+  return result;
+}
+using Matrix = std::array<std::array<int,3>,3>;
 using Vectors = std::vector<Vector>;
 struct Scanner {
   int id{};
@@ -38,12 +50,6 @@ struct Scanner {
 using Scanners = std::vector<Scanner>;
 using Model = Scanners;
 using Beacons = Vectors;
-
-/*
-In total, each scanner could be in any of 24 different orientations: 
-facing positive or negative x, y, or z, 
-and considering any of four directions "up" from that facing.
-*/
 
 std::pair<std::string,std::string> split(std::string const& line,std::string delim) {
   if (auto pos = line.find(delim); pos != std::string::npos) {
@@ -104,18 +110,6 @@ Model parse(auto& in) {
     return result;
 }
 
-std::vector<Scanner> scanner_permutations(Scanner const& scanner) {
-  std::vector<Scanner> result;
-  std::vector<Vector> faces{{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
-  for (Vector const& face : faces) {
-    // for facing {1,0,0} we can choose up as {0,1,0}, {0,-1,0}, {0,0,1} or {0,0,-1}
-    // for facing {-1,0,0} we can choose the same up options
-    // for facing {0,1,0} we can choose up as {1,0,0}, {-1,0,0}, {0,0,1}, {0,0,-1}
-
-  };
-  return result;
-}
-
 using RelativeEdge = Vector;
 using RelativeEdges = std::vector<RelativeEdge>;
 // Basically a graph of edges between viewed beacons
@@ -134,6 +128,7 @@ public:
 
 // The View defines a rotation that defines how we view a shape
 struct View {
+  Matrix rotation;
   Shape shape(Shape const& shape) const {
     std::string caption{"\nViewer::shape:"};
     // transform shape as defined by this view
@@ -160,30 +155,41 @@ Rz90 =  0 -1  0
 
 // See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
 // To be multipliet with column vector so M x v = v´ (v and v´ column vectors)
-std::array<std::array<int,3>,3> Rx90 = {{
+Matrix Rx90 = {{
    {1,0,0}
   ,{0,0,-1}
   ,{0,1,0}}};
-std::array<std::array<int,3>,3> Ry90 = {{
+Matrix Ry90 = {{
    {0,0,1}
   ,{0,1,0}
   ,{-1,0,0}}};
-std::array<std::array<int,3>,3> Rz90 = {{
+Matrix Rz90 = {{
    {0,-1,0}
   ,{1,0,0}
   ,{0,0,-1}}};
 
+Vector operator*(Matrix const& m,Vector const& v) {
+  Vector result;
+  for (int i=0;i<m.size();i++) {
+    result[i] = std::inner_product(m[i].begin(),m[i].end(),v.begin(),int{0});
+  }
+  return result;
+}
 
 class Viewer {
 public:
   std::vector<View> views;
   Viewer() {
     std::string caption{"\nViewer():"};
+    /*
+    In total, each scanner could be in any of 24 different orientations: 
+    facing positive or negative x, y, or z, 
+    and considering any of four directions "up" from that facing.
+    */
+
     // Create all 24 views
-    std::vector<Vector> faces{{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
-    for (Vector const& face : faces) {
-      
-    };
+    CoordinateSystem cs = {{{1,0,0},{0,1,0},{0,0,1}}}; // ordinary cartesian coorodinate system
+        
     std::cout << caption << " TODO: generate all 24 permutations to view a shape";
   }
 };
