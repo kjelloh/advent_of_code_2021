@@ -159,6 +159,7 @@ Rz90 =  0 -1  0
 */
 
 // See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
+// To be multipliet with column vector so M x v = v´ (v and v´ column vectors)
 std::array<std::array<int,3>,3> Rx90 = {{
    {1,0,0}
   ,{0,0,-1}
