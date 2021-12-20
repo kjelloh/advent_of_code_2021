@@ -158,45 +158,18 @@ Result index(Position const& pixel,Image const& image) {
   return result;
 }
 
-namespace part1 {
-  Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto puzzle_model = parse(in);
-      std::cout << "\nInitial Image";
-      print_image(puzzle_model.image);
-      Image image{puzzle_model.image};
-      for (int i=1;i<=2;i++) {
-        Image next_image{};
-        // First set the pixel for all pixels in the infinite area if the image
-        auto infinite_ix = index(image.infinite_position(),image);
-        next_image.set_infinite_pixel(puzzle_model.algorithm[512-infinite_ix-1]);
-        for (int y = image.frame().first[1]-1;y<=image.frame().second[1]+1;y++) {
-          for  (int x = image.frame().first[0]-1;x<=image.frame().second[0]+1;x++) {
-            auto ix = index(Position{x,y},image);
-            if (puzzle_model.algorithm[512-ix-1]) {
-              next_image.insert(Position{x,y});
-            }
-          }
-        }
-        image = next_image;
-        std::cout << "\nafter step: " << i; 
-        print_image(image);
-      }
-      result = image.pixel_count();
-      return result;
-  }
-}
-
-namespace part2 {
-  Result solve_for(char const* pData) {
+template <int N>
+struct part1and2 {
+  static Result solve_for(char const* pData) {
       Result result{};
       std::stringstream in{ pData };
       auto puzzle_model = parse(in);
       // std::cout << "\nInitial Image";
       // print_image(puzzle_model.image);
       Image image{puzzle_model.image};
-      for (int i=1;i<=50;i++) {
+      std::cout << "\nProcessing"; 
+      for (int i=1;i<=N;i++) {
+        std::cout << '.' << std::flush;
         Image next_image{};
         // First set the pixel for all pixels in the infinite area if the image
         auto infinite_ix = index(image.infinite_position(),image);
@@ -216,15 +189,27 @@ namespace part2 {
       result = image.pixel_count();
       return result;
   }
+};
+
+namespace part1 {
+  Result solve_for(char const* pData) {
+    return part1and2<2>::solve_for(pData);
+  }
+}
+
+namespace part2 {
+  Result solve_for(char const* pData) {
+    return part1and2<50>::solve_for(pData);
+  }
 }
 
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  // answers.push_back({"Part 1 Test   ",part1::solve_for(pTest)});
+  answers.push_back({"Part 1 Test   ",part1::solve_for(pTest)});
   // answers.push_back({"Part 1 Test2  ",part1::solve_for(pTest2)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
