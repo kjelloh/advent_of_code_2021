@@ -89,9 +89,9 @@ void print_image(Image const& image) {
   auto x_max = image.frame().second[0] + X_BORDER;
   auto y_max = image.frame().second[1] + Y_BORDER;
   std::cout << "\n{" << x_min << ","<< y_min << "} -> {" << x_max << "," << y_max << "}";
-  for (int y = y_min;y< y_max;y++) {
+  for (int y = y_min;y<= y_max;y++) {
     std::cout << "\n";
-    for (int x = x_min;x < x_max ;x++) {
+    for (int x = x_min;x <= x_max ;x++) {
       if (image.pixels().find(Position{x,y}) != image.pixels().end()) {
         std::cout << "#";
       }
@@ -138,8 +138,8 @@ namespace part1 {
       for (int i=0;i<2;i++) {
         std::cout << "\nstep: " << i; 
         Image next_image{};
-        for (int x = image.frame().first[0]-1;x<image.frame().second[0]+1;x++) {
-          for (int y = image.frame().first[1]-1;y<image.frame().second[1]+1;y++) {
+        for (int x = image.frame().first[0]-1;x<=image.frame().second[0]+1;x++) {
+          for (int y = image.frame().first[1]-1;y<=image.frame().second[1]+1;y++) {
             auto ix = index(Position{x,y},image);
             if (puzzle_model.algorithm[512-ix-1]) {
               next_image.insert(Position{x,y});
