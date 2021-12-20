@@ -17,9 +17,26 @@ using Answers = std::vector<std::pair<std::string,Result>>;
 
 using Coordinate = int;
 using Position = std::vector<int>;
-struct Image {
-  std::set<Position> pixels{};
-  std::pair<Position,Position> frame{};
+
+class Image {
+public:
+  std::set<Position> const& pixels() const {return m_pixels;}
+  std::pair<Position,Position> const& frame() const {return m_frame;};
+  Image const& insert(Position const& pixel) {
+    std::cout << "\ninsert {" << pixel[0] << "," << pixel[1] << "}";
+    m_pixels.insert(pixel);
+    m_frame.first[0] = std::min(m_frame.first[0],pixel[0]);
+    m_frame.second[0] = std::max(m_frame.second[0],pixel[0]);
+    m_frame.first[1] = std::min(m_frame.first[1],pixel[1]);
+    m_frame.second[1] = std::max(m_frame.second[1],pixel[1]);
+    std::cout << "\nframe:{" << m_frame.first[0] << "," << m_frame.first[1] << "}"
+     << "-> {" << m_frame.second[0] << "," << m_frame.second[1] << "}";
+
+    return *this;
+  } 
+private:
+  std::set<Position> m_pixels{};
+  std::pair<Position,Position> m_frame{{0,0},{0,0}};
 };
 
 struct Model {
@@ -49,9 +66,7 @@ Model parse(auto& in) {
             for (char ch : line) {
               if (ch=='#') {
                 // std::cout << "\n{" << x << "," << y << "} " << ch;
-                result.image.pixels.insert(Position{x,y});
-                lr[0] = std::max(lr[0],x);
-                lr[1] = std::max(lr[1],y);
+                result.image.insert(Position{x,y});
               }
               ++x;
             }
@@ -62,22 +77,55 @@ Model parse(auto& in) {
         }
       }
     }
-    result.image.frame.first = ul;
-    result.image.frame.second = lr;
     return result;
 }
 
 void print_image(Image const& image) {
   // Print image inside area upper-left corner to lower right corner
-  for (int y = image.frame.first.at(1);y< image.frame.second.at(1);y++) {
+  const int X_BORDER = 1;
+  const int Y_BORDER = 1;
+  auto x_min = image.frame().first[0] - X_BORDER;
+  auto y_min = image.frame().first[1] - Y_BORDER;
+  auto x_max = image.frame().second[0] + X_BORDER;
+  auto y_max = image.frame().second[1] + Y_BORDER;
+  std::cout << "\n{" << x_min << ","<< y_min << "} -> {" << x_max << "," << y_max << "}";
+  for (int y = y_min;y< y_max;y++) {
     std::cout << "\n";
-    for (int x = image.frame.first.at(0);x < image.frame.second.at(0);x++) {
-      if (image.pixels.find(Position{x,y}) != image.pixels.end()) {
+    for (int x = x_min;x < x_max ;x++) {
+      if (image.pixels().find(Position{x,y}) != image.pixels().end()) {
         std::cout << "#";
       }
       else std::cout << '.';
     }
   }
+}
+
+Result index(Position const& pixel,Image const& image) {
+  Result result;
+  std::string bs{};
+  std::vector<Position> deltas = {
+    {-1,-1}
+    ,{0,-1}
+    ,{1,-1}
+    ,{-1,0}
+    ,{0,0} // include origo!
+    ,{1,0}
+    ,{-1,1}
+    ,{0,1}
+    ,{1,1}
+  };
+  for (Position dp : deltas) {
+    auto x = pixel[0] + dp[0];
+    auto y = pixel[1] + dp[1];
+    if (image.pixels().find(Position{x,y}) != image.pixels().end()) bs += '1';
+    else bs += '0';
+  }
+  result = std::bitset<9>{bs}.to_ulong();
+  // Log
+  if (true) {
+    std::cout << "\nindex(" << pixel[0] << "," << pixel[1] << ") = " << bs << " = " << result;;
+  }
+  return result;
 }
 
 namespace part1 {
@@ -86,6 +134,22 @@ namespace part1 {
       std::stringstream in{ pData };
       auto puzzle_model = parse(in);
       print_image(puzzle_model.image);
+      Image image{puzzle_model.image};
+      for (int i=0;i<2;i++) {
+        std::cout << "\nstep: " << i; 
+        Image next_image{};
+        for (int x = image.frame().first[0]-1;x<image.frame().second[0]+1;x++) {
+          for (int y = image.frame().first[1]-1;y<image.frame().second[1]+1;y++) {
+            auto ix = index(Position{x,y},image);
+            if (puzzle_model.algorithm[512-ix-1]) {
+              next_image.insert(Position{x,y});
+            }
+          }
+        }
+        image = next_image;
+        print_image(image);
+      }
+      result = image.pixels().size();
       return result;
   }
 }
@@ -103,7 +167,7 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   answers.push_back({"Part 1     ",part1::solve_for(pTest)});
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
