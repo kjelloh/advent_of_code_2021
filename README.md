@@ -11,6 +11,18 @@ Projects files includes,
   Visual Studio 2022
 
 C++ Source code requires between C++14 and C++20 (C++2a on Visual Studio 2022)
+# day 20
+Pitfalls I fell into when solving this puzzle.
+
+
+            std::string bs{};
+            std::transform(line.begin(),line.end(),bs.begin(),[](char ch) {return (ch=='#')?'1':'0';});
+
+
+* using std::transform into an empty string without using std::back_inserter.
+    * Runtime error "EXC_BAD_ACCESS (code=EXC_I386_GPFLT)" in another place on the code.
+    * The transform will access memory (indexing into bs) that is not there to access and corrupt the state of the application!
+ 
 # day 19
 Pitfalls I fell into when solving this puzzle in C++17
 
