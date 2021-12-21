@@ -11,6 +11,18 @@ Projects files includes,
   Visual Studio 2022
 
 C++ Source code requires between C++14 and C++20 (C++2a on Visual Studio 2022)
+# day 21
+Pitfalls I fell into when solving this puzzle.
+* At first, for part 2, I got the impression that the quantum dice produced the same outcome as in part 1. The only difference was that it split the universe on each roll.
+    * Thankfully it turned out this was not the case ;)  
+* for part 2 I need to count all permutations of three rolls of the quantum dice.
+    * My first attempt was to loop over 3..9 (possible moves from three rolls of dice 1,2 or 3)
+    * BUT - Each of these permutations counts as separate "universes" even if the actual move is the same.
+* I frist made a solution for part 2 with an argument defining what players turn it was.
+    * This caused the recursion to contain "mirrored code" which caused some problems to wte right in all its dfetails.
+    * Actually - I failed to get it right (it gave the worng answer)
+    * Only fater I had refactored the code so that each recursion switched between player 1 and playr 2 state to mimic "taking turns" - did my code produce the right answer.
+    * I may never know where I screwed up in my first attempt...
 # day 20
 Pitfalls I fell into when solving this puzzle.
 
