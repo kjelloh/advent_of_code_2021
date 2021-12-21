@@ -103,17 +103,20 @@ using WinCounts = std::pair<Count,Count>;
 using StateMap = std::map<GameState,WinCounts>; // Map a game state to winning counts
 
 WinCounts win_counts(const int WIN_SCORE, GameState const& game_state,int player_in_turn, StateMap& memoized) {
-    WinCounts result;
-    if (game_state.score1()>=WIN_SCORE) {
-        return {1,0}; // player 1 wins
+    // How many times does each player win given the provided game state and player in turn?
+    WinCounts result{0,0};
+    if (player_in_turn == 1 and game_state.score1()>=WIN_SCORE) {
+        // Player 1 has already won (one unique way for this game state)
+        result =  {1,0};
     }
-    else if (game_state.score2()>=WIN_SCORE) {
-        return {0,1}; // player 2 wins
+    else if (player_in_turn == 1 and game_state.score2()>=WIN_SCORE) {
+        // Player 2 has already won (one unique way for this game state)
+        result = {0,1};
     }
     else if (auto iter = memoized.find(game_state);iter != memoized.end()) {
+        // answer already known
         return iter->second;
     }
-    // Next possible state is player in turn throwing three times any of of 1,2 or 3
     else if (player_in_turn==1) {
         // We must count all possible permutation of three dice rolls sum
         for (auto i : {1,2,3}) {
@@ -122,38 +125,29 @@ WinCounts win_counts(const int WIN_SCORE, GameState const& game_state,int player
                     auto player_move = i+j+k;
                     int new_player_position = (game_state.pos1() - 1 + player_move)%10 + 1;
                     int new_score = game_state.score1() +  new_player_position;
-                    GameState new_state{new_player_position,new_score,game_state.pos2(),game_state.score2()};
-                    auto win_count = win_counts(WIN_SCORE,new_state,2,memoized);
-                    memoized[new_state] = win_count;
-                    // Sum the wins of all possible player move outcomes
-                    result.first += win_count.first;
-                    result.second += win_count.second;
+//                    GameState new_state{new_player_position,new_score,game_state.pos2(),game_state.score2()};
+//                    auto win_count = win_counts(WIN_SCORE,new_state,2,memoized);
+                    GameState new_state{game_state.pos2(),game_state.score2(),new_player_position,new_score,};
+                    auto win_count = win_counts(WIN_SCORE,new_state,1,memoized);
+
+                    // Sum the wins of all possible player move outcomes for current state
+                    // Remembering that we made the recursive call with player 1 and 2 states switched
+                    result.first += win_count.second;
+                    result.second += win_count.first;
                 }
             }
         }
     }
-    else if (player_in_turn==2) {
-        for (auto i : {1,2,3}) {
-            for (auto j : {1,2,3}) {
-                for (auto k : {1,2,3}) {
-                    auto player_move = i + j + k;
-                    int new_player_position = (game_state.pos2() - 1 + player_move) % 10 + 1;
-                    int new_score = game_state.score2() + new_player_position;
-                    GameState new_state{game_state.pos1(), game_state.score1(), new_player_position, new_score};
-                    auto win_count = win_counts(WIN_SCORE, new_state, 1, memoized);
-                    memoized[new_state] = win_count;
-                    // Sum the wins of all possible player move outcomes
-                    result.first += win_count.first;
-                    result.second += win_count.second;
-                }
-            }
-        }
+    else {
+        std::cout << "\nERROR - illegal state in win_count";
     }
+    // memoize this result before returning it
+    memoized[game_state] = result;
     return result;
 }
 
 namespace part2 {
-    Result solve_for(int player_1_pos,int player_2_pos) {
+    Result solve_for(int const&  WIN_SCORE,int player_1_pos,int player_2_pos) {
         Result result{};
         // There is a limited set of end states (universes) where a player wins
         // The player that wins can be at position 1..10 and have a score of 20+(1..3) = 10*3 states
@@ -173,11 +167,12 @@ namespace part2 {
         // We can then start with the initial state, generate all possible "next" game states and for each ask the question again.
 
         // Play all possible games
-        const int WIN_SCORE = 21;
         GameState init_game_state{player_1_pos,0,player_2_pos,0};
         StateMap memoized{};
         auto [p1_win_count,p2_win_count] = win_counts(WIN_SCORE,init_game_state,1,memoized);
         std::cout << "\nmemoized size " << memoized.size();
+        std::cout << "\nPlayer 1 win count " << p1_win_count;
+        std::cout << "\nPlayer 2 win count " << p2_win_count;
         result = std::max(p1_win_count,p2_win_count);
         return result;
     }
@@ -187,9 +182,10 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(4,8)});
-  // answers.push_back({"Part 1 Test",part1::solve_for(8,7)});
-  answers.push_back({"Part 2 Test",part2::solve_for(4,8)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(8,7)});
+  // answers.push_back({"Part 1     ",part1::solve_for(8,7)});
+  // answers.push_back({"Part 2 Test 0",part2::solve_for(6,1,1)});
+  answers.push_back({"Part 2 Test",part2::solve_for(21,4,8)});
+  answers.push_back({"Part 2     ",part2::solve_for(21,8,7)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
