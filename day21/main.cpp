@@ -66,15 +66,17 @@ namespace part1 {
       Dice dice{};
       Player player_1{1,player_1_pos};
       Player player_2{2,player_2_pos};
-      while (player_1.score<WINNING_SCORE and player_2.score<WINNING_SCORE) {
+      while (true) {
           if (turn%2 == 0) {
               if (player_1.play(dice)>=WINNING_SCORE) {
                   result = player_2.score * dice.roll_count;
+                  break;
               }
           }
           else {
               if (player_2.play(dice)>=WINNING_SCORE) {
                   result = player_1.score * dice.roll_count;
+                  break;
               }
           }
           ++turn;
@@ -86,12 +88,10 @@ namespace part1 {
 }
 
 namespace part2 {
-  Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto data_model = parse(in);
-      return result;
-  }
+    Result solve_for(int player_1_pos,int player_2_pos) {
+        Result result{};
+        return result;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -99,8 +99,8 @@ int main(int argc, char *argv[])
   Answers answers{};
   answers.push_back({"Part 1 Test",part1::solve_for(4,8)});
   answers.push_back({"Part 1 Test",part1::solve_for(8,7)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(4,8)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(8,7)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
