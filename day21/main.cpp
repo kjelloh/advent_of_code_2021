@@ -167,9 +167,9 @@ namespace part2 {
         GameState init_game_state{player_1_pos,0,player_2_pos,0};
         StateMap memoized{};
         auto [p1_win_count,p2_win_count] = win_counts(WIN_SCORE,init_game_state,memoized);
-        std::cout << "\nmemoized size " << memoized.size();
-        std::cout << "\nPlayer 1 win count " << p1_win_count;
-        std::cout << "\nPlayer 2 win count " << p2_win_count;
+//        std::cout << "\nmemoized size " << memoized.size();
+//        std::cout << "\nPlayer 1 win count " << p1_win_count;
+//        std::cout << "\nPlayer 2 win count " << p2_win_count;
         result = std::max(p1_win_count,p2_win_count);
         return result;
     }
@@ -178,8 +178,8 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  // answers.push_back({"Part 1 Test",part1::solve_for(4,8)});
-  // answers.push_back({"Part 1     ",part1::solve_for(8,7)});
+  answers.push_back({"Part 1 Test",part1::solve_for(4,8)});
+  answers.push_back({"Part 1     ",part1::solve_for(8,7)});
   // answers.push_back({"Part 2 Test 0",part2::solve_for(6,1,1)});
   answers.push_back({"Part 2 Test",part2::solve_for(21,4,8)});
   answers.push_back({"Part 2     ",part2::solve_for(21,8,7)});
