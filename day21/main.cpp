@@ -41,31 +41,31 @@ public:
     int score{0};
     int player_position{};
     int play(Dice& dice) {
-        std::cout << "\n<player " << player_id << ">";
-        std::cout << "\n\tdice roll ";
+//        std::cout << "\n<player " << player_id << ">";
+//        std::cout << "\n\tdice roll ";
         int player_move{0};
         for (int i=0;i<3;i++) {
             auto dice_roll = dice.roll();
-            std::cout << " " << dice_roll;
+//            std::cout << " " << dice_roll;
             player_move += dice_roll;
         }
-        std::cout << " = move " << player_move;
+//        std::cout << " = move " << player_move;
         player_position = (player_position - 1 + player_move)%10 + 1;
-        std::cout << "\n\tnew position " << player_position;
+//        std::cout << "\n\tnew position " << player_position;
         score += player_position;
-        std::cout << "\n\tscore " << score;
+//        std::cout << "\n\tscore " << score;
         return score;
     }
 };
 
 namespace part1 {
-  Result solve_for(char const* pData) {
+  Result solve_for(int player_1_pos,int player_2_pos) {
       Result result{};
       int const WINNING_SCORE = 1000;
       int turn{0};
       Dice dice{};
-      Player player_1{1,8};
-      Player player_2{2,7};
+      Player player_1{1,player_1_pos};
+      Player player_2{2,player_2_pos};
       while (player_1.score<WINNING_SCORE and player_2.score<WINNING_SCORE) {
           if (turn%2 == 0) {
               if (player_1.play(dice)>=WINNING_SCORE) {
@@ -97,8 +97,8 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1 Test",part1::solve_for(4,8)});
+  answers.push_back({"Part 1 Test",part1::solve_for(8,7)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
