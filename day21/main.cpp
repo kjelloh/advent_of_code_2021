@@ -9,7 +9,7 @@
 extern char const* pTest;
 extern char const* pData;
 
-using Result = uint64_t;
+using Result = size_t;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
 using Model = std::vector<std::string>;
@@ -102,14 +102,15 @@ using Count = size_t;
 using WinCounts = std::pair<Count,Count>;
 using StateMap = std::map<GameState,WinCounts>; // Map a game state to winning counts
 
-WinCounts win_counts(const int WIN_SCORE, GameState const& game_state,int player_in_turn, StateMap& memoized) {
-    // How many times does each player win given the provided game state and player in turn?
+WinCounts win_counts(const int WIN_SCORE, GameState const& game_state,StateMap& memoized) {
+    // Given it is player 1 turn in given game state,
+    // In how many ways does player 1 and 2 win?
     WinCounts result{0,0};
-    if (player_in_turn == 1 and game_state.score1()>=WIN_SCORE) {
+    if (game_state.score1()>=WIN_SCORE) {
         // Player 1 has already won (one unique way for this game state)
         result =  {1,0};
     }
-    else if (player_in_turn == 1 and game_state.score2()>=WIN_SCORE) {
+    else if (game_state.score2()>=WIN_SCORE) {
         // Player 2 has already won (one unique way for this game state)
         result = {0,1};
     }
@@ -117,29 +118,25 @@ WinCounts win_counts(const int WIN_SCORE, GameState const& game_state,int player
         // answer already known
         return iter->second;
     }
-    else if (player_in_turn==1) {
+    else {
         // We must count all possible permutation of three dice rolls sum
         for (auto i : {1,2,3}) {
             for (auto j : {1,2,3}) {
                 for (auto k : {1,2,3}) {
                     auto player_move = i+j+k;
-                    int new_player_position = (game_state.pos1() - 1 + player_move)%10 + 1;
-                    int new_score = game_state.score1() +  new_player_position;
-//                    GameState new_state{new_player_position,new_score,game_state.pos2(),game_state.score2()};
-//                    auto win_count = win_counts(WIN_SCORE,new_state,2,memoized);
-                    GameState new_state{game_state.pos2(),game_state.score2(),new_player_position,new_score,};
-                    auto win_count = win_counts(WIN_SCORE,new_state,1,memoized);
-
+                    int next_player_position = (game_state.pos1() - 1 + player_move)%10 + 1;
+                    int next_score = game_state.score1() +  next_player_position;
+                    // switch player 1 and 2 states to mimic "taking turns"
+                    GameState next_state{game_state.pos2(),game_state.score2(),next_player_position,next_score,};
+                    auto next_win_count = win_counts(WIN_SCORE,next_state,memoized);
                     // Sum the wins of all possible player move outcomes for current state
                     // Remembering that we made the recursive call with player 1 and 2 states switched
-                    result.first += win_count.second;
-                    result.second += win_count.first;
+                    // to mimic "taking turns"
+                    result.first += next_win_count.second;
+                    result.second += next_win_count.first;
                 }
             }
         }
-    }
-    else {
-        std::cout << "\nERROR - illegal state in win_count";
     }
     // memoize this result before returning it
     memoized[game_state] = result;
@@ -169,7 +166,7 @@ namespace part2 {
         // Play all possible games
         GameState init_game_state{player_1_pos,0,player_2_pos,0};
         StateMap memoized{};
-        auto [p1_win_count,p2_win_count] = win_counts(WIN_SCORE,init_game_state,1,memoized);
+        auto [p1_win_count,p2_win_count] = win_counts(WIN_SCORE,init_game_state,memoized);
         std::cout << "\nmemoized size " << memoized.size();
         std::cout << "\nPlayer 1 win count " << p1_win_count;
         std::cout << "\nPlayer 2 win count " << p2_win_count;
