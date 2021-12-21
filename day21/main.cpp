@@ -22,9 +22,63 @@ Model parse(auto& in) {
     return result;
 }
 
+class Dice {
+public:
+    int roll_count{0};
+    int roll() {
+        roll_result = (roll_result)%100 + 1;
+        ++roll_count;
+        return roll_result;
+    }
+private:
+    int roll_result{0};
+};
+
+class Player {
+public:
+    Player(int id,int start_position) : player_id{id}, player_position{start_position} {}
+    int player_id{};
+    int score{0};
+    int player_position{};
+    int play(Dice& dice) {
+        std::cout << "\n<player " << player_id << ">";
+        std::cout << "\n\tdice roll ";
+        int player_move{0};
+        for (int i=0;i<3;i++) {
+            auto dice_roll = dice.roll();
+            std::cout << " " << dice_roll;
+            player_move += dice_roll;
+        }
+        std::cout << " = move " << player_move;
+        player_position = (player_position - 1 + player_move)%10 + 1;
+        std::cout << "\n\tnew position " << player_position;
+        score += player_position;
+        std::cout << "\n\tscore " << score;
+        return score;
+    }
+};
+
 namespace part1 {
   Result solve_for(char const* pData) {
       Result result{};
+      int const WINNING_SCORE = 1000;
+      int turn{0};
+      Dice dice{};
+      Player player_1{1,8};
+      Player player_2{2,7};
+      while (player_1.score<WINNING_SCORE and player_2.score<WINNING_SCORE) {
+          if (turn%2 == 0) {
+              if (player_1.play(dice)>=WINNING_SCORE) {
+                  result = player_2.score * dice.roll_count;
+              }
+          }
+          else {
+              if (player_2.play(dice)>=WINNING_SCORE) {
+                  result = player_1.score * dice.roll_count;
+              }
+          }
+          ++turn;
+      }
       std::stringstream in{ pData };
       auto data_model = parse(in);
       return result;
