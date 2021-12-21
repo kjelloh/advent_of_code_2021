@@ -141,7 +141,7 @@ namespace part1 {
           for (auto delta_col : {0,1}){
             if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip origin and diagonals
             Position adj{pos.first+delta_row,pos.second+delta_col};
-            if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second > max_col) continue; // skip out-of-bounds
+            if ((adj.first<0) or (adj.first>max_row) or (adj.second<0) or (adj.second > max_col)) continue; // skip out-of-bounds
             if (cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second] <= cost_map[adj.first][adj.second]) {
               cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
               parent_map[adj.first][adj.second] = pos;
@@ -249,9 +249,11 @@ namespace part2 {
     frontiere.insert({0,0});
     while (frontiere.size()>0) {
       std::set<Position> new_frontiere{};
+      std::cout << "\nfrontiere\t";
       for (auto const& pos : frontiere) {
-        for (auto delta_row : {0,1}) {
-          for (auto delta_col : {0,1}){
+        std::cout << " " << cost_map[pos.first][pos.second];
+        for (auto delta_row : {1,0}) {
+          for (auto delta_col : {1,0}){
             if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip origin and diagonals
             Position adj{pos.first+delta_row,pos.second+delta_col};
             if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second > max_col) continue; // skip out-of-bounds
@@ -296,8 +298,8 @@ int main(int argc, char *argv[])
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
-  // std::cout << "\nPress <enter>...";
-  // std::cin.get();
+  std::cout << "\nPress <enter>...";
+  std::cin.get();
   std::cout << "\n";
   return 0;
 }
