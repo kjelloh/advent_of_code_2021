@@ -115,27 +115,38 @@ WinCounts win_counts(const int WIN_SCORE, GameState const& game_state,int player
     }
     // Next possible state is player in turn throwing three times any of of 1,2 or 3
     else if (player_in_turn==1) {
-        for (int player_move : {3,4,5,6,7,8,9}) {
-            int new_player_position = (game_state.pos1() - 1 + player_move)%10 + 1;
-            int new_score = game_state.score1() +  new_player_position;
-            GameState new_state{new_player_position,new_score,game_state.pos2(),game_state.score2()};
-            auto win_count = win_counts(WIN_SCORE,new_state,2,memoized);
-            memoized[new_state] = win_count;
-            // Sum the wins of all possible player move outcomes
-            result.first += win_count.first;
-            result.second += win_count.second;
+        // We must count all possible permutation of three dice rolls sum
+        for (auto i : {1,2,3}) {
+            for (auto j : {1,2,3}) {
+                for (auto k : {1,2,3}) {
+                    auto player_move = i+j+k;
+                    int new_player_position = (game_state.pos1() - 1 + player_move)%10 + 1;
+                    int new_score = game_state.score1() +  new_player_position;
+                    GameState new_state{new_player_position,new_score,game_state.pos2(),game_state.score2()};
+                    auto win_count = win_counts(WIN_SCORE,new_state,2,memoized);
+                    memoized[new_state] = win_count;
+                    // Sum the wins of all possible player move outcomes
+                    result.first += win_count.first;
+                    result.second += win_count.second;
+                }
+            }
         }
     }
     else if (player_in_turn==2) {
-        for (int player_move : {3,4,5,6,7,8,9}) {
-            int new_player_position = (game_state.pos2() - 1 + player_move)%10 + 1;
-            int new_score = game_state.score2() +  new_player_position;
-            GameState new_state{game_state.pos1(),game_state.score1(),new_player_position,new_score};
-            auto win_count = win_counts(WIN_SCORE,new_state,1,memoized);
-            memoized[new_state] = win_count;
-            // Sum the wins of all possible player move outcomes
-            result.first += win_count.first;
-            result.second += win_count.second;
+        for (auto i : {1,2,3}) {
+            for (auto j : {1,2,3}) {
+                for (auto k : {1,2,3}) {
+                    auto player_move = i + j + k;
+                    int new_player_position = (game_state.pos2() - 1 + player_move) % 10 + 1;
+                    int new_score = game_state.score2() + new_player_position;
+                    GameState new_state{game_state.pos1(), game_state.score1(), new_player_position, new_score};
+                    auto win_count = win_counts(WIN_SCORE, new_state, 1, memoized);
+                    memoized[new_state] = win_count;
+                    // Sum the wins of all possible player move outcomes
+                    result.first += win_count.first;
+                    result.second += win_count.second;
+                }
+            }
         }
     }
     return result;
