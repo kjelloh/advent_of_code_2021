@@ -133,7 +133,7 @@ bool in_range(int coord, CoordRange const& range) {
 * I am a meta-thinker. Meaning, I do what I experience is the intention, not what is actually said...
 
 # day 12
-I came this far but this does not work. Why?
+* At first I came this far. But this does not work. Why?
 
 ```
 Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph,VisitCount visit_count) {
@@ -166,6 +166,33 @@ Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph,V
   return result;
 }
 ```
+* I finally got some code that worked but this is s u p e r   s l o w!
+* I imagine I managed to create a brute force search (and I want to come back to this algorithm and implement it as it should be)
+
+```
+    while (candidate_paths.size()>0) {
+      if (loop_count++%LOOP_LOG_THRESHOLD==0) {
+        std::cout << "\n" << loop_count-LOOP_LOG_THRESHOLD;
+        std::cout << "\t" << candidate_paths.size();
+        std::cout << "\t\t" << valid_paths.size();
+      }
+      auto candidate_path = candidate_paths.back();
+      candidate_paths.pop_back();
+      if (is_full_path(candidate_path)) {
+        valid_paths.push_back(candidate_path);
+      }
+      else if (is_valid_path(candidate_path)) {
+        for (auto const& new_candidate_vertex: adjacent_graph[candidate_path.back()]) {
+          auto new_candidate_path = candidate_path;
+          new_candidate_path.push_back(new_candidate_vertex);
+          candidate_paths.push_back(new_candidate_path);
+          // rotate candidates right to move new candidate back in line 
+          std::rotate(candidate_paths.begin(),candidate_paths.end()-1,candidate_paths.end());
+        };
+      }
+    }
+```
+
 
 # day11
 The lesson after this days puzzle is to remember to KISS (Keep it simple stupid) ;)
