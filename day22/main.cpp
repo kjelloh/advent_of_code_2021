@@ -50,6 +50,7 @@ on x=10..10,y=10..10,z=10..10)";
               auto [ys_left,ys_right] = split(ys,"=");
               auto [zs_left,zs_right] = split(zs,"=");
               std::cout << "x:" << xs_right << " y:" << ys_right << " z:" << zs_right;
+              // TODO...
           }
       }
       std::stringstream in{ pData };
