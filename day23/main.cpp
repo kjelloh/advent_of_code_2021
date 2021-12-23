@@ -208,6 +208,33 @@ int main(int argc, const char * argv[]) {
         for (auto const& ap_tracker : current.ap_trackers) {
           // find all possible moves of this amohipod type and current location on the current map
           // Exhaust the reachable positions from current ap_tracker position
+          
+          /*
+           211223 KoH
+           
+           Consider the following approach
+           
+           if in a room:
+              First generate the path to the doorway
+              Then generate all paths going right in the hallway (all the way to the end wall)
+              Then generate all path going left in the hallway (all the way to the end wall))
+              Finally generate all paths to the room that is the correct room for it.
+              = A vector of path exhausting the move space regardless of allowed on blocing amphipods
+           
+           If in a corridor:
+              Generate all paths to the correct room for the amphipod.
+           
+           Second: Sort the vector of paths after the length of the paths
+           Third: Filter the paths to the ones that are NOT BLOCKED (cut off the path passing a blocking amphipod
+           
+           NOTE: We already have the map with all amphipods on it so it it easy to detect blocking paths :)
+           
+           Now we have all the possible and valid moves = we have all the possible new states for this amphipod.
+           The cost of each such new state is the length of the path x the step_cost for the amphipod type :)
+           
+           */
+          
+          
           std::vector<std::pair<int,int>> reachable{};
           std::set<std::pair<int,int>> visited{};
           auto row = ap_tracker.row;
