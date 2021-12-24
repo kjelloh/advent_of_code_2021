@@ -98,6 +98,7 @@ using Model = Program;
 using Environment = std::map<char,int>;
 class ALU {
 public:
+  ALU(std::istream& in) : m_in{in} {}
   ALU& execute(Program const& program) {
     for (auto const& statement : program) {
       // log
@@ -119,6 +120,7 @@ public:
     return *this;
   }
 private:
+  std::istream& m_in;
   Environment environment;
 };
 
@@ -149,7 +151,8 @@ namespace part1 {
       Result result{};
       std::stringstream in{ sData };
       auto program = parse(in);
-      ALU alu{};
+      std::istringstream alu_in{"13579246899999"};
+      ALU alu{alu_in};
       alu.execute(program);
       return result;
   }
