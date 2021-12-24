@@ -108,20 +108,55 @@ public:
           << to_string(statement.operands()[0]);
         if (statement.operands().size()>1) std::cout << "|" << to_string(statement.operands()[1]);
       }
-      switch (statement.op()) {
-        case op_inp: {} break;
-        case op_add: {} break;
-        case op_mul: {} break;
-        case op_div: {} break;
-        case op_mod: {} break;
-        case op_eql: {} break;
+      char a = std::get<char>(statement.operands()[0]);
+      int b;
+      if (statement.operands().size()==2) {
+        std::visit(overloaded {
+            [this,&b](char arg) {b = this->environment()[arg];}
+          ,[this,&b](int arg) { b = arg;}
+        }, statement.operands()[1]);        
       }
+      
+      switch (statement.op()) {
+        case op_inp: {
+          int b;
+          m_in >> b;
+          m_environment[a] = b;
+        } break;
+        case op_add: {
+          m_environment[a] += b;
+        } break;
+        case op_mul: {
+          m_environment[a] *= b;
+        } break;
+        case op_div: {
+          m_environment[a] /= b;
+        } break;
+        case op_mod: {
+          m_environment[a] %= b;
+        } break;
+        case op_eql: {
+          int val_a = m_environment[a];
+          m_environment[a] = (val_a==b)?1:0;
+        } break;
+      }
+      std::cout << "\t" << a << " = " << m_environment[a];
     }
+    std::cout << "\n" << this->env_dump();
     return *this;
   }
+  std::string env_dump() {
+    std::ostringstream os{};
+    os << "<environment>";
+    for (auto const me : m_environment) {
+      os << "\n\t" << me.first << " = " << me.second;
+    } 
+    return os.str();
+  }
+  Environment& environment() {return m_environment;}
 private:
   std::istream& m_in;
-  Environment environment;
+  Environment m_environment;
 };
 
 std::pair<std::string,std::string> split(std::string const& token,std::string const& delim) {
@@ -147,11 +182,11 @@ Model parse(auto& in) {
 }
 
 namespace part1 {
-  Result solve_for(std::string const sData) {
+  Result solve_for(std::string const& sData, std::string const& sIn) {
       Result result{};
       std::stringstream in{ sData };
       auto program = parse(in);
-      std::istringstream alu_in{"13579246899999"};
+      std::istringstream alu_in{sIn};
       ALU alu{alu_in};
       alu.execute(program);
       return result;
@@ -170,10 +205,10 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0])});
-  answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1])});
-  answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2])});
-  answers.push_back({"Part 1       ",part1::solve_for(pData[3])});
+  answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0],"-17")});
+  answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1],"3 9")});
+  answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2],"10")});
+  answers.push_back({"Part 1       ",part1::solve_for(pData[3],"1 3 5 7 9 2 4 6 8 9 9 9 9 9")});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
