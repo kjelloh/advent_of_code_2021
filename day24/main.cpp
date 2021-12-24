@@ -8,6 +8,7 @@
 #include <map>
 #include <variant>
 #include <optional>
+#include <ranges>
 
 extern std::vector<std::string> pData;
 
@@ -102,7 +103,7 @@ public:
   ALU& execute(Program const& program) {
     for (auto const& statement : program) {
       // log
-      {
+      if (true){
         std::cout << "\nexecute: " 
           << to_string(statement.op()) << "|" 
           << to_string(statement.operands()[0]);
@@ -120,8 +121,13 @@ public:
       switch (statement.op()) {
         case op_inp: {
           int b;
-          m_in >> b;
-          m_environment[a] = b;
+          std::cout << " >"; 
+          if (m_in >> b) {
+            m_environment[a] = b;
+          }
+          else {
+            std::cout << " ERROR: insufficient input";
+          }
         } break;
         case op_add: {
           m_environment[a] += b;
@@ -142,9 +148,10 @@ public:
       }
       std::cout << "\t" << a << " = " << m_environment[a];
     }
-    std::cout << "\n" << this->env_dump();
+    // std::cout << "\n" << this->env_dump();
     return *this;
   }
+
   std::string env_dump() {
     std::ostringstream os{};
     os << "<environment>";
@@ -182,14 +189,38 @@ Model parse(auto& in) {
 }
 
 namespace part1 {
-  Result solve_for(std::string const& sData, std::string const& sIn) {
-      Result result{};
-      std::stringstream in{ sData };
-      auto program = parse(in);
+  Result solve_for(std::string const& sData, std::string sIn) {
+    std::cout << "\nsolve_for in: " << sIn;
+    Result result{};
+    std::stringstream in{ sData };
+    auto program = parse(in);
+    if (sIn.size()==0) {
+      bool done{false};
+      size_t call_count{0};
+      do {
+        // Puzzle program
+        // std::cout << "\n"
+        // for (char digit : s_result) {
+        //   sIn += " ";
+        //   sIn += digit;
+        // }
+        // std::istringstream alu_in{sIn};
+        // ALU alu{alu_in};
+        std::cout << "\nNOMAD>";
+        ALU alu{std::cin};
+        alu.execute(program);
+        std::cout << "\n" << alu.env_dump();
+        int z = alu.environment()['z'];
+        done = (z == 0);
+        call_count++;
+      } while (!done);
+    }
+    else {
       std::istringstream alu_in{sIn};
       ALU alu{alu_in};
       alu.execute(program);
-      return result;
+    }
+    return result;
   }
 }
 
@@ -205,10 +236,16 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0],"-17")});
-  answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1],"3 9")});
-  answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2],"10")});
-  answers.push_back({"Part 1       ",part1::solve_for(pData[3],"1 3 5 7 9 2 4 6 8 9 9 9 9 9")});
+  // answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0],"-17")});
+  // answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1],"3 9")});
+  // answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2],"10")});
+  // Each digit is processed by the program so that z(i+1) = 0 for w(i) = z(i)%26 + N(i)
+  // So if we identify N(i) in teh program for each step and enters them for input
+  // we actually get a z=0. BUT - This is of course invalid as the actual input must be digits 1..9
+  // ==> Can we use this knowledge somehow though?
+  answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12")});
+  // answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"")});
+  // answers.push_back({"Part 1       ",part1::solve_for(pData[3],"1 3 5 7 9 2 4 6 8 9 9 9 9 9")});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
