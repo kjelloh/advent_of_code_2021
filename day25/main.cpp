@@ -245,6 +245,7 @@ namespace part1 {
             }
           }
         } while (next_transform.first.size()>0 or next_transform.second.size()>0);
+        result = step_count;
       }
 
       return result;
@@ -264,7 +265,7 @@ int main(int argc, char *argv[])
 {
   Answers answers{};
   //answers.push_back({"Part 1 Test",part1::solve_for("day25.ex")});
-  // answers.push_back({ "Part 1 Test",part1::solve_for("day25.ex2") });
+  answers.push_back({ "Part 1 Test",part1::solve_for("day25.ex2") });
   answers.push_back({ "Part 1 Test",part1::solve_for("day25.in") });
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
