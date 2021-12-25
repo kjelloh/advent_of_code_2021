@@ -9,6 +9,8 @@
 #include <variant>
 #include <optional>
 #include <ranges>
+#include <unordered_set>
+#include <unordered_map>
 
 extern std::vector<std::string> pData;
 
@@ -96,6 +98,20 @@ private:
 using Program = std::vector<Statement>;
 using Model = Program;
 using Environment = std::map<char,int>;
+// custom specialization of std::hash can be injected in namespace std
+template<>
+struct std::hash<Environment>
+{
+    std::size_t operator()(Environment const& env) const noexcept
+    {
+      std::size_t result;
+      for (auto const me : env) {
+        result ^= std::hash<char>{}(me.first);
+        result ^= std::hash<int>{}(me.second);
+      }
+      return result;
+    }
+};
 std::string to_string(Environment const& env) {
   std::ostringstream os{};
   os << "<environment>";
@@ -248,7 +264,7 @@ namespace part1 {
       }
     }
     // 3. How does each step/snippet process a large input z?
-    if (true) {
+    if (false) {
       std::vector<std::tuple<int,char,Environment>> envs{};
       for (int i=0;i<14;i++) {
         for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
@@ -321,7 +337,7 @@ namespace part1 {
           8         '7' good
           9         kind. '3','2','1' reduces z a little
           10        BAD
-          11        '4'
+          11        '4' good
           12        BAD
           13        kind. all increase z but a small amount
 
@@ -332,23 +348,24 @@ namespace part1 {
           */
       }
     }
-    // 4. Lets try the whole program for all possible digit 0
+    // 4. Lets try the whole program for all possible BAD digits
     //    with 4,5,7,8,11 fixated
     //    9 set to the kind '1' and 13 to the kind '1'
-    // NOMAD = xNNN76N271N4N1 where N is '9' for this test
-    if (true) {
+    // NOMAD = NNNN76N271N4N1 where N is '9' for this test
+    if (false) {
       //NOMAD =          xNNN76N271N4N1 where N is '9' for this test
-      std::string nomad="x 9 9 9 7 6 9 2 7 1 9 4 9 1";
+      std::string nomad="9 9 9 9 7 6 9 2 7 1 9 4 9 1";
       std::vector<std::tuple<int,char,Environment>> envs{};
-      for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
-        // Run the program from the start state with the digit and store the resulting state
-        nomad[0] = digit;
-        std::string input{nomad};
-        std::istringstream d_in{input};
-        // Run snippet[0]
-        ALU alu{d_in};
-        alu.execute(program);
-        envs.push_back({0,digit,alu.environment()});
+      for (int i : {0,1,2,3,6,10,12}) {
+        for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
+          // Run the program from the start state with the digit and store the resulting state
+          nomad[2*i] = digit;
+          std::string input{nomad};
+          std::istringstream d_in{input};
+          ALU alu{d_in};
+          alu.execute(program);
+          envs.push_back({i,digit,alu.environment()});
+        }
       }
       // Log
       {
@@ -360,7 +377,7 @@ namespace part1 {
           << " " << to_string(std::get<Environment>(tripple));
 
           /*
-          WOW! We now get fluctuation between a very large positive and a very large negative z!!
+          Ok, quite unconclosive but for digit 0 where we can control z to both negative and positive!
 
           0 9 <environment> w = 1 x = 1 y = 13 z = -1276661321
           0 8 <environment> w = 1 x = 1 y = 13 z = -1585577097
@@ -373,10 +390,136 @@ namespace part1 {
           0 1 <environment> w = 1 x = 1 y = 13 z =  546979745
           */
       }
+    }
+    // What can we learn by brute force the 7 BAD digits?
+    // If we store the environmet after each step we can get a grasp of the search space?
+    if (false) {
+      // Brute force digit with index {0,1,2,3,6,10,12}
+      std::unordered_set<Environment> visited{};
+      size_t call_count{0};
+      std::string nomad="9 9 9 9 7 6 9 2 7 1 9 4 9 1";
+      for (auto i0 : {1,2,3,4,5,6,7,8,9}) {
+        for (auto i1 : {1,2,3,4,5,6,7,8,9}) {
+          for (auto i2 : {1,2,3,4,5,6,7,8,9}) {
+            for (auto i3 : {1,2,3,4,5,6,7,8,9}) {
+              for (auto i6 : {1,2,3,4,5,6,7,8,9}) {
+                for (auto i10 : {1,2,3,4,5,6,7,8,9}) {
+                  for (auto i12 : {1,2,3,4,5,6,7,8,9}) {
+                    ++call_count;
+                    nomad[0] = '0'+i0;
+                    nomad[2] = '0'+i1;
+                    nomad[4] = '0'+i2;
+                    nomad[6] = '0'+i3;
+                    nomad[12] = '0'+i6;
+                    nomad[20] = '0'+i10;
+                    nomad[24] = '0'+i12;
+                    std::string input{nomad};
+                    std::istringstream d_in{input};
+                    ALU alu{d_in};
+                    alu.execute(program);
+                    visited.insert(alu.environment());
+                    if (call_count%10000==0) std::cout << "\n" << call_count << std::flush;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      // Log
+      {
+        std::cout << "\n" << call_count << std::flush;
+        std::cout << "\n" << visited.size();
+        // 2187 unique states only! (Should be correct even with a sloppy hash function)?
+        // Note: I implemented a quick-and-dirty hash function for Envronment.
+        //       But the unordered set should still keep track if unique elements
+        //       even if the hash but them in buckets defined by the same hash? 
+      }
+    }
+    // What can we learn by brute force the 7 BAD digits and map the environment to the tested nomad?
+    if (true) {
+      // Brute force BAD digits,i.e., those with index {0,1,2,3,6,10,12}      
+      std::unordered_map<Environment,std::string> visited{};
+      size_t call_count{0};
+      std::string nomad="9 9 9 9 7 6 9 2 7 1 9 4 9 1";
+      for (auto i0 : {1,2,3,4,5,6,7,8,9}) {
+        for (auto i1 : {1,2,3,4,5,6,7,8,9}) {
+          for (auto i2 : {1,2,3,4,5,6,7,8,9}) {
+            for (auto i3 : {1,2,3,4,5,6,7,8,9}) {
+              for (auto i6 : {1,2,3,4,5,6,7,8,9}) {
+                for (auto i10 : {1,2,3,4,5,6,7,8,9}) {
+                  for (auto i12 : {1,2,3,4,5,6,7,8,9}) {
+                    ++call_count;
+                    nomad[0] = '0'+i0;
+                    nomad[2] = '0'+i1;
+                    nomad[4] = '0'+i2;
+                    nomad[6] = '0'+i3;
+                    nomad[12] = '0'+i6;
+                    nomad[20] = '0'+i10;
+                    nomad[24] = '0'+i12;
+                    std::string input{nomad};
+                    std::istringstream d_in{input};
+                    ALU alu{d_in};
+                    alu.execute(program);
+                    visited[alu.environment()] = nomad;
+                    if (call_count%10000==0) std::cout << "\n" << call_count << " " << nomad << std::flush;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      // Log
+      {
+        std::cout << "\n" << call_count << std::flush;
+        std::cout << "\n" << visited.size();
+        // 2187
+        for (auto const& em : visited) {
+          if (em.first.at('z') == 0) std::cout << "\nvalid:" << em.second;
+        }
+        // But none of them are z=0.
+      }
+      // How low z have we found (Note that we have two kind digits to find also)
+      std::vector<Environment> qv{};
+      std::transform(visited.begin(),visited.end(),std::back_inserter(qv),[](auto em) {
+        return em.first;
+      });
+      std::sort(qv.begin(),qv.end(),[](auto em1,auto em2){
+        return (em1['z'] < em2['z']);
+      });
+      for (auto const& env : qv) {
+        std::cout << "\n" << to_string(env);
+      }
+      /*
+        Observation: For some reason we get the same w,x and y for the input we generated.
+        And we basically get two chunks of z, negative and one positive (large in any case)
+        ==> So much for getting close to a low z this way...
+        ...
+        <environment> w = 1 x = 1 y = 13 z = -1277575273
+        <environment> w = 1 x = 1 y = 13 z = -1277118323
+        <environment> w = 1 x = 1 y = 13 z = -1277118297
+        <environment> w = 1 x = 1 y = 13 z = -1276661347
+        <environment> w = 1 x = 1 y = 13 z = -1276661321
+        <environment> w = 1 x = 1 y = 13 z = 182426387
+        <environment> w = 1 x = 1 y = 13 z = 182443963
+        <environment> w = 1 x = 1 y = 13 z = 182461539
+        <environment> w = 1 x = 1 y = 13 z = 182479115
+        <environment> w = 1 x = 1 y = 13 z = 182496691
+        <environment> w = 1 x = 1 y = 13 z = 182514267
+        ...
+
+        Still, for out input 9pow7 = 4782969
+        We get only 2187 possible environments.
+        We should be able to leverage that?
+
+        ==> Even if we save all intermediate states we only get 14*2187 = 30618 states.
+
+        Does this men we can brute force all 9 unknown digits
+        by memoize encountered states to short-cut the evaluation?
+      */
 
     }
-
-
   }
   Result solve_for(std::string const& sData, std::string sIn) {
     std::cout << "\nsolve_for in: " << sIn;
