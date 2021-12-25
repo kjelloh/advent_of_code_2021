@@ -95,20 +95,27 @@ private:
 };
 using Program = std::vector<Statement>;
 using Model = Program;
-
 using Environment = std::map<char,int>;
+std::string to_string(Environment const& env) {
+  std::ostringstream os{};
+  os << "<environment>";
+  for (auto const me : env) {
+    os << " " << me.first << " = " << me.second;
+  } 
+  return os.str();
+}
 class ALU {
 public:
   ALU(std::istream& in) : m_in{in} {}
   ALU& execute(Program const& program) {
     for (auto const& statement : program) {
       // log
-      if (true){
-        std::cout << "\nexecute: " 
-          << to_string(statement.op()) << "|" 
-          << to_string(statement.operands()[0]);
-        if (statement.operands().size()>1) std::cout << "|" << to_string(statement.operands()[1]);
-      }
+      // if (true){
+      //   std::cout << "\nexecute: " 
+      //     << to_string(statement.op()) << "|" 
+      //     << to_string(statement.operands()[0]);
+      //   if (statement.operands().size()>1) std::cout << "|" << to_string(statement.operands()[1]);
+      // }
       char a = std::get<char>(statement.operands()[0]);
       int b;
       if (statement.operands().size()==2) {
@@ -121,7 +128,7 @@ public:
       switch (statement.op()) {
         case op_inp: {
           int b;
-          std::cout << " >"; 
+          // std::cout << " >"; 
           if (m_in >> b) {
             m_environment[a] = b;
           }
@@ -146,19 +153,14 @@ public:
           m_environment[a] = (val_a==b)?1:0;
         } break;
       }
-      std::cout << "\t" << a << " = " << m_environment[a];
+      // std::cout << "\t" << a << " = " << m_environment[a];
     }
     // std::cout << "\n" << this->env_dump();
     return *this;
   }
 
   std::string env_dump() {
-    std::ostringstream os{};
-    os << "<environment>";
-    for (auto const me : m_environment) {
-      os << "\n\t" << me.first << " = " << me.second;
-    } 
-    return os.str();
+    return to_string(m_environment);
   }
   Environment& environment() {return m_environment;}
 private:
@@ -189,6 +191,193 @@ Model parse(auto& in) {
 }
 
 namespace part1 {
+  void investigate(std::string const& sData) {
+    std::stringstream in{ sData };
+    auto program = parse(in);
+    // Observation: The program reads one digit input at a time and performs
+    // a set of computations on that input before reading and processing the next digit.
+
+    // Split the program into snippets for each digit processing
+    std::vector<Program> snippets{};
+    for (auto const& statement : program) {
+      if (statement.op() == op_inp) snippets.push_back({});
+      snippets.back().push_back(statement);
+    }
+    std::cout << "\nsnippets count " << snippets.size();
+
+    // 1. What are the possible program states after the first digit processing?
+    if (false) {
+      std::vector<Environment> envs{};
+      for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
+        // Run the program from the start state with the digit and store the resulting state
+        std::string input{digit};
+        std::istringstream d_in{input};
+        // Run snippet[0]
+        ALU alu{d_in};
+        alu.execute(snippets[0]);
+        envs.push_back(alu.environment());
+      }
+      // Log
+      {
+        std::cout << "\n<possible states after first digit>"; 
+        for (auto const& env : envs) std::cout << "\n" << to_string(env); 
+      }
+    }
+    // 2. What possible states after each step (if we run each step/snippet in isolation)
+    if (false) {
+      std::vector<std::tuple<int,char,Environment>> envs{};
+      for (int i=0;i<14;i++) {
+        for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
+          // Run the program from the start state with the digit and store the resulting state
+          std::string input{digit};
+          std::istringstream d_in{input};
+          // Run snippet[0]
+          ALU alu{d_in};
+          alu.execute(snippets[i]);
+          envs.push_back({i,digit,alu.environment()});
+        }
+      }
+      // Log
+      {
+        std::cout << "\n<possible states after each snippet in isolation per digit>"; 
+        for (auto const& tripple : envs) std::cout 
+          << "\n" 
+          << std::get<int>(tripple) 
+          << " " << std::get<char>(tripple)
+          << " " << to_string(std::get<Environment>(tripple));
+      }
+    }
+    // 3. How does each step/snippet process a large input z?
+    if (true) {
+      std::vector<std::tuple<int,char,Environment>> envs{};
+      for (int i=0;i<14;i++) {
+        for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
+          // Run the program from the start state with the digit and store the resulting state
+          std::string input{digit};
+          std::istringstream d_in{input};
+          // Run snippet[0]
+          ALU alu{d_in};
+          // alu.environment()['z'] = 1000000; // large z 
+          alu.environment()['z'] = 10000000; // even largee z 
+          alu.execute(snippets[i]);
+          envs.push_back({i,digit,alu.environment()});
+        }
+      }
+      // Log
+      {
+        std::cout << "\n<possible states after each snippet in isolation per digit for LARGE in-z>"; 
+        for (auto const& tripple : envs) std::cout 
+          << "\n" 
+          << std::get<int>(tripple) 
+          << " " << std::get<char>(tripple)
+          << " " << to_string(std::get<Environment>(tripple));
+          /*
+          These steps drastically reduced z
+
+          4 7 <environment> w = 7 x = 0 y = 0 z = 384615
+          5 6 <environment> w = 6 x = 0 y = 0 z = 384615
+          7 2 <environment> w = 2 x = 0 y = 0 z = 384615
+          8 7 <environment> w = 7 x = 0 y = 0 z = 384615
+          11 4 <environment> w = 4 x = 0 y = 0 z = 384615
+
+          ==> Seems we MUST choose 
+            digit 4 = '7'
+            digit 5 = '6'
+            digit 7 = '2'
+            digit 8 = '7'
+            digit 11 = '4'
+
+            to have any chance of reducing z down to 0?
+
+          These steps also reduced z, although just a little bit
+          9 3 <environment> w = 3 x = 1 y = 9 z = 9999999
+          9 2 <environment> w = 2 x = 1 y = 8 z = 9999998
+          9 1 <environment> w = 1 x = 1 y = 7 z = 9999997
+
+         This step increased z very little
+
+          13 1 <environment> w = 1 x = 1 y = 13 z = 10000003
+
+          Lowest increase for the really bad steps
+          0 1 <environment> w = 1 x = 1 y = 15 z = 260000015
+          1 1 <environment> w = 1 x = 1 y = 9 z = 260000009
+          2 1 <environment> w = 1 x = 1 y = 5 z = 260000005
+          3 1 <environment> w = 1 x = 1 y = 11 z = 260000011
+          6 1 <environment> w = 1 x = 1 y = 5 z = 260000005
+          10 1 <environment> w = 1 x = 1 y = 1 z = 260000001
+          12 1 <environment> w = 1 x = 1 y = 14 z = 260000014
+
+          Speculation: The digits affects z very bad to very kindly in the following way
+
+          digit     z affect
+          0         BAD
+          1         BAD
+          2         BAD
+          3         BAD
+          4         '7' good
+          5         '6' good
+          6         BAD
+          7         '2' good
+          8         '7' good
+          9         kind. '3','2','1' reduces z a little
+          10        BAD
+          11        '4'
+          12        BAD
+          13        kind. all increase z but a small amount
+
+          We have 7 very BAD digits.
+          We have 2 kind digits
+          We have 5 fixed digits!
+
+          */
+      }
+    }
+    // 4. Lets try the whole program for all possible digit 0
+    //    with 4,5,7,8,11 fixated
+    //    9 set to the kind '1' and 13 to the kind '1'
+    // NOMAD = xNNN76N271N4N1 where N is '9' for this test
+    if (true) {
+      //NOMAD =          xNNN76N271N4N1 where N is '9' for this test
+      std::string nomad="x 9 9 9 7 6 9 2 7 1 9 4 9 1";
+      std::vector<std::tuple<int,char,Environment>> envs{};
+      for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
+        // Run the program from the start state with the digit and store the resulting state
+        nomad[0] = digit;
+        std::string input{nomad};
+        std::istringstream d_in{input};
+        // Run snippet[0]
+        ALU alu{d_in};
+        alu.execute(program);
+        envs.push_back({0,digit,alu.environment()});
+      }
+      // Log
+      {
+        std::cout << "\n<possible states after each nomad xNNN76N271N4N1 (x='1'..'9'"; 
+        for (auto const& tripple : envs) std::cout 
+          << "\n" 
+          << std::get<int>(tripple) 
+          << " " << std::get<char>(tripple)
+          << " " << to_string(std::get<Environment>(tripple));
+
+          /*
+          WOW! We now get fluctuation between a very large positive and a very large negative z!!
+
+          0 9 <environment> w = 1 x = 1 y = 13 z = -1276661321
+          0 8 <environment> w = 1 x = 1 y = 13 z = -1585577097
+          0 7 <environment> w = 1 x = 1 y = 13 z = -1894492873
+          0 6 <environment> w = 1 x = 1 y = 13 z =  2091558625
+          0 5 <environment> w = 1 x = 1 y = 13 z =  1782642849
+          0 4 <environment> w = 1 x = 1 y = 13 z =  1473727073
+          0 3 <environment> w = 1 x = 1 y = 13 z =  1164811297
+          0 2 <environment> w = 1 x = 1 y = 13 z =  855895521
+          0 1 <environment> w = 1 x = 1 y = 13 z =  546979745
+          */
+      }
+
+    }
+
+
+  }
   Result solve_for(std::string const& sData, std::string sIn) {
     std::cout << "\nsolve_for in: " << sIn;
     Result result{};
@@ -239,11 +428,15 @@ int main(int argc, char *argv[])
   // answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0],"-17")});
   // answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1],"3 9")});
   // answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2],"10")});
+
+  // I interpreted the rpogram and...
   // Each digit is processed by the program so that z(i+1) = 0 for w(i) = z(i)%26 + N(i)
-  // So if we identify N(i) in teh program for each step and enters them for input
-  // we actually get a z=0. BUT - This is of course invalid as the actual input must be digits 1..9
+  // So if we identify N(i) in the program for each step and enters them for input
+  // we actually get a z=0. They are: 11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12
+  // BUT - This is of course invalid as the actual input must be digits 1..9
   // ==> Can we use this knowledge somehow though?
-  answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12")});
+  // answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12")});
+  part1::investigate(pData[3]);
   // answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"")});
   // answers.push_back({"Part 1       ",part1::solve_for(pData[3],"1 3 5 7 9 2 4 6 8 9 9 9 9 9")});
   for (auto const& answer : answers) {
