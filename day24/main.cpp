@@ -253,8 +253,8 @@ std::optional<std::string> best_digits(int ix,std::vector<Program> const& snippe
   else if (visited.find({ix,z}) != visited.end()) return visited[{ix,z}];
   else {
     // Not memoized - run program for step 13-ix (step 13 for digit index 0 = last one)
-    // for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
-    auto digits = {'9','8','7','6','5','4','3','2','1'};
+    // for (char digit : {'9','8','7','6','5','4','3','2','1'}) { // part 1
+    auto digits = {'9','8','7','6','5','4','3','2','1'}; // part 2
     for (char digit : digits | std::views::reverse) { // part2
       std::string input{digit};
       std::istringstream d_in{input};
@@ -413,6 +413,13 @@ namespace part1 {
           We have 7 very BAD digits.
           We have 2 kind digits
           We have 5 fixed digits!
+
+            [Future me] For my input...
+              max monad: 74929995999389
+              min monad: 11118151637112
+            
+            ==> So - Nope, We do NOT need to fix those digits...
+                (Brute force with memoisation was the way to go)
 
           */
       }
