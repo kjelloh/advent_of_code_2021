@@ -98,7 +98,7 @@ private:
 using Program = std::vector<Statement>;
 using Model = Program;
 using Environment = std::map<char,int>;
-// custom specialization of std::hash can be injected in namespace std
+// custom specialization of std::hash for Environment injected into namespace std
 template<>
 struct std::hash<Environment>
 {
@@ -112,6 +112,23 @@ struct std::hash<Environment>
       return result;
     }
 };
+// custom specialization of std::hash for std::tuple<int,char,Environment> injected into namespace std
+template<>
+struct std::hash<std::tuple<int,char,Environment>>
+{
+    std::size_t operator()(std::tuple<int,char,Environment> const& triad) const noexcept
+    {
+      std::size_t result;
+      result ^= std::hash<int>{}(std::get<int>(triad));
+      result ^= std::hash<int>{}(std::get<char>(triad));
+      for (auto const me : std::get<Environment>(triad)) {
+        result ^= std::hash<char>{}(me.first);
+        result ^= std::hash<int>{}(me.second);
+      }
+      return result;
+    }
+};
+
 std::string to_string(Environment const& env) {
   std::ostringstream os{};
   os << "<environment>";
@@ -437,7 +454,7 @@ namespace part1 {
       }
     }
     // What can we learn by brute force the 7 BAD digits and map the environment to the tested nomad?
-    if (true) {
+    if (false) {
       // Brute force BAD digits,i.e., those with index {0,1,2,3,6,10,12}      
       std::unordered_map<Environment,std::string> visited{};
       size_t call_count{0};
@@ -493,6 +510,8 @@ namespace part1 {
       }
       /*
         Observation: For some reason we get the same w,x and y for the input we generated.
+        Probably because the last digit processed is the same and w,x and y does NOT
+        propagate between "steps" (digit processing)
         And we basically get two chunks of z, negative and one positive (large in any case)
         ==> So much for getting close to a low z this way...
         ...
@@ -518,7 +537,79 @@ namespace part1 {
         Does this men we can brute force all 9 unknown digits
         by memoize encountered states to short-cut the evaluation?
       */
+    }
+    // *) Lets asume w,x and y does not affekt the "cost" to z for each "step" (digit in the input)?
+    //    We are thyen interested in the possible space of z-changes for each step
+    // given some z-input.
+    if (true) {
+      size_t const Z = 10000;
+      std::unordered_map<std::tuple<int,char,Environment>,size_t> visited{};
+      for (int i=0;i<14;i++) {
+        // Run program snippet i for digit '9'..'1' for some range of input z 0..Z
+        // count the number each state is reached
+        // Note: Requires a specialisation to hash std::tuple<int,char,Environment> injected into
+        // the std namespace (see code below Environment type above)
+        for (auto digit : {'9','8','7','6','5','4','3','2','1'}) {
+          for (size_t z = 0;z<Z;z++) {
+            std::string input{digit};
+            std::istringstream d_in{input};
+            ALU alu{d_in};
+            alu.environment()['z'] = z;
+            alu.execute(snippets[i]);
+            visited[{i,digit,alu.environment()}] += 1; // count reach of this state
+          }
+        }
+      }
+      // Log
+      {
+        std::cout << "\nstate count: " << visited.size();
+        auto max_e_z = std::max_element(visited.begin(),visited.end(),[](auto const& entry1, auto const& entry2){
+          auto z1 = std::get<Environment>(entry1.first).at('z');
+          auto z2 = std::get<Environment>(entry2.first).at('z');
+          return z1<z2;
+        });
+        auto max_z = std::get<Environment>(max_e_z->first).at('z');
+        auto min_e_z = std::min_element(visited.begin(),visited.end(),[](auto const& entry1, auto const& entry2){
+          auto z1 = std::get<Environment>(entry1.first).at('z');
+          auto z2 = std::get<Environment>(entry2.first).at('z');
+          return z1<z2;
+        });
+        auto min_z = std::get<Environment>(min_e_z->first).at('z');
+        auto max_e_c = std::max_element(visited.begin(),visited.end(),[](auto const& entry1, auto const& entry2){
+          auto c1 = entry1.second;
+          auto c2 = entry2.second;
+          return c1<c2;
+        });
+        auto max_c = max_e_c->second;
+        auto min_e_c = std::min_element(visited.begin(),visited.end(),[](auto const& entry1, auto const& entry2){
+          auto c1 = entry1.second;
+          auto c2 = entry2.second;
+          return c1<c2;
+        });
+        auto min_c = max_e_c->second;
 
+        std::cout << "\nmin z    :" << std::get<int>(min_e_z->first) << " " << std::get<char>(min_e_z->first) << " " << to_string(std::get<Environment>(min_e_z->first)) << " " << min_e_z->second;
+        std::cout << "\nmax z    :" << std::get<int>(max_e_z->first) << " " << std::get<char>(max_e_z->first) << " " << to_string(std::get<Environment>(max_e_z->first)) << " " << max_e_z->second;
+        std::cout << "\nmin count:" << std::get<int>(min_e_c->first) << " " << std::get<char>(min_e_c->first) << " " << to_string(std::get<Environment>(min_e_c->first)) << " " << min_e_c->second;
+        std::cout << "\nmax count:" << std::get<int>(max_e_c->first) << " " << std::get<char>(max_e_c->first) << " " << to_string(std::get<Environment>(max_e_c->first)) << " " << max_e_c->second;
+
+        /*
+          state count: 678496
+          min z    :11 1 <environment> w = 1 x = 0 y = 0 z = 0 1
+          max z    :0 9 <environment> w = 9 x = 1 y = 23 z = 259997 1
+          min count:12 1 <environment> w = 1 x = 1 y = 14 z = 259988 1
+          max count:13 2 <environment> w = 2 x = 1 y = 14 z = 9920 25
+
+          So still, we have tried 10 000 z and 9 digits for each step and only got 678496 different states
+          Worst case would have been 14*9*10000 = 1 260 000 (we have half the expected state counts...)
+          We actually got one snippet to produce a zero z output (digit 11 input '1')
+
+          Digit 12 = '1' is hit only once
+          Digit 13 = '2' is hit 25 times (there are 25 input z:s for digit '2' that produce the same output z 9920)
+
+        */
+
+      }
     }
   }
   Result solve_for(std::string const& sData, std::string sIn) {
