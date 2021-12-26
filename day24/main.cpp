@@ -246,76 +246,22 @@ std::optional<std::string> best_digits(int ix,std::vector<Program> const& snippe
   if (visited.find({ix,z}) != visited.end()) return visited[{ix,z}];
   else {
     // Not memoized
-    std::optional<char> known_digit{};
-    /*
-      digit     z affect
-        13         BAD
-        12         BAD
-        11         BAD
-        10         BAD
-        9        '7' good
-        8         '6' good
-        7         BAD
-        6         '2' good
-        5         '7' good
-        4         kind. '3','2','1' reduces z a little
-        3        BAD
-        2        '4' good
-        1        BAD
-        0        kind. all increase z but a small amount
-    */     
-    switch (ix) {
-      case 13: break;
-      case 12: break;
-      case 11: break;
-      case 10: break;
-      case 9: known_digit = '7'; break;
-      case 8: known_digit = '6'; break;
-      case 7: break;
-      case 6: known_digit = '2'; break;
-      case 5: known_digit = '7'; break;
-      case 4: break;
-      case 3: break;
-      case 2: break;
-      case 1: break;
-      case 0: break;
-    }
-    if (known_digit) {
-        auto digit = known_digit.value();
-        std::string input{digit};
-        std::istringstream d_in{input};
-        ALU alu{d_in};
-        alu.environment()['z'] = z; // Run with provided in z
-        alu.execute(snippets[13-ix]);
-        auto next_z = alu.environment()['z']; // Get next z
-        // Now pass the new z along down the chain unless we are done
-        if (ix>0) {
-          auto result = best_digits(ix-1,snippets,next_z,visited); // Recurse down
-          visited[{ix-1,next_z}] = result; // Memoize best digits for called state
-          if (result) return std::string{digit} + result.value();
-        }
-        else {
-          if (z==0) return std::string{digit};
-        }
-    }
-    else {
-      for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
-        std::string input{digit};
-        std::istringstream d_in{input};
-        ALU alu{d_in};
-        alu.environment()['z'] = z; // Run with provided in z
-        alu.execute(snippets[13-ix]);
-        auto next_z = alu.environment()['z']; // Get next z
-        // Now pass the new z along down the chain unless we are done
-        if (ix>0) {
-          auto result = best_digits(ix-1,snippets,next_z,visited); // Recurse down
-          visited[{ix,z}] = result; // Memoize best digit down from this state
-          if (result) return std::string{digit} + result.value();
-          else continue; // Try next digit
-        }
-        else {
-          if (z==0) return std::string{digit};
-        }
+    for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
+      std::string input{digit};
+      std::istringstream d_in{input};
+      ALU alu{d_in};
+      alu.environment()['z'] = z; // Run with provided in z
+      alu.execute(snippets[13-ix]);
+      auto next_z = alu.environment()['z']; // Get next z
+      // Now pass the new z along down the chain unless we are done
+      if (ix>0) {
+        auto result = best_digits(ix-1,snippets,next_z,visited); // Recurse down
+        visited[{ix,z}] = result; // Memoize best digit down from this state
+        if (result) return std::string{digit} + result.value();
+        else continue; // Try next digit
+      }
+      else {
+        if (z==0) return std::string{digit};
       }
     }
   }
