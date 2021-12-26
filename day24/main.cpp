@@ -240,12 +240,19 @@ Model parse(auto& in) {
 using Visited = std::unordered_map<std::pair<int,size_t>,std::optional<std::string>>;
 std::optional<std::string> best_digits(int ix,std::vector<Program> const& snippets,size_t z,Visited& visited) {
   // Get the best digits i..0 for z so far
+  // Init with ix=13, z=0
+  // Expands to ix=12, z= one for each digit 13 '9','8',...
+  // Victory if ix==0 and next z for a digit == 0 ==> return the victory digit 
   static int call_count{0};
   call_count++;
-  if (ix>10) std::cout << "\n" << call_count << " " << ix << " " << visited.size() << " " << z;
-  if (visited.find({ix,z}) != visited.end()) return visited[{ix,z}];
+  // Log
+  {
+    if (ix>10) std::cout << "\n" << call_count << " " << ix << " " << visited.size() << " " << z;
+  }
+  if (ix<0) return std::nullopt; // Give up
+  else if (visited.find({ix,z}) != visited.end()) return visited[{ix,z}];
   else {
-    // Not memoized
+    // Not memoized - run program for step 13-ix (step 13 for digit index 0 = last one)
     for (char digit : {'9','8','7','6','5','4','3','2','1'}) {
       std::string input{digit};
       std::istringstream d_in{input};
@@ -253,15 +260,13 @@ std::optional<std::string> best_digits(int ix,std::vector<Program> const& snippe
       alu.environment()['z'] = z; // Run with provided in z
       alu.execute(snippets[13-ix]);
       auto next_z = alu.environment()['z']; // Get next z
-      // Now pass the new z along down the chain unless we are done
-      if (ix>0) {
+      if (ix==0 and next_z==0) return std::string{digit}; // VICTORY
+      else {
+        // pass the new z along down the chain unless we are done
         auto result = best_digits(ix-1,snippets,next_z,visited); // Recurse down
-        visited[{ix,z}] = result; // Memoize best digit down from this state
+        visited[{ix-1,next_z}] = result; // Memoize best digit down from this state
         if (result) return std::string{digit} + result.value();
         else continue; // Try next digit
-      }
-      else {
-        if (z==0) return std::string{digit};
       }
     }
   }
