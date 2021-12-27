@@ -136,15 +136,15 @@ std::string to_string(Environment const& env) {
 class ALU {
 public:
   ALU(std::istream& in) : m_in{in} {}
-  ALU& execute(Program const& program) {
+  ALU& execute(Program const& program,bool verbose=false) {
     for (auto const& statement : program) {
       // log
-      // if (true){
-      //   std::cout << "\nexecute: " 
-      //     << to_string(statement.op()) << "|" 
-      //     << to_string(statement.operands()[0]);
-      //   if (statement.operands().size()>1) std::cout << "|" << to_string(statement.operands()[1]);
-      // }
+      if (verbose){
+        std::cout << "\nexecute: " 
+          << to_string(statement.op()) << "|" 
+          << to_string(statement.operands()[0]);
+        if (statement.operands().size()>1) std::cout << "|" << to_string(statement.operands()[1]);
+      }
       char a = std::get<char>(statement.operands()[0]);
       int b;
       if (statement.operands().size()==2) {
@@ -157,7 +157,7 @@ public:
       switch (statement.op()) {
         case op_inp: {
           int b;
-          // std::cout << " >"; 
+          if (verbose) std::cout << " >"; 
           if (m_in >> b) {
             m_environment[a] = b;
           }
@@ -182,9 +182,9 @@ public:
           m_environment[a] = (val_a==b)?1:0;
         } break;
       }
-      // std::cout << "\t" << a << " = " << m_environment[a];
+      if (verbose) std::cout << "\t" << a << " = " << m_environment[a];
     }
-    // std::cout << "\n" << this->env_dump();
+    if (verbose) std::cout << "\n" << this->env_dump();
     return *this;
   }
 
@@ -284,6 +284,14 @@ namespace part1 {
         call_count++;
       } while (!done);
     }
+    else if (sIn.size()>0) {
+      // compute Test data
+      std::istringstream d_in{sIn};
+      ALU alu{d_in};
+      bool verbose=true;
+      alu.execute(program,verbose);
+      result = to_string(alu.environment());
+    }
     else {
       // Split the program into snippets for each digit processing
       std::vector<Program> snippets{};
@@ -326,23 +334,23 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  // answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0],"-17")});
-  // answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1],"3 9")});
-  // answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2],"10")});
+  answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0],"-17")});
+  answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1],"3 9")});
+  answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2],"10")});
 
-  // I interpreted the rpogram and...
+  // I interpreted the program and...
   // Each digit is processed by the program so that z(i+1) = 0 for w(i) = z(i)%26 + N(i)
   // So if we identify N(i) in the program for each step and enters them for input
   // we actually get a z=0. They are: 11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12
   // BUT - This is of course invalid as the actual input must be digits 1..9
   // ==> Can we use this knowledge somehow though?
-  // answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12")});
+  answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12")});
   // part1::investigate(pData[3]);
   // answers.push_back({"Part 1 ",part1::solve_for(pData[3],"REPL")});
   answers.push_back({"Part 1 ",part1::solve_for(pData[3],"")});
   answers.push_back({"Part 2 ",part2::solve_for(pData[3])});
   for (auto const& answer : answers) {
-    std::cout << "\nanswer[" << answer.first << "] " << answer.second;
+    std::cout << "\nanswer[" << answer.first << "] : " << answer.second;
   }
   // std::cout << "\nPress <enter>...";
   // std::cin.get();
