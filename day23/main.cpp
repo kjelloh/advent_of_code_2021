@@ -363,9 +363,42 @@ int main(int argc, const char * argv[]) {
 }
 
 void investigate() {
-  // expand a position into possible moves out into the corridor
+  std::istringstream in{pTest};
+  auto [init_state,burrow] = parse(in);
   if (true) {
-    std::cout << "\ninvestigate";
-    
+    // expand a position into possible moves out into the corridor
+    using Path = std::vector<Pos>;
+    using CandidateMoves = std::vector<Path>;
+    for (auto const& pod : init_state.ap_trackers) {
+      CandidateMoves candidate_moves{};
+      std::cout << "\nexpanding : " << pod.type << "{row:" << pod.pos.row << ",col:" << pod.pos.col << "}";
+      auto pp = pod.pos;
+      Path path{};
+      // Move to doorway
+      for (int dr=1;dr<=pp.row-1;dr++) {
+        path.push_back({pp.row-dr,pp.col});
+      }
+      // move left
+      Path left_path{path};
+      for (int dc=1;dc<=pp.col-burrow.corridor_ix_left;dc++) {
+        left_path.push_back({1,pp.col-dc});
+        candidate_moves.push_back(left_path);
+      }
+      // move right
+      Path right_path{path};
+      for (int dc=1;dc<=burrow.corridor_ix_right-pp.col;dc++) {
+        right_path.push_back({1,pp.col+dc});
+        candidate_moves.push_back(right_path);
+      }
+      // Log
+      if (true) {
+        for (auto const path : candidate_moves) {
+          std::cout << "\n\tpath:";
+          for (auto const& pos : path) {
+            std::cout << " {row:" << pos.row << ",col:" << pos.col << "}";
+          }
+        }
+      }
+    }
   }
 }
