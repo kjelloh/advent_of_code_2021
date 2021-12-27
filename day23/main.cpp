@@ -11,6 +11,7 @@
 #include <vector>
 #include <set>
 #include <queue>
+#include <iterator>
 
 const char* pTest = R"(#############
 #...........#
@@ -24,8 +25,114 @@ const char* pData = R"(#############
   #########)";
 using Result = size_t;
 
+struct Pos {
+  int row,col;
+  bool operator<(Pos const& other) const {return (row!=other.row)?row<other.row:col<other.col;}
+};
+struct State {
+  struct AmphipodTracker {
+    char type;
+    Pos pos;
+    bool operator<(AmphipodTracker const& other) const { // to work with std::map/set
+      return (type!=other.type?type<other.type:pos<other.pos);
+    }
+  };
+  std::vector<AmphipodTracker> ap_trackers{};
+  bool operator<(State const& other) const {return ap_trackers<other.ap_trackers;} // to work with std::map/set
+};
+using Cost = size_t;
+struct Burrow {
+  std::vector<std::string> floor_plan{};
+  size_t corridor_ix_left{};
+  size_t corridor_ix_right{};
+  std::array<int,4> room_column_ix{};
+  size_t room_height{};
+  State end_state() {
+    // create a State with 'A','B','C' and 'D' in each of the rooms left to right
+    State result{};
+    for (int row_ix = 0;row_ix<room_height;row_ix++) {
+      for (int room_ix=0;room_ix<room_column_ix.size();room_ix++) {
+        int col_ix = room_column_ix[room_ix];
+        result.ap_trackers.push_back({static_cast<char>('A'+room_ix),row_ix+2,col_ix});
+      }
+    }
+    return result;
+  }
+};
+using PuzzleModel = std::pair<State,Burrow>;
+
+PuzzleModel parse(std::istream& in) {
+  State init_state{};
+  Burrow burrow{};
+  std::string line;
+  int burrow_row{0};
+  while (std::getline(in, line)) {
+    switch (burrow_row) {
+      case 0: {// first line with uppe wall of burrow
+        burrow.floor_plan.push_back(line);
+      } break;
+      case 1: { // second line with the "corridor"
+        burrow.corridor_ix_left = line.find_first_of(".");
+        burrow.corridor_ix_right = line.find_last_of(".");
+        std::transform(line.begin(),line.end(),line.begin(),[](char ch){return (ch=='.')?' ':ch;});
+        burrow.floor_plan.push_back(line);
+      } break;
+      case 2:
+      case 3: {
+        burrow.room_height++;
+        int room_ix{0};
+        for (int ix=0;ix<line.length();ix++) {
+          char ch = line[ix];
+          if (ch>='A' and ch<='D') {
+            burrow.room_column_ix[room_ix++] = ix;
+            State::AmphipodTracker ap_tracker{};
+            ap_tracker.type = ch;
+            ap_tracker.pos.row = burrow_row;
+            ap_tracker.pos.col = ix;
+            init_state.ap_trackers.push_back(ap_tracker);
+          }
+        }
+        std::transform(line.begin(),line.end(),line.begin(),[](char ch){return (ch!='#')?' ':'#';});
+        burrow.floor_plan.push_back(line);
+      } break;
+      default:
+        burrow.floor_plan.push_back(line);
+        break;
+    }
+    burrow_row++;
+  }
+  // Log
+  if (true) {
+    std::cout << "\n<burrow floor plan>";
+    for (auto const& row : burrow.floor_plan) {
+      std::cout << "\n" << row;
+    }
+    std::cout << "\ncorridor ix: " << burrow.corridor_ix_left << " .. " << burrow.corridor_ix_right;
+    std::cout << "\nroom height: " << burrow.room_height;
+    std::cout << "\nroom ixs: ";
+    for (auto const& col : burrow.room_column_ix) {
+      std::cout << " " << col;
+    }
+  }
+  // Log
+  if (true) {
+    std::cout << "\n<Init State>";
+    for (auto const& ap_tracker : init_state.ap_trackers) {
+      std::cout << "\n\t" << ap_tracker.type << "{row:" << ap_tracker.pos.row << ",col:" << ap_tracker.pos.col << "}";
+    }
+  }
+  return {init_state,burrow};
+}
+
+void investigate();
+
 int main(int argc, const char * argv[]) {
-  {
+  // Investigate algorithmic solutions
+  if (true) {
+    investigate();
+  }
+  // Find the final solution
+  if (false) {
     // Observation: We are looking for the lowest cost to sort out the amphipods
     // in the burrow using steps of moves with ascociates cost.
     // So we have steps to take one after the other, i.e., we have a path of steps.
@@ -61,27 +168,8 @@ int main(int argc, const char * argv[]) {
 
     // Ok, for our burrow with amphipods we need.
     // 1. A State that defines where each amphipod currently is.
-    struct State {
-      struct AmphipodTracker {
-        char type;
-        int row;
-        int col;
-        bool operator<(AmphipodTracker const& other) const { // to work with std::map/set
-          for (int i=0;i<3;i++) {
-            switch (i) {
-              case 0: if (type != other.type) return type<other.type;
-              case 1: if (row != other.row) return row<other.row;
-              case 2: if (col != other.col) return col<other.col;
-            }
-          }
-          return false; // this==other
-        }
-      };
-      std::vector<AmphipodTracker> ap_trackers{};
-      bool operator<(State const& other) const {return ap_trackers<other.ap_trackers;} // to work with std::map/set
-    };
+    // See State above
     // 2. A lowest_cost_so_far that maps a State to the pair (initiate new mappings as we process the frontier through the graph)
-    using Cost = size_t;
     std::map<State,std::pair<Cost,State>> lowest_cost_so_far{};
     // 3. An "edge" as a "step cost" to go from one State to the next
     //    Note: In our case we generate the edges as we go but we still need the function to get us the cost from relevant factors
@@ -92,93 +180,18 @@ int main(int argc, const char * argv[]) {
       return step_count*single_step_cost;
     };
     // 4. We need the burrow for the amphipods to move around in
-    struct Burrow {
-      std::vector<std::string> floor_plan{};
-      size_t corridor_ix_left{};
-      size_t corridor_ix_right{};
-      std::array<int,4> room_column_ix{};
-      size_t room_height{};
-      State end_state() {
-        // cretae a State with 'A','B','C' and 'D' in each of the rooms left to right
-        State result{};
-        for (int row_ix = 0;row_ix<room_height;row_ix++) {
-          for (int room_ix=0;room_ix<room_column_ix.size();room_ix++) {
-            int col_ix = room_column_ix[room_ix];
-            result.ap_trackers.push_back({static_cast<char>('A'+room_ix),row_ix+2,col_ix});
-          }
-        }
-        return result;
-      }
-    };
+    // See Burrow
     // 5. Now we can create the Burrow and the init state from the input
-    State init_state{};
-    Burrow burrow{};
     std::istringstream in{pTest};
-    std::string line;
-    int burrow_row{0};
-    while (std::getline(in, line)) {
-      switch (burrow_row) {
-        case 0: {// first line with uppe wall of burrow
-          burrow.floor_plan.push_back(line);
-        } break;
-        case 1: { // second line with the "corridor"
-          burrow.corridor_ix_left = line.find_first_of(".");
-          burrow.corridor_ix_right = line.find_last_of(".");
-          std::transform(line.begin(),line.end(),line.begin(),[](char ch){return (ch=='.')?' ':ch;});
-          burrow.floor_plan.push_back(line);
-        } break;
-        case 2:
-        case 3: {
-          burrow.room_height++;
-          int room_ix{0};
-          for (int ix=0;ix<line.length();ix++) {
-            char ch = line[ix];
-            if (ch>='A' and ch<='D') {
-              burrow.room_column_ix[room_ix++] = ix;
-              State::AmphipodTracker ap_tracker{};
-              ap_tracker.type = ch;
-              ap_tracker.row = burrow_row;
-              ap_tracker.col = ix;
-              init_state.ap_trackers.push_back(ap_tracker);
-            }
-          }
-          std::transform(line.begin(),line.end(),line.begin(),[](char ch){return (ch!='#')?' ':'#';});
-          burrow.floor_plan.push_back(line);
-        } break;
-        default:
-          burrow.floor_plan.push_back(line);
-          break;
-      }
-      burrow_row++;
-    }
-    // Print
-    if (true) {
-      std::cout << "\n<burrow floor plan>";
-      for (auto const& row : burrow.floor_plan) {
-        std::cout << "\n" << row;
-      }
-      std::cout << "\ncorridor ix: " << burrow.corridor_ix_left << " .. " << burrow.corridor_ix_right;
-      std::cout << "\nroom height: " << burrow.room_height;
-      std::cout << "\nroom ixs: ";
-      for (auto const& col : burrow.room_column_ix) {
-        std::cout << " " << col;
-      }
-    }
-    // Print
-    if (true) {
-      std::cout << "\n<Init State>";
-      for (auto const& ap_tracker : init_state.ap_trackers) {
-        std::cout << "\n\t" << ap_tracker.type << "{row:" << ap_tracker.row << ",col:" << ap_tracker.col << "}";
-      }
-    }
+    auto [init_state,burrow] = parse(in);
     // OK, lets find the cheapest (shortest) path
     // Prerequisite: A defined start vertex "Start" and a defined end vertex "End".
     auto end_state = burrow.end_state();
-    // Print
+    // Log
     if (true) {
       std::cout << "\n<End State>";
       for (auto const& ap_tracker : end_state.ap_trackers) {
-        std::cout << "\n\t" << ap_tracker.type << "{row:" << ap_tracker.row << ",col:" << ap_tracker.col << "}";
+        std::cout << "\n\t" << ap_tracker.type << "{row:" << ap_tracker.pos.row << ",col:" << ap_tracker.pos.col << "}";
       }
     }
     //    Create an empty set of Vertices called "visitied"
@@ -203,8 +216,11 @@ int main(int argc, const char * argv[]) {
         // Create a map with all the amphipods in their current lcoations
         Burrow current_map{burrow};
         for (auto const& ap_tracker : current.ap_trackers) {
-          current_map.floor_plan[ap_tracker.row][ap_tracker.col] = ap_tracker.type;
+          current_map.floor_plan[ap_tracker.pos.row][ap_tracker.pos.col] = ap_tracker.type;
         }
+        using Path = std::vector<Pos>;
+        using CandidateMoves = std::vector<Path>;
+        CandidateMoves candidate_moves{};
         for (auto const& ap_tracker : current.ap_trackers) {
           // find all possible moves of this amohipod type and current location on the current map
           // Exhaust the reachable positions from current ap_tracker position
@@ -237,16 +253,72 @@ int main(int argc, const char * argv[]) {
           
           std::vector<std::pair<int,int>> reachable{};
           std::set<std::pair<int,int>> visited{};
-          auto row = ap_tracker.row;
-          auto col = ap_tracker.col;
-          if (row==1) {
+//          auto row = ap_tracker.row;
+//          auto col = ap_tracker.col;
+          auto pos = ap_tracker.pos;
+          if (pos.row==1) {
             // In the corridor ==> valid move is back to the correct room with a mate of the same type
             // A type 'X' to room column ix = with room_column_ix['X'-'A']
             // Any mate already in the same column (room) must be of the same correct type
+            int target_column{0};
+            switch (ap_tracker.type) {
+              case 'A': target_column=burrow.room_column_ix[0]; break;
+              case 'B': target_column=burrow.room_column_ix[1]; break;
+              case 'C': target_column=burrow.room_column_ix[2]; break;
+              case 'D': target_column=burrow.room_column_ix[3]; break;
+            }
+            Path path{};
+            // Path to correct doorway
+            if (pos.col<target_column) {
+              for (int col=pos.col;col!=target_column;col++) path.push_back({pos.row,col});
+            }
+            else {
+              for (int col=pos.col;col!=target_column;col--) path.push_back({pos.row,col});
+            }
+            // paths to possible row in room
+            for (int dr = 1;dr<burrow.room_height;dr++) {
+              path.push_back({pos.row+dr,target_column});
+              candidate_moves.push_back(path);
+            }
+            // Correct room-mates?
+            int wrong_room_mate_count{0};
+            for (auto const& path : candidate_moves) {
+              if (current_map.floor_plan[path.back().row][path.back().col]!=' ') {
+                if (current_map.floor_plan[path.back().row][path.back().col]!=ap_tracker.type) {
+                  ++wrong_room_mate_count;
+                  break;
+                }
+              }
+            }
+            if (wrong_room_mate_count>0) candidate_moves.clear(); // no moves into room possible
+            else {
+              // filter out unreachable/blocked paths
+              auto blocked = std::find_if(candidate_moves.begin(), candidate_moves.end(), [&current_map](auto const& path) {
+                return current_map.floor_plan[path.back().row][path.back().col]!=' ';
+              });
+              candidate_moves.resize(std::distance(candidate_moves.begin(), blocked)-1); // cut the unreachable
+            }
           }
           else {
             // In a room ==> try moving out in the corridor
             // We can move to any side of the room entrance and then to the left and right until stopped by wall or occupied column
+            // Path to door-way
+            Path path{};
+            for (int dr=1;dr<pos.row-1;dr++) {
+              path.push_back({pos.row-dr,pos.col});
+            }
+            // move left
+            Path left_path{path};
+            for (int dc=1;dc<=pos.col-burrow.corridor_ix_left;dc++) {
+              left_path.push_back({1,pos.col-dc});
+              candidate_moves.push_back(left_path);
+            }
+            // move right
+            Path right_path{path};
+            for (int dc=1;dc<=burrow.corridor_ix_right-pos.col;dc++) {
+              left_path.push_back({1,ap_tracker.pos.col+dc});
+              candidate_moves.push_back(left_path);
+            }
           }
         }
       }
@@ -288,4 +360,12 @@ int main(int argc, const char * argv[]) {
   }
   std::cout << "\n";
   return 0;
+}
+
+void investigate() {
+  // expand a position into possible moves out into the corridor
+  if (true) {
+    std::cout << "\ninvestigate";
+    
+  }
 }
