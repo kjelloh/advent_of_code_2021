@@ -362,6 +362,41 @@ int main(int argc, const char * argv[]) {
   return 0;
 }
 
+std::set<Pos> reachables(Pos const& pos,Burrow const& map) {
+  // How many positions are reachable from provided pos on provided map?
+  std::set<Pos> visited{};
+  std::vector<Pos> frontier{};
+  // Keep expanding the current frontier (flood fill) until
+  // all alternatives are blocked
+  frontier.push_back(pos);
+  while (frontier.size()>0) {
+    auto fp = frontier.back();
+    frontier.pop_back();
+    visited.insert({fp});
+    // Step from frontier pos (fp)
+    for (auto dr : {-1,0,1}) {
+      for (auto dc : {-1,0,1}) {
+        Pos np{fp.row+dr,fp.col+dc};
+        // std::cout << " try{row:" << np.row << ",col:" << np.col << "}";
+        if (std::abs(dr)==std::abs(dc)) continue; // 0,0 and diagonal not allowed
+        if (map.floor_plan[np.row][np.col] != ' ') continue; // blocked
+        if (visited.find(np) != visited.end()) continue; // skip visited
+        // std::cout << "ACCEPT";
+        frontier.push_back(np);
+      }
+    }
+  }
+  // Log
+  if (false) {
+    std::cout << "\n\t";
+    for (auto const& pos : visited) {
+      std::cout << "\nvisited: {" << pos.row << "," << pos.col << "}";
+    }
+  }
+  visited.erase(pos);
+  return visited;
+}
+
 void investigate() {
   using Path = std::vector<Pos>;
   std::istringstream in{pTest};
@@ -434,7 +469,7 @@ void investigate() {
       std::cout << "\nreachable: {" << path.back().row << "," << path.back().col << "}";
     }
   }
-  if (true) {
+  if (false) {
     // Try to eshaust an expansion step by step from a pos position until
     // all alterantives are blocked (flood fill using step rules)
 
@@ -475,6 +510,52 @@ void investigate() {
     }
     for (auto const& pos : reachable) {
       std::cout << "\nreachable: {" << pos.row << "," << pos.col << "}";
+    }
+  }
+  if (true) {
+    // Now investigate how many combinations of moves for pod 0 and then pod 1 we have
+    auto current_state = init_state;
+    // Create a map with all the amphipods in their current lcoations
+    Burrow current_map{burrow};
+    for (auto const& pod : current_state.ap_trackers) {
+      current_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
+    }
+        
+    // Choose pod 0
+    int pix = 0;
+    auto cp = current_state.ap_trackers[pix];
+    auto cpp = cp.pos;
+    auto reachable0 = reachables(cpp, current_map);
+    // Log
+    {
+      for (auto const& pos : reachable0) {
+        std::cout << "\ntreachable 0: {" << pos.row << "," << pos.col << "}";
+      }
+    }
+    for (auto const& np : reachable0) {
+      auto next_state = current_state;
+      next_state.ap_trackers[0].pos = np;
+      // Move pod 0 to new position np
+      auto next_map = burrow;
+      // draw the map with all pods in place
+      for (auto const& pod : next_state.ap_trackers) {
+        next_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
+      }
+      // log
+      {
+        std::cout << "\npod 0 at {row:" << np.row << ",col:" << np.col << "}";
+        std::cout << "\n<floor plan>";
+        for (auto const& row : next_map.floor_plan) {
+          std::cout << "\n" << row;
+        }
+      }
+      auto reachable1 = reachables(next_state.ap_trackers[4].pos, next_map);
+      // log
+      if (true) {
+        for (auto const& pos : reachable1) {
+          std::cout << "\n\treachable 1: {" << pos.row << "," << pos.col << "}";
+        }
+      }
     }
   }
 }
