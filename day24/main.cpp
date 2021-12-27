@@ -14,7 +14,7 @@
 
 extern std::vector<std::string> pData;
 
-using Result = size_t;
+using Result = std::string;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
 /*
@@ -106,22 +106,6 @@ struct std::hash<Environment>
     {
       std::size_t result;
       for (auto const me : env) {
-        result ^= std::hash<char>{}(me.first);
-        result ^= std::hash<int>{}(me.second);
-      }
-      return result;
-    }
-};
-// custom specialization of std::hash for std::tuple<int,char,Environment> injected into namespace std
-template<>
-struct std::hash<std::tuple<int,char,Environment>>
-{
-    std::size_t operator()(std::tuple<int,char,Environment> const& triad) const noexcept
-    {
-      std::size_t result;
-      result ^= std::hash<int>{}(std::get<int>(triad));
-      result ^= std::hash<int>{}(std::get<char>(triad));
-      for (auto const me : std::get<Environment>(triad)) {
         result ^= std::hash<char>{}(me.first);
         result ^= std::hash<int>{}(me.second);
       }
@@ -238,7 +222,7 @@ Model parse(auto& in) {
 // Memoize on visitied state {digit index 13..0 int, z so far size_t} mapped to best digit string from here to z=0
 // Use std::optional for the result to handle that there may be NO passable digits from current state
 using Visited = std::unordered_map<std::pair<int,size_t>,std::optional<std::string>>;
-std::optional<std::string> best_digits(int ix,std::vector<Program> const& snippets,size_t z,Visited& visited) {
+std::optional<std::string> best_digits(bool part1, int ix,std::vector<Program> const& snippets,size_t z,Visited& visited) {
   // Get the best digits i..0 for z so far
   // Init with ix=13, z=0
   // Expands to ix=12, z= one for each digit 13 '9','8',...
@@ -253,9 +237,11 @@ std::optional<std::string> best_digits(int ix,std::vector<Program> const& snippe
   else if (visited.find({ix,z}) != visited.end()) return visited[{ix,z}];
   else {
     // Not memoized - run program for step 13-ix (step 13 for digit index 0 = last one)
-    // for (char digit : {'9','8','7','6','5','4','3','2','1'}) { // part 1
-    auto digits = {'9','8','7','6','5','4','3','2','1'}; // part 2
-    for (char digit : digits | std::views::reverse) { // part2
+    static auto base_digits_1 = {'9','8','7','6','5','4','3','2','1'}; // Search high to low
+    static auto base_digits_2 = {'1','2','3','4','5','6','7','8','9'}; // Search low to high
+    auto& digits = base_digits_1;
+    if (!part1) digits = base_digits_2; // search low to high
+    for (char digit : digits) {
       std::string input{digit};
       std::istringstream d_in{input};
       ALU alu{d_in};
@@ -265,7 +251,7 @@ std::optional<std::string> best_digits(int ix,std::vector<Program> const& snippe
       if (ix==0 and next_z==0) return std::string{digit}; // VICTORY
       else {
         // pass the new z along down the chain unless we are done
-        auto result = best_digits(ix-1,snippets,next_z,visited); // Recurse down
+        auto result = best_digits(part1,ix-1,snippets,next_z,visited); // Recurse down
         visited[{ix-1,next_z}] = result; // Memoize best digit down from this state
         if (result) return std::string{digit} + result.value();
         else continue; // Try next digit
@@ -275,6 +261,383 @@ std::optional<std::string> best_digits(int ix,std::vector<Program> const& snippe
   return std::nullopt;
 } 
 
+namespace part1 {
+  // Contains different investigate code (impl last in this sorurce file)
+  void investigate(std::string const& sData);
+
+  Result solve_for(std::string const& sData, std::string sIn) {
+    std::cout << "\nsolve_for in: " << sIn;
+    Result result{};
+    std::stringstream in{ sData };
+    auto program = parse(in);
+    if (sIn == "REPL") {
+      // Provide user with a REPL :)
+      bool done{false};
+      size_t call_count{0};
+      do {
+        std::cout << "\nNOMAD>";
+        ALU alu{std::cin};
+        alu.execute(program);
+        std::cout << "\n" << alu.env_dump();
+        int z = alu.environment()['z'];
+        done = (z == 0);
+        call_count++;
+      } while (!done);
+    }
+    else {
+      // Split the program into snippets for each digit processing
+      std::vector<Program> snippets{};
+      for (auto const& statement : program) {
+        if (statement.op() == op_inp) snippets.push_back({});
+        snippets.back().push_back(statement);
+      }
+      std::cout << "\nsnippets count " << snippets.size();
+      Visited visited{};
+      bool part1=true;
+      auto opt_result = best_digits(part1,13,snippets,0,visited); // Get the best digits 13..0 for z=0 so far 
+      if (opt_result) result = opt_result.value();
+      else result = "FAILED";
+    }
+    return result;
+  }
+}
+
+namespace part2 {
+  Result solve_for(std::string const sData) {
+      Result result{};
+      std::stringstream in{ sData };
+      auto program = parse(in);
+      // Split the program into snippets for each digit processing
+      std::vector<Program> snippets{};
+      for (auto const& statement : program) {
+        if (statement.op() == op_inp) snippets.push_back({});
+        snippets.back().push_back(statement);
+      }
+      std::cout << "\nsnippets count " << snippets.size();
+      Visited visited{};
+      bool part1=false;
+      auto opt_result = best_digits(part1,13,snippets,0,visited); // Get the best digits 13..0 for z=0 so far 
+      if (opt_result) result = opt_result.value();
+      else result = "FAILED";
+      return result;
+  }
+}
+
+int main(int argc, char *argv[])
+{
+  Answers answers{};
+  // answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0],"-17")});
+  // answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1],"3 9")});
+  // answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2],"10")});
+
+  // I interpreted the rpogram and...
+  // Each digit is processed by the program so that z(i+1) = 0 for w(i) = z(i)%26 + N(i)
+  // So if we identify N(i) in the program for each step and enters them for input
+  // we actually get a z=0. They are: 11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12
+  // BUT - This is of course invalid as the actual input must be digits 1..9
+  // ==> Can we use this knowledge somehow though?
+  // answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12")});
+  // part1::investigate(pData[3]);
+  // answers.push_back({"Part 1 ",part1::solve_for(pData[3],"REPL")});
+  answers.push_back({"Part 1 ",part1::solve_for(pData[3],"")});
+  answers.push_back({"Part 2 ",part2::solve_for(pData[3])});
+  for (auto const& answer : answers) {
+    std::cout << "\nanswer[" << answer.first << "] " << answer.second;
+  }
+  // std::cout << "\nPress <enter>...";
+  // std::cin.get();
+  std::cout << "\n";
+  return 0;
+}
+
+std::vector<std::string> pData{
+  R"(inp x
+mul x -1)"
+  ,R"(inp z
+inp x
+mul z 3
+eql z x)"
+  ,R"(inp w
+add z w
+mod z 2
+div w 2
+add y w
+mod y 2
+div w 2
+add x w
+mod x 2
+div w 2
+mod w 2)"
+  ,R"(inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 11
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 14
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 13
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 8
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 11
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 4
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 10
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 10
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -3
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 14
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -4
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 10
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 12
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 4
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -8
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 14
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -3
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 1
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -12
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 6
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 14
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 0
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -6
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 9
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 11
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 13
+mul y x
+add z y
+inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -12
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 12
+mul y x
+add z y)"
+};
+
+// custom specialization of std::hash for std::tuple<int,char,Environment> injected into namespace std
+template<>
+struct std::hash<std::tuple<int,char,Environment>>
+{
+    std::size_t operator()(std::tuple<int,char,Environment> const& triad) const noexcept
+    {
+      std::size_t result;
+      result ^= std::hash<int>{}(std::get<int>(triad));
+      result ^= std::hash<int>{}(std::get<char>(triad));
+      for (auto const me : std::get<Environment>(triad)) {
+        result ^= std::hash<char>{}(me.first);
+        result ^= std::hash<int>{}(me.second);
+      }
+      return result;
+    }
+};
 namespace part1 {
   void investigate(std::string const& sData) {
     std::stringstream in{ sData };
@@ -674,7 +1037,7 @@ namespace part1 {
     // It seems we care only about z at each step (digit). Adn we are looking for the highest sequence of 14 digits
     // that causes z to become 0.
     // And we know the space of states {digit index, z} are limited so we can memoize on this state.
-    if (true) {
+    if (false) {
       // So, what question can we iterate?
       // Lets try - Given digit index i and z so far, what are the highets remaining digits to get z down to 0?
       // This qiestion can be asked at every level of digit index.
@@ -682,349 +1045,10 @@ namespace part1 {
       // What is a good name for this function?
       // What about best_digits(i,z)
       Visited visited{};
-      auto result = best_digits(13,snippets,0,visited); // Get the best digits 13..0 for z=0 so far 
+      bool part1{true};
+      auto result = best_digits(part1,13,snippets,0,visited); // Get the best digits 13..0 for z=0 so far 
       if (result) std::cout << "\nbest monad: " << result.value();
       else std::cout << "\nFAILED - no monad found";
     }
   }
-  Result solve_for(std::string const& sData, std::string sIn) {
-    std::cout << "\nsolve_for in: " << sIn;
-    Result result{};
-    std::stringstream in{ sData };
-    auto program = parse(in);
-    if (sIn.size()==0) {
-      bool done{false};
-      size_t call_count{0};
-      do {
-        // Puzzle program
-        // std::cout << "\n"
-        // for (char digit : s_result) {
-        //   sIn += " ";
-        //   sIn += digit;
-        // }
-        // std::istringstream alu_in{sIn};
-        // ALU alu{alu_in};
-        std::cout << "\nNOMAD>";
-        ALU alu{std::cin};
-        alu.execute(program);
-        std::cout << "\n" << alu.env_dump();
-        int z = alu.environment()['z'];
-        done = (z == 0);
-        call_count++;
-      } while (!done);
-    }
-    else {
-      std::istringstream alu_in{sIn};
-      ALU alu{alu_in};
-      alu.execute(program);
-    }
-    return result;
-  }
 }
-
-namespace part2 {
-  Result solve_for(std::string const sData) {
-      Result result{};
-      std::stringstream in{ sData };
-      auto data_model = parse(in);
-      return result;
-  }
-}
-
-int main(int argc, char *argv[])
-{
-  Answers answers{};
-  // answers.push_back({"Part 1 Test 0",part1::solve_for(pData[0],"-17")});
-  // answers.push_back({"Part 1 Test 1",part1::solve_for(pData[1],"3 9")});
-  // answers.push_back({"Part 1 Test 2",part1::solve_for(pData[2],"10")});
-
-  // I interpreted the rpogram and...
-  // Each digit is processed by the program so that z(i+1) = 0 for w(i) = z(i)%26 + N(i)
-  // So if we identify N(i) in the program for each step and enters them for input
-  // we actually get a z=0. They are: 11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12
-  // BUT - This is of course invalid as the actual input must be digits 1..9
-  // ==> Can we use this knowledge somehow though?
-  // answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12")});
-  part1::investigate(pData[3]);
-  // answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"")});
-  // answers.push_back({"Part 1       ",part1::solve_for(pData[3],"1 3 5 7 9 2 4 6 8 9 9 9 9 9")});
-  for (auto const& answer : answers) {
-    std::cout << "\nanswer[" << answer.first << "] " << answer.second;
-  }
-  // std::cout << "\nPress <enter>...";
-  // std::cin.get();
-  std::cout << "\n";
-  return 0;
-}
-
-std::vector<std::string> pData{
-  R"(inp x
-mul x -1)"
-  ,R"(inp z
-inp x
-mul z 3
-eql z x)"
-  ,R"(inp w
-add z w
-mod z 2
-div w 2
-add y w
-mod y 2
-div w 2
-add x w
-mod x 2
-div w 2
-mod w 2)"
-  ,R"(inp w
-mul x 0
-add x z
-mod x 26
-div z 1
-add x 11
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 14
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 1
-add x 13
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 8
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 1
-add x 11
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 4
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 1
-add x 10
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 10
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 26
-add x -3
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 14
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 26
-add x -4
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 10
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 1
-add x 12
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 4
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 26
-add x -8
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 14
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 26
-add x -3
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 1
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 26
-add x -12
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 6
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 1
-add x 14
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 0
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 26
-add x -6
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 9
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 1
-add x 11
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 13
-mul y x
-add z y
-inp w
-mul x 0
-add x z
-mod x 26
-div z 26
-add x -12
-eql x w
-eql x 0
-mul y 0
-add y 25
-mul y x
-add y 1
-mul z y
-mul y 0
-add y w
-add y 12
-mul y x
-add z y)"
-};
