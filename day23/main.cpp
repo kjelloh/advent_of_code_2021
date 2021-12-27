@@ -363,11 +363,11 @@ int main(int argc, const char * argv[]) {
 }
 
 void investigate() {
+  using Path = std::vector<Pos>;
   std::istringstream in{pTest};
   auto [init_state,burrow] = parse(in);
-  if (true) {
+  if (false) {
     // expand a position into possible moves out into the corridor
-    using Path = std::vector<Pos>;
     using CandidateMoves = std::vector<Path>;
     for (auto const& pod : init_state.ap_trackers) {
       CandidateMoves candidate_moves{};
@@ -399,6 +399,82 @@ void investigate() {
           }
         }
       }
+    }
+  }
+  if (false) {
+    // Try the approach to expand a frontier of possible moves for pod 0 (row:2 col:3)
+    // by using a set of visited positions to prevent back-tarcking,
+    // and a map showing where the other pos are to prevent moving to blocked positions.
+
+    auto current = init_state;
+    
+    // Create a map with all the amphipods in their current lcoations
+    Burrow current_map{burrow};
+    for (auto const& ap_tracker : current.ap_trackers) {
+      current_map.floor_plan[ap_tracker.pos.row][ap_tracker.pos.col] = ap_tracker.type;
+    }
+
+    int pix = 0;
+    auto pod = current.ap_trackers[pix];
+    auto pp = pod.pos;
+    std::set<Pos> visited{};
+    std::vector<Path> frontier{};
+    // Can we move a single step?
+    for (auto dr : {-1,0,1}) {
+      for (auto dc : {-1,0,1}) {
+        if (std::abs(dr)==std::abs(dc)) continue; // 0,0 and diagonal not allowed
+        if (current_map.floor_plan[pp.row+dr][pp.col+dr] != ' ') continue; // blocked
+        Pos pos{pp.row+dr,pp.col+dc};
+        frontier.push_back({});
+        frontier.back().push_back(pos);
+        visited.insert({pos});
+      }
+    }
+    for (auto const& path : frontier) {
+      std::cout << "\nreachable: {" << path.back().row << "," << path.back().col << "}";
+    }
+  }
+  if (true) {
+    // Try to eshaust an expansion step by step from a pos position until
+    // all alterantives are blocked (flood fill using step rules)
+
+    auto current = init_state;
+    
+    // Create a map with all the amphipods in their current lcoations
+    Burrow current_map{burrow};
+    for (auto const& ap_tracker : current.ap_trackers) {
+      current_map.floor_plan[ap_tracker.pos.row][ap_tracker.pos.col] = ap_tracker.type;
+    }
+    // Choose pod 0
+    int pix = 0;
+    auto cp = current.ap_trackers[pix];
+    auto cpp = cp.pos;
+    std::set<Pos> visited{},reachable{};
+    std::vector<Pos> frontier{};
+    // Keep expanding the current frontier (flood fill) until
+    // all alternatives are blocked
+    frontier.push_back(cpp);
+    while (frontier.size()>0) {
+      auto fp = frontier.back();
+      frontier.pop_back();
+      visited.insert({fp});
+      // Step from frontier pos (fp)
+      std::cout << "\n\t";
+      for (auto dr : {-1,0,1}) {
+        for (auto dc : {-1,0,1}) {
+          Pos np{fp.row+dr,fp.col+dc};
+          // std::cout << " try{row:" << np.row << ",col:" << np.col << "}";
+          if (std::abs(dr)==std::abs(dc)) continue; // 0,0 and diagonal not allowed
+          if (current_map.floor_plan[np.row][np.col] != ' ') continue; // blocked
+          if (visited.find(np) != visited.end()) continue; // skip visited
+          // std::cout << "ACCEPT";
+          frontier.push_back(np);
+          reachable.insert(np);
+        }
+      }
+    }
+    for (auto const& pos : reachable) {
+      std::cout << "\nreachable: {" << pos.row << "," << pos.col << "}";
     }
   }
 }
