@@ -345,8 +345,8 @@ int main(int argc, char *argv[])
   // BUT - This is of course invalid as the actual input must be digits 1..9
   // ==> Can we use this knowledge somehow though?
   answers.push_back({"Part 1 Test 3",part1::solve_for(pData[3],"11 13 11 10 -3 -4 12 -8 -3 -12 14 -6 11 -12")});
-  // part1::investigate(pData[3]);
-  // answers.push_back({"Part 1 ",part1::solve_for(pData[3],"REPL")});
+  // part1::investigate(pData[3]); // Activate appropriate part in "investigate" to see my try to understand this problem 
+  // answers.push_back({"Part 1 ",part1::solve_for(pData[3],"REPL")}); // A REPL to try different NOMAD inputs (ctrl-c to end)
   answers.push_back({"Part 1 ",part1::solve_for(pData[3],"")});
   answers.push_back({"Part 2 ",part2::solve_for(pData[3])});
   for (auto const& answer : answers) {
@@ -646,6 +646,8 @@ struct std::hash<std::tuple<int,char,Environment>>
       return result;
     }
 };
+// NOT part of the solution (kept for historical reasons...)
+// See solutions in main() above
 namespace part1 {
   void investigate(std::string const& sData) {
     std::stringstream in{ sData };
