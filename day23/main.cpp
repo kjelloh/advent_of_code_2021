@@ -124,6 +124,13 @@ PuzzleModel parse(std::istream& in) {
   return {init_state,burrow};
 }
 
+auto const step_cost = [](char type,int step_count)->Cost {
+  // the step cost depends on the type of amphipod and the number of steps taken
+  Cost single_step_cost{1};
+  for (int i=0;i<type-'A';i++) single_step_cost *= 10; // costs 'A' = 1, 'B' = 10, 'C'=100 'D'=1000
+  return step_count*single_step_cost;
+};
+
 void investigate();
 
 int main(int argc, const char * argv[]) {
@@ -169,18 +176,17 @@ int main(int argc, const char * argv[]) {
     // Ok, for our burrow with amphipods we need.
     // 1. A State that defines where each amphipod currently is.
     // See State above
+
     // 2. A lowest_cost_so_far that maps a State to the pair (initiate new mappings as we process the frontier through the graph)
     std::map<State,std::pair<Cost,State>> lowest_cost_so_far{};
+
     // 3. An "edge" as a "step cost" to go from one State to the next
     //    Note: In our case we generate the edges as we go but we still need the function to get us the cost from relevant factors
-    auto step_cost = [](char type,int step_count)->Cost {
-      // the step cost depends on the type of amphipod and the number of steps taken
-      Cost single_step_cost{1};
-      for (int i=0;i<'A'-type;i++) single_step_cost *= 10; // costs 'A' = 1, 'B' = 10, 'C'=100 'D'=1000
-      return step_count*single_step_cost;
-    };
+    // See step_cost fucntion above
+
     // 4. We need the burrow for the amphipods to move around in
     // See Burrow
+
     // 5. Now we can create the Burrow and the init state from the input
     std::istringstream in{pTest};
     auto [init_state,burrow] = parse(in);
@@ -362,7 +368,7 @@ int main(int argc, const char * argv[]) {
   return 0;
 }
 
-std::set<Pos> reachables(Pos const& pos,Burrow const& map) {
+std::set<Pos> free_space(Pos const& pos,Burrow const& map) {
   // How many positions are reachable from provided pos on provided map?
   std::set<Pos> visited{};
   std::vector<Pos> frontier{};
@@ -525,7 +531,7 @@ void investigate() {
     int pix = 0;
     auto cp = current_state.pods[pix];
     auto cpp = cp.pos;
-    auto reachable0 = reachables(cpp, current_map);
+    auto reachable0 = free_space(cpp, current_map);
     // Log
     {
       for (auto const& pos : reachable0) {
@@ -549,7 +555,7 @@ void investigate() {
           std::cout << "\n" << row;
         }
       }
-      auto reachable1 = reachables(next_state.pods[4].pos, next_map);
+      auto reachable1 = free_space(next_state.pods[4].pos, next_map);
       // log
       if (true) {
         for (auto const& pos : reachable1) {
@@ -570,37 +576,90 @@ void investigate() {
         
     // Choose pod 0
     int pix = 0;
-    auto cp = current_state.pods[pix];
-    auto cpp = cp.pos;
-    auto reachable0 = reachables(cpp, current_map);
-    // Log
+    auto pod = current_state.pods[pix];
+    auto pos = pod.pos;
+    std::set<Pos> corridor{};
     {
-      for (auto const& pos : reachable0) {
-        std::cout << "\ntreachable 0: {" << pos.row << "," << pos.col << "}";
-      }
-    }
-    for (auto const& np : reachable0) {
-      auto next_state = current_state;
-      next_state.pods[0].pos = np;
-      // Move pod 0 to new position np
-      auto next_map = burrow;
-      // draw the map with all pods in place
-      for (auto const& pod : next_state.pods) {
-        next_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
-      }
-      // log
+      // Find all ways for pod_0 top move out into the corridor
+      auto reachable = free_space(pos, current_map);
+      // Filter to valid positions in corridor
+      std::copy_if(reachable.begin(),reachable.end(),std::inserter(corridor,corridor.end()),[&current_map](Pos const& pos){
+        if (pos.row != 1) return false;
+        if (pos.col<current_map.corridor_ix_left) return false;
+        if (pos.col>current_map.corridor_ix_right) return false;
+        for (auto doorway_ix : current_map.room_column_ix) {
+          if (pos.col == doorway_ix) return false;
+        }
+        return true;
+      });
+      // Log
       {
-        std::cout << "\npod 0 at {row:" << np.row << ",col:" << np.col << "}";
-        std::cout << "\n<floor plan>";
-        for (auto const& row : next_map.floor_plan) {
-          std::cout << "\n" << row;
+        std::cout << "\corridor:";
+        for (auto pos : corridor) {
+          std::cout << " {row:" << pos.row << ",col:" << pos.col << "}";
         }
       }
-      auto reachable1 = reachables(next_state.pods[4].pos, next_map);
-      // log
-      if (true) {
-        for (auto const& pos : reachable1) {
-          std::cout << "\n\treachable 1: {" << pos.row << "," << pos.col << "}";
+    }
+    {
+      // For each position in the hallway, find the cost to move back to room 0
+      for (auto pos : corridor) {
+        auto next_state = current_state;
+        auto next_map = burrow;
+        // move pos to hallway
+        next_state.pods[pix].pos = pos;
+        // Draw the new map
+        for (auto const& pod : next_state.pods) {
+          next_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
+        }
+        // Log
+        {
+          std::cout << "\n<map>";
+          for (auto const& row : next_map.floor_plan) {
+            std::cout << "\n" << row;
+          }
+        }
+        auto reachable = free_space(pos, next_map);
+        // Log
+        {
+          std::cout << "\nreachable:";
+          for (auto pos : reachable) {
+            std::cout << " {row:" << pos.row << ",col:" << pos.col << "}";
+          }
+        }
+        // Filter on position in room 0
+        std::set<Pos> room_0{};
+        std::copy_if(reachable.begin(), reachable.end(), std::inserter(room_0,room_0.end()), [&next_map](Pos const& pos){
+          if (pos.row==1) return false;
+          if (pos.col!=next_map.room_column_ix[0]) return false;
+          return true;
+        });
+        // Log
+        {
+          std::cout << "\n<room 0> ";
+          for (auto pos : room_0) {
+            std::cout << " {row:" << pos.row << ",col:" << pos.col << "}";
+          }
+        }
+        // What is the cost to move to any position in room_0?
+        struct StepCost {
+          char type;
+          Pos from,to;
+          Cost cost;
+        };
+        std::vector<StepCost> costs;
+        for (auto room_pos : room_0) {
+          auto dr = std::abs(pos.row-room_pos.row);
+          auto dc = std::abs(pos.col-room_pos.col);
+          auto cost = step_cost(pod.type, dr+dc);
+          costs.push_back({pod.type,pos,room_pos,cost});
+        }
+        // Log
+        {
+          std::cout << "\n<costs>";
+          for (auto cost : costs) {
+            std::cout << "\n\tpod " << cost.type << "{row:" << cost.from.row << ",col:" << cost.from.col << "}"
+            << " -> {row:" << cost.to.row << ",col:" << cost.to.col << "} = " << cost.cost;
+          }
         }
       }
     }
