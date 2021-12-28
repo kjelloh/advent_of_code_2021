@@ -37,8 +37,8 @@ struct State {
       return (type!=other.type?type<other.type:pos<other.pos);
     }
   };
-  std::vector<AmphipodTracker> ap_trackers{};
-  bool operator<(State const& other) const {return ap_trackers<other.ap_trackers;} // to work with std::map/set
+  std::vector<AmphipodTracker> pods{};
+  bool operator<(State const& other) const {return pods<other.pods;} // to work with std::map/set
 };
 using Cost = size_t;
 struct Burrow {
@@ -53,7 +53,7 @@ struct Burrow {
     for (int row_ix = 0;row_ix<room_height;row_ix++) {
       for (int room_ix=0;room_ix<room_column_ix.size();room_ix++) {
         int col_ix = room_column_ix[room_ix];
-        result.ap_trackers.push_back({static_cast<char>('A'+room_ix),row_ix+2,col_ix});
+        result.pods.push_back({static_cast<char>('A'+room_ix),row_ix+2,col_ix});
       }
     }
     return result;
@@ -85,11 +85,11 @@ PuzzleModel parse(std::istream& in) {
           char ch = line[ix];
           if (ch>='A' and ch<='D') {
             burrow.room_column_ix[room_ix++] = ix;
-            State::AmphipodTracker ap_tracker{};
-            ap_tracker.type = ch;
-            ap_tracker.pos.row = burrow_row;
-            ap_tracker.pos.col = ix;
-            init_state.ap_trackers.push_back(ap_tracker);
+            State::AmphipodTracker pod{};
+            pod.type = ch;
+            pod.pos.row = burrow_row;
+            pod.pos.col = ix;
+            init_state.pods.push_back(pod);
           }
         }
         std::transform(line.begin(),line.end(),line.begin(),[](char ch){return (ch!='#')?' ':'#';});
@@ -117,8 +117,8 @@ PuzzleModel parse(std::istream& in) {
   // Log
   if (true) {
     std::cout << "\n<Init State>";
-    for (auto const& ap_tracker : init_state.ap_trackers) {
-      std::cout << "\n\t" << ap_tracker.type << "{row:" << ap_tracker.pos.row << ",col:" << ap_tracker.pos.col << "}";
+    for (auto const& pod : init_state.pods) {
+      std::cout << "\n\t" << pod.type << "{row:" << pod.pos.row << ",col:" << pod.pos.col << "}";
     }
   }
   return {init_state,burrow};
@@ -190,8 +190,8 @@ int main(int argc, const char * argv[]) {
     // Log
     if (true) {
       std::cout << "\n<End State>";
-      for (auto const& ap_tracker : end_state.ap_trackers) {
-        std::cout << "\n\t" << ap_tracker.type << "{row:" << ap_tracker.pos.row << ",col:" << ap_tracker.pos.col << "}";
+      for (auto const& pod : end_state.pods) {
+        std::cout << "\n\t" << pod.type << "{row:" << pod.pos.row << ",col:" << pod.pos.col << "}";
       }
     }
     //    Create an empty set of Vertices called "visitied"
@@ -215,15 +215,15 @@ int main(int argc, const char * argv[]) {
       {
         // Create a map with all the amphipods in their current lcoations
         Burrow current_map{burrow};
-        for (auto const& ap_tracker : current.ap_trackers) {
-          current_map.floor_plan[ap_tracker.pos.row][ap_tracker.pos.col] = ap_tracker.type;
+        for (auto const& pod : current.pods) {
+          current_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
         }
         using Path = std::vector<Pos>;
         using CandidateMoves = std::vector<Path>;
         CandidateMoves candidate_moves{};
-        for (auto const& ap_tracker : current.ap_trackers) {
+        for (auto const& pod : current.pods) {
           // find all possible moves of this amohipod type and current location on the current map
-          // Exhaust the reachable positions from current ap_tracker position
+          // Exhaust the reachable positions from current pod position
           
           /*
            211223 KoH
@@ -253,15 +253,15 @@ int main(int argc, const char * argv[]) {
           
           std::vector<std::pair<int,int>> reachable{};
           std::set<std::pair<int,int>> visited{};
-//          auto row = ap_tracker.row;
-//          auto col = ap_tracker.col;
-          auto pos = ap_tracker.pos;
+//          auto row = pod.row;
+//          auto col = pod.col;
+          auto pos = pod.pos;
           if (pos.row==1) {
             // In the corridor ==> valid move is back to the correct room with a mate of the same type
             // A type 'X' to room column ix = with room_column_ix['X'-'A']
             // Any mate already in the same column (room) must be of the same correct type
             int target_column{0};
-            switch (ap_tracker.type) {
+            switch (pod.type) {
               case 'A': target_column=burrow.room_column_ix[0]; break;
               case 'B': target_column=burrow.room_column_ix[1]; break;
               case 'C': target_column=burrow.room_column_ix[2]; break;
@@ -284,7 +284,7 @@ int main(int argc, const char * argv[]) {
             int wrong_room_mate_count{0};
             for (auto const& path : candidate_moves) {
               if (current_map.floor_plan[path.back().row][path.back().col]!=' ') {
-                if (current_map.floor_plan[path.back().row][path.back().col]!=ap_tracker.type) {
+                if (current_map.floor_plan[path.back().row][path.back().col]!=pod.type) {
                   ++wrong_room_mate_count;
                   break;
                 }
@@ -316,7 +316,7 @@ int main(int argc, const char * argv[]) {
             // move right
             Path right_path{path};
             for (int dc=1;dc<=burrow.corridor_ix_right-pos.col;dc++) {
-              left_path.push_back({1,ap_tracker.pos.col+dc});
+              left_path.push_back({1,pod.pos.col+dc});
               candidate_moves.push_back(left_path);
             }
           }
@@ -404,7 +404,7 @@ void investigate() {
   if (false) {
     // expand a position into possible moves out into the corridor
     using CandidateMoves = std::vector<Path>;
-    for (auto const& pod : init_state.ap_trackers) {
+    for (auto const& pod : init_state.pods) {
       CandidateMoves candidate_moves{};
       std::cout << "\nexpanding : " << pod.type << "{row:" << pod.pos.row << ",col:" << pod.pos.col << "}";
       auto pp = pod.pos;
@@ -445,12 +445,12 @@ void investigate() {
     
     // Create a map with all the amphipods in their current lcoations
     Burrow current_map{burrow};
-    for (auto const& ap_tracker : current.ap_trackers) {
-      current_map.floor_plan[ap_tracker.pos.row][ap_tracker.pos.col] = ap_tracker.type;
+    for (auto const& pod : current.pods) {
+      current_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
     }
 
     int pix = 0;
-    auto pod = current.ap_trackers[pix];
+    auto pod = current.pods[pix];
     auto pp = pod.pos;
     std::set<Pos> visited{};
     std::vector<Path> frontier{};
@@ -477,12 +477,12 @@ void investigate() {
     
     // Create a map with all the amphipods in their current lcoations
     Burrow current_map{burrow};
-    for (auto const& ap_tracker : current.ap_trackers) {
-      current_map.floor_plan[ap_tracker.pos.row][ap_tracker.pos.col] = ap_tracker.type;
+    for (auto const& pod : current.pods) {
+      current_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
     }
     // Choose pod 0
     int pix = 0;
-    auto cp = current.ap_trackers[pix];
+    auto cp = current.pods[pix];
     auto cpp = cp.pos;
     std::set<Pos> visited{},reachable{};
     std::vector<Pos> frontier{};
@@ -512,18 +512,18 @@ void investigate() {
       std::cout << "\nreachable: {" << pos.row << "," << pos.col << "}";
     }
   }
-  if (true) {
+  if (false) {
     // Now investigate how many combinations of moves for pod 0 and then pod 1 we have
     auto current_state = init_state;
     // Create a map with all the amphipods in their current lcoations
     Burrow current_map{burrow};
-    for (auto const& pod : current_state.ap_trackers) {
+    for (auto const& pod : current_state.pods) {
       current_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
     }
         
     // Choose pod 0
     int pix = 0;
-    auto cp = current_state.ap_trackers[pix];
+    auto cp = current_state.pods[pix];
     auto cpp = cp.pos;
     auto reachable0 = reachables(cpp, current_map);
     // Log
@@ -534,11 +534,11 @@ void investigate() {
     }
     for (auto const& np : reachable0) {
       auto next_state = current_state;
-      next_state.ap_trackers[0].pos = np;
+      next_state.pods[0].pos = np;
       // Move pod 0 to new position np
       auto next_map = burrow;
       // draw the map with all pods in place
-      for (auto const& pod : next_state.ap_trackers) {
+      for (auto const& pod : next_state.pods) {
         next_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
       }
       // log
@@ -549,7 +549,7 @@ void investigate() {
           std::cout << "\n" << row;
         }
       }
-      auto reachable1 = reachables(next_state.ap_trackers[4].pos, next_map);
+      auto reachable1 = reachables(next_state.pods[4].pos, next_map);
       // log
       if (true) {
         for (auto const& pos : reachable1) {
@@ -558,4 +558,52 @@ void investigate() {
       }
     }
   }
+  if (true) {
+    // Investogate the ways to move pod 0 out into the corridor
+    // and then back into room 0 again
+    auto current_state = init_state;
+    // Create a map with all the amphipods in their current lcoations
+    Burrow current_map{burrow};
+    for (auto const& pod : current_state.pods) {
+      current_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
+    }
+        
+    // Choose pod 0
+    int pix = 0;
+    auto cp = current_state.pods[pix];
+    auto cpp = cp.pos;
+    auto reachable0 = reachables(cpp, current_map);
+    // Log
+    {
+      for (auto const& pos : reachable0) {
+        std::cout << "\ntreachable 0: {" << pos.row << "," << pos.col << "}";
+      }
+    }
+    for (auto const& np : reachable0) {
+      auto next_state = current_state;
+      next_state.pods[0].pos = np;
+      // Move pod 0 to new position np
+      auto next_map = burrow;
+      // draw the map with all pods in place
+      for (auto const& pod : next_state.pods) {
+        next_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
+      }
+      // log
+      {
+        std::cout << "\npod 0 at {row:" << np.row << ",col:" << np.col << "}";
+        std::cout << "\n<floor plan>";
+        for (auto const& row : next_map.floor_plan) {
+          std::cout << "\n" << row;
+        }
+      }
+      auto reachable1 = reachables(next_state.pods[4].pos, next_map);
+      // log
+      if (true) {
+        for (auto const& pos : reachable1) {
+          std::cout << "\n\treachable 1: {" << pos.row << "," << pos.col << "}";
+        }
+      }
+    }
+  }
+
 }
