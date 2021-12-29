@@ -12,6 +12,9 @@
 #include <set>
 #include <queue>
 #include <iterator>
+#include <numeric>
+#include <unordered_set>
+#include <unordered_map>
 
 const char* pTest = R"(#############
 #...........#
@@ -28,6 +31,7 @@ using Result = size_t;
 struct Pos {
   int row,col;
   bool operator<(Pos const& other) const {return (row!=other.row)?row<other.row:col<other.col;}
+  bool operator==(Pos const& other) const {return (row!=other.row)?row==other.row:col==other.col;}
 };
 struct State {
   struct AmphipodTracker {
@@ -36,9 +40,27 @@ struct State {
     bool operator<(AmphipodTracker const& other) const { // to work with std::map/set
       return (type!=other.type?type<other.type:pos<other.pos);
     }
+    bool operator==(AmphipodTracker const& other) const {
+      return (type!=other.type?type==other.type:pos==other.pos);
+    }
   };
   std::vector<AmphipodTracker> pods{};
   bool operator<(State const& other) const {return pods<other.pods;} // to work with std::map/set
+  bool operator==(State const& other) const {return pods == other.pods;}
+};
+// custom specialization of std::hash for State injected into namespace std
+template<>
+struct std::hash<State>
+{
+    std::size_t operator()(State const& state) const noexcept {
+      size_t result;
+      for (auto const& pod : state.pods) {
+        result ^= std::hash<char>{}(pod.type);
+        result ^= std::hash<int>{}(pod.pos.row);
+        result ^= std::hash<int>{}(pod.pos.col);
+      }
+      return result;
+    }
 };
 using Cost = size_t;
 struct Burrow {
@@ -131,6 +153,41 @@ auto const step_cost = [](char type,int step_count)->Cost {
   return step_count*single_step_cost;
 };
 
+std::set<Pos> free_space(Pos const& pos,Burrow const& map) {
+  // How many positions are reachable (unblocked from reaching) from provided pos on provided map?
+  std::set<Pos> visited{};
+  std::vector<Pos> frontier{};
+  // Keep expanding the current frontier (flood fill) until
+  // all alternatives are blocked
+  frontier.push_back(pos);
+  while (frontier.size()>0) {
+    auto fp = frontier.back();
+    frontier.pop_back();
+    visited.insert({fp});
+    // Step from frontier pos (fp)
+    for (auto dr : {-1,0,1}) {
+      for (auto dc : {-1,0,1}) {
+        Pos np{fp.row+dr,fp.col+dc};
+        // std::cout << " try{row:" << np.row << ",col:" << np.col << "}";
+        if (std::abs(dr)==std::abs(dc)) continue; // 0,0 and diagonal not allowed
+        if (map.floor_plan[np.row][np.col] != ' ') continue; // blocked
+        if (visited.find(np) != visited.end()) continue; // skip visited
+        // std::cout << "ACCEPT";
+        frontier.push_back(np);
+      }
+    }
+  }
+  // Log
+  if (false) {
+    std::cout << "\n\t";
+    for (auto const& pos : visited) {
+      std::cout << "\nvisited: {" << pos.row << "," << pos.col << "}";
+    }
+  }
+  visited.erase(pos);
+  return visited;
+}
+
 void investigate();
 
 int main(int argc, const char * argv[]) {
@@ -162,7 +219,7 @@ int main(int argc, const char * argv[]) {
     //    Create a set of vertices called "unvisited" and put potentially "all" vertices, but at least the start vertex,in it.
     //    while "unvisited" contains vertecies
     //      remove the vertex with the lowest "lowest cost so far" from the set "unvisited" and call it "current"
-    //      expand "current" to a vector "frontier" of all vertecies connected to it that we have not yet visitied
+    //      expand "current" to a new vector "frontier" of all vertecies connected to it that we have not yet visitied
     //      ensure allvertecies in "frontier" are present in "unvisited" (if not done initially and we generate the graph as-we-go)
     //      for each vertex "connected" in the "frontier"
     //        if: "current" "lowest cost so far" + cost to "connected" < "connected" "lowest cost so far"
@@ -201,7 +258,7 @@ int main(int argc, const char * argv[]) {
       }
     }
     //    Create an empty set of Vertices called "visitied"
-    std::set<State> visited{};
+    std::unordered_set<State> visited{};
     //    Create a set of vertices called "unvisited" and put potentially "all" vertices, but at least the start vertex,in it.
     auto least_cost = [&lowest_cost_so_far](State const& s1,State const& s2) {
       return (lowest_cost_so_far[s1].first>lowest_cost_so_far[s2].first);
@@ -213,144 +270,82 @@ int main(int argc, const char * argv[]) {
     std::priority_queue<State,std::vector<State>,decltype(least_cost)> unvisited(least_cost);
     //    while "unvisited" contains vertecies
     while (unvisited.size()>1) {
-    //      remove the vertex with the lowest "lowest cost so far" from the set "unvisited" and call it "current"
-      auto current = unvisited.top();
+    //      remove the vertex with the lowest "lowest cost so far" from the set "unvisited" and call it "visitee"
+      auto visitee_state = unvisited.top();
       unvisited.pop();
     //      expand "current" to a vector "frontier" of all vertecies connected to it that we have not yet visitied
-      std::vector<std::pair<Cost,State>> frontier{}; // Carry the Cost to move to the candidate state for the update phase below
+      std::unordered_map<State,Cost> frontier{};
       {
         // Create a map with all the amphipods in their current lcoations
-        Burrow current_map{burrow};
-        for (auto const& pod : current.pods) {
-          current_map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
+        Burrow visitee_map{burrow};
+        for (auto const& visitee_pod : visitee_state.pods) {
+          visitee_map.floor_plan[visitee_pod.pos.row][visitee_pod.pos.col] = visitee_pod.type;
         }
-        using Path = std::vector<Pos>;
-        using CandidateMoves = std::vector<Path>;
-        CandidateMoves candidate_moves{};
-        for (auto const& pod : current.pods) {
-          // find all possible moves of this amohipod type and current location on the current map
-          // Exhaust the reachable positions from current pod position
-          
-          /*
-           211223 KoH
-           
-           Consider the following approach
-           
-           if in a room:
-              First generate the path to the doorway
-              Then generate all paths going right in the hallway (all the way to the end wall)
-              Then generate all path going left in the hallway (all the way to the end wall))
-              Finally generate all paths to the room that is the correct room for it.
-              = A vector of path exhausting the move space regardless of allowed on blocing amphipods
-           
-           If in a corridor:
-              Generate all paths to the correct room for the amphipod.
-           
-           Second: Sort the vector of paths after the length of the paths
-           Third: Filter the paths to the ones that are NOT BLOCKED (cut off the path passing a blocking amphipod
-           
-           NOTE: We already have the map with all amphipods on it so it it easy to detect blocking paths :)
-           
-           Now we have all the possible and valid moves = we have all the possible new states for this amphipod.
-           The cost of each such new state is the length of the path x the step_cost for the amphipod type :)
-           
-           */
-          
-          
-          std::vector<std::pair<int,int>> reachable{};
-          std::set<std::pair<int,int>> visited{};
-//          auto row = pod.row;
-//          auto col = pod.col;
-          auto pos = pod.pos;
-          if (pos.row==1) {
-            // In the corridor ==> valid move is back to the correct room with a mate of the same type
-            // A type 'X' to room column ix = with room_column_ix['X'-'A']
-            // Any mate already in the same column (room) must be of the same correct type
-            int target_column{0};
-            switch (pod.type) {
-              case 'A': target_column=burrow.room_column_ix[0]; break;
-              case 'B': target_column=burrow.room_column_ix[1]; break;
-              case 'C': target_column=burrow.room_column_ix[2]; break;
-              case 'D': target_column=burrow.room_column_ix[3]; break;
-            }
-            Path path{};
-            // Path to correct doorway
-            if (pos.col<target_column) {
-              for (int col=pos.col;col!=target_column;col++) path.push_back({pos.row,col});
-            }
-            else {
-              for (int col=pos.col;col!=target_column;col--) path.push_back({pos.row,col});
-            }
-            // paths to possible row in room
-            for (int dr = 1;dr<burrow.room_height;dr++) {
-              path.push_back({pos.row+dr,target_column});
-              candidate_moves.push_back(path);
-            }
-            // Correct room-mates?
-            int wrong_room_mate_count{0};
-            for (auto const& path : candidate_moves) {
-              if (current_map.floor_plan[path.back().row][path.back().col]!=' ') {
-                if (current_map.floor_plan[path.back().row][path.back().col]!=pod.type) {
-                  ++wrong_room_mate_count;
-                  break;
-                }
-              }
-            }
-            if (wrong_room_mate_count>0) candidate_moves.clear(); // no moves into room possible
-            else {
-              // filter out unreachable/blocked paths
-              auto blocked = std::find_if(candidate_moves.begin(), candidate_moves.end(), [&current_map](auto const& path) {
-                return current_map.floor_plan[path.back().row][path.back().col]!=' ';
-              });
-              candidate_moves.resize(std::distance(candidate_moves.begin(), blocked)-1); // cut the unreachable
+        // Expand visitee pod into all possible states to move to
+        for (int pix=0;pix<visitee_state.pods.size();pix++) {
+          auto visitee_pod = visitee_state.pods[pix];
+          // Exhaust the reachable positions from visitee pod position
+          auto reachable = free_space(visitee_pod.pos, visitee_map);
+          if (visitee_pod.pos.row==1) {
+            // We are visiting a pod in the hallway.
+            // Expand frontier with the valid move for this pod back to its corret room
+            std::set<Pos> room_pos{};
+            std::copy_if(reachable.begin(), reachable.end(), std::inserter(room_pos, room_pos.end()), [&visitee_map](Pos const& pos){
+              // return true if in a room
+              if (pos.row==1) return false;
+              return true;
+            });
+            // Filter room_pos for a position in correct room and correct or no room mate
+            std::optional<Pos> no_home{};
+            std::optional<Pos> home = std::accumulate(
+                room_pos.begin()
+              , room_pos.end()
+              , no_home
+              ,[&visitee_map,&visitee_pod](auto acc, Pos const& pos)->std::optional<Pos>{
+                if (pos.col != visitee_map.room_column_ix[visitee_pod.type-'A']) return acc; // wrong room
+                if (visitee_map.floor_plan[pos.row+1][pos.col] == ' ') return acc; // not at bottom of room
+                if (visitee_map.floor_plan[pos.row+1][pos.col] == '#') return pos; // empty room ok
+                if (visitee_map.floor_plan[pos.row+1][pos.col] == visitee_pod.type) return pos; // correct room mate
+                return acc; // nop
+            });
+            if (home) {
+              auto dr = std::abs(home->row - visitee_pod.pos.row);
+              auto dc = std::abs(home->col - visitee_pod.pos.col);
+              auto cost = step_cost(visitee_pod.type, dr+dc);
+              // add to frontier
+              auto new_state = visitee_state;
+              new_state.pods[pix].pos = home.value();
+              frontier[new_state] = cost; // record cost of stepping to new state
             }
           }
           else {
-            // In a room ==> try moving out in the corridor
-            // We can move to any side of the room entrance and then to the left and right until stopped by wall or occupied column
-            // Path to door-way
-            Path path{};
-            for (int dr=1;dr<pos.row-1;dr++) {
-              path.push_back({pos.row-dr,pos.col});
-            }
-            // move left
-            Path left_path{path};
-            for (int dc=1;dc<=pos.col-burrow.corridor_ix_left;dc++) {
-              left_path.push_back({1,pos.col-dc});
-              candidate_moves.push_back(left_path);
-            }
-            // move right
-            Path right_path{path};
-            for (int dc=1;dc<=burrow.corridor_ix_right-pos.col;dc++) {
-              left_path.push_back({1,pod.pos.col+dc});
-              candidate_moves.push_back(left_path);
-            }
+            // In a room ==> expand frontier with all moves out into the hallway and into adjacent rooms
           }
         }
       }
     //      for each vertex (connected) in the "frontier"
       for (auto const& connected : frontier) {
-        if (lowest_cost_so_far.find(connected.second) == lowest_cost_so_far.end()) {
-          // init a new mapping
-          std::pair<Cost,State> entry{std::numeric_limits<Cost>::max(),connected.second};
+        if (lowest_cost_so_far.find(connected.first) == lowest_cost_so_far.end()) {
+          // Expand our cost map with an entry for connected state
+          lowest_cost_so_far[connected.first] = {std::numeric_limits<Cost>::max(),{}}; // init cost and parent
         }
-        // TODO: Store the cost-so-far in the State (so we don't have to handle this pair<Cost,State>)?
     //        if: "current" "lowest cost so far" + cost to "connected" < "connected" "lowest cost so far"
-        if (lowest_cost_so_far[current].first+connected.first < lowest_cost_so_far[connected.second].first) {
+        auto new_connected_cost = lowest_cost_so_far[visitee_state].first+connected.second;
+        if (new_connected_cost < lowest_cost_so_far[connected.first].first) {
     //          then: update "connected" "lowest cost so far" to "current" "lowest cost so far" + cost to "connected"
-          lowest_cost_so_far[connected.second].first = lowest_cost_so_far[current].first+connected.first;
+          lowest_cost_so_far[connected.first].first = new_connected_cost;
     //          and: update "connected" "from" to current
-          lowest_cost_so_far[connected.second].second = current;
+          lowest_cost_so_far[connected.first].second = visitee_state;
         }
       } //      end-of-each-in-frontier
       //      ensure all vertecies in "frontier" are present in "unvisited" (if not done initially = we generate the graph as we step)
       for (auto const& connected : frontier) {
-        unvisited.push(connected.second); // TODO: Store the cost-so-far in the State?
+        unvisited.push(connected.first);
         // Note: We insert them here after they have been updated with the cost so far to have them
         // correctly ordered by cost in the queue
       }
     //      put "current" in "visited"
-      visited.insert(current);
+      visited.insert(visitee_state);
     } //    end-of-while "unvisitied"
     //    The map "cost_so_far" now maps "End" to the lowest cost to reach it from Start :)
     // TODO: We expect the unvisited to contain the end node (as we break the loop when visitied is 1 in length)
@@ -366,41 +361,6 @@ int main(int argc, const char * argv[]) {
   }
   std::cout << "\n";
   return 0;
-}
-
-std::set<Pos> free_space(Pos const& pos,Burrow const& map) {
-  // How many positions are reachable from provided pos on provided map?
-  std::set<Pos> visited{};
-  std::vector<Pos> frontier{};
-  // Keep expanding the current frontier (flood fill) until
-  // all alternatives are blocked
-  frontier.push_back(pos);
-  while (frontier.size()>0) {
-    auto fp = frontier.back();
-    frontier.pop_back();
-    visited.insert({fp});
-    // Step from frontier pos (fp)
-    for (auto dr : {-1,0,1}) {
-      for (auto dc : {-1,0,1}) {
-        Pos np{fp.row+dr,fp.col+dc};
-        // std::cout << " try{row:" << np.row << ",col:" << np.col << "}";
-        if (std::abs(dr)==std::abs(dc)) continue; // 0,0 and diagonal not allowed
-        if (map.floor_plan[np.row][np.col] != ' ') continue; // blocked
-        if (visited.find(np) != visited.end()) continue; // skip visited
-        // std::cout << "ACCEPT";
-        frontier.push_back(np);
-      }
-    }
-  }
-  // Log
-  if (false) {
-    std::cout << "\n\t";
-    for (auto const& pos : visited) {
-      std::cout << "\nvisited: {" << pos.row << "," << pos.col << "}";
-    }
-  }
-  visited.erase(pos);
-  return visited;
 }
 
 void investigate() {
