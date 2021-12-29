@@ -56,8 +56,8 @@ struct std::hash<State>
       size_t result;
       for (auto const& pod : state.pods) {
         result ^= std::hash<char>{}(pod.type);
-        result ^= std::hash<int>{}(pod.pos.row);
-        result ^= std::hash<int>{}(pod.pos.col);
+        result ^= std::hash<int>{}(pod.pos.row)<<1;
+        result ^= std::hash<int>{}(pod.pos.col)<<1;
       }
       return result;
     }
@@ -191,13 +191,17 @@ std::set<Pos> free_space(Pos const& pos,Burrow const& map) {
 void investigate();
 
 // True if pod is in its home room with correct room mate
-bool is_home(Burrow const& visitee_map,State::Pod const& visitee_pod) {
-  auto pos = visitee_pod.pos;
-  if (pos.col != visitee_map.room_column_ix[visitee_pod.type-'A']) return false; // wrong room
+bool is_home(Burrow const& visitee_map,char type,Pos const& pos) {
+  if (pos.col != visitee_map.room_column_ix[type-'A']) return false; // wrong room
   if (visitee_map.floor_plan[pos.row+1][pos.col] == ' ') return false; // not at bottom of room
   if (visitee_map.floor_plan[pos.row+1][pos.col] == '#') return true; // empty room ok
-  if (visitee_map.floor_plan[pos.row+1][pos.col] == visitee_pod.type) return true; // correct room mate
+  if (visitee_map.floor_plan[pos.row+1][pos.col] == type) return true; // correct room mate
   return false; // nop
+}
+
+// True if pod is in its home room with correct room mate
+bool is_home(Burrow const& visitee_map,State::Pod const& visitee_pod) {
+  return is_home(visitee_map,visitee_pod.type,visitee_pod.pos);
 }
 
 int main(int argc, const char * argv[]) {
@@ -255,8 +259,21 @@ int main(int argc, const char * argv[]) {
     // See Burrow
 
     // 5. Now we can create the Burrow and the init state from the input
+//    char const* pTest_temp = R"(#############
+//#...........#
+//###A#B#C#D###
+//  #A#B#C#D#
+//  #########)";
+//    std::istringstream in{pTest_temp};
     std::istringstream in{pTest};
     auto [start_state,burrow] = parse(in);
+    // test
+    if (false) {
+      start_state.pods[0].pos = {1,2};
+      start_state.pods[1].pos = {1,4};
+      start_state.pods[2].pos = {1,6};
+      start_state.pods[3].pos = {1,8};
+    }
     // OK, lets find the cheapest (shortest) path
     // Prerequisite: A defined start vertex "Start" and a defined end vertex "End".
     auto end_state = burrow.end_state();
@@ -281,11 +298,13 @@ int main(int argc, const char * argv[]) {
     // Insert our start state into unvisited
     unvisited.push(start_state);
     //    while "unvisited" contains vertecies
+    size_t call_count{0};
     while (unvisited.size()>0) {
-    //      remove the vertex with the lowest "lowest cost so far" from the set "unvisited" and call it "visitee"
+      std::cout << "\n" << call_count++;
       auto visitee_state = unvisited.top();
       unvisited.pop();
-    //      expand "current" to a vector "frontier" of all vertecies connected to it that we have not yet visitied
+      if (visited.find(visitee_state) != visited.end()) continue; // already visited
+      if (visitee_state == end_state) break;
       std::unordered_map<State,Cost> frontier{};
       // Create a map with all the amphipods in their current lcoations
       Burrow visitee_map{burrow};
@@ -293,8 +312,8 @@ int main(int argc, const char * argv[]) {
         visitee_map.floor_plan[visitee_pod.pos.row][visitee_pod.pos.col] = visitee_pod.type;
       }
       // Log
-      {
-        std::cout << "\n<visitee map>";
+      if (true) {
+        std::cout << "\n<VISITEE>";
         for (auto const& row : visitee_map.floor_plan) {
           std::cout << "\n" << row;
         }
@@ -303,7 +322,10 @@ int main(int argc, const char * argv[]) {
       for (int pix=0;pix<visitee_state.pods.size();pix++) {
         auto visitee_pod = visitee_state.pods[pix];
         // Exhaust the reachable positions from visitee pod position
-        
+        // Log
+        if (false) {
+          std::cout << "\nvisitee pod: " << visitee_pod.type << " {" << visitee_pod.pos.row << "," << visitee_pod.pos.col << "}";
+        }
         // Is this pos already home = do NOT move
         if (is_home(visitee_map,visitee_pod)) {
           // skip
@@ -325,11 +347,15 @@ int main(int argc, const char * argv[]) {
             , room_pos.end()
             , no_home
             ,[&visitee_map,&visitee_pod](auto acc, Pos const& pos)->std::optional<Pos>{
-              if (is_home(visitee_map, visitee_pod)) return pos;
+              if (is_home(visitee_map, visitee_pod.type,pos)) return pos;
               return acc;
           });
           if (home) {
             // Pod can go home - prefer this
+            // Log
+            if (false) {
+              std::cout << "\nis_home {" << home->row << "," << home->col << "}";
+            }
             auto dr = std::abs(home->row - visitee_pod.pos.row);
             auto dc = std::abs(home->col - visitee_pod.pos.col);
             auto cost = step_cost(visitee_pod.type, dr+dc);
@@ -343,6 +369,7 @@ int main(int argc, const char * argv[]) {
             std::set<Pos> hallway_pos{};
             // Filter on valid hallway position
             std::copy_if(reachable.begin(), reachable.end(), std::inserter(hallway_pos, hallway_pos.begin()), [&visitee_map](Pos const& pos){
+              if (pos.row!=1) return false;
               if (std::any_of(visitee_map.room_column_ix.begin(), visitee_map.room_column_ix.end(), [&pos] (int col){
                 return (pos.col==col);
               })) return false;
@@ -365,6 +392,18 @@ int main(int argc, const char * argv[]) {
 
       // Update best cost to step to all states is frontier
       for (auto const& [front_state,step_cost] : frontier) {
+        if (visited.find(front_state) != visited.end()) continue; // don't expand into visited states
+        // Log
+        if (false) {
+          Burrow map{burrow};
+          for (auto const& pod : front_state.pods) {
+            map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
+          }
+          std::cout << "\n        <frontiere map>";
+          for (auto const& row : map.floor_plan) {
+            std::cout << "\n        " << row;
+          }
+        }
         if (lowest_cost_so_far.find(front_state) == lowest_cost_so_far.end()) {
           // Expand our cost map with an initial entry for state
           lowest_cost_so_far[front_state] = {std::numeric_limits<Cost>::max(),{}}; // init cost and parent
