@@ -34,17 +34,17 @@ struct Pos {
   bool operator==(Pos const& other) const {return (row!=other.row)?row==other.row:col==other.col;}
 };
 struct State {
-  struct AmphipodTracker {
+  struct Pod {
     char type;
     Pos pos;
-    bool operator<(AmphipodTracker const& other) const { // to work with std::map/set
+    bool operator<(Pod const& other) const { // to work with std::map/set
       return (type!=other.type?type<other.type:pos<other.pos);
     }
-    bool operator==(AmphipodTracker const& other) const {
+    bool operator==(Pod const& other) const {
       return (type!=other.type?type==other.type:pos==other.pos);
     }
   };
-  std::vector<AmphipodTracker> pods{};
+  std::vector<Pod> pods{};
   bool operator<(State const& other) const {return pods<other.pods;} // to work with std::map/set
   bool operator==(State const& other) const {return pods == other.pods;}
 };
@@ -107,7 +107,7 @@ PuzzleModel parse(std::istream& in) {
           char ch = line[ix];
           if (ch>='A' and ch<='D') {
             burrow.room_column_ix[room_ix++] = ix;
-            State::AmphipodTracker pod{};
+            State::Pod pod{};
             pod.type = ch;
             pod.pos.row = burrow_row;
             pod.pos.col = ix;
@@ -189,6 +189,16 @@ std::set<Pos> free_space(Pos const& pos,Burrow const& map) {
 }
 
 void investigate();
+
+// True if pod is in its home room with correct room mate
+bool is_home(Burrow const& visitee_map,State::Pod const& visitee_pod) {
+  auto pos = visitee_pod.pos;
+  if (pos.col != visitee_map.room_column_ix[visitee_pod.type-'A']) return false; // wrong room
+  if (visitee_map.floor_plan[pos.row+1][pos.col] == ' ') return false; // not at bottom of room
+  if (visitee_map.floor_plan[pos.row+1][pos.col] == '#') return true; // empty room ok
+  if (visitee_map.floor_plan[pos.row+1][pos.col] == visitee_pod.type) return true; // correct room mate
+  return false; // nop
+}
 
 int main(int argc, const char * argv[]) {
   // Investigate algorithmic solutions
@@ -277,23 +287,28 @@ int main(int argc, const char * argv[]) {
       unvisited.pop();
     //      expand "current" to a vector "frontier" of all vertecies connected to it that we have not yet visitied
       std::unordered_map<State,Cost> frontier{};
+      // Create a map with all the amphipods in their current lcoations
+      Burrow visitee_map{burrow};
+      for (auto const& visitee_pod : visitee_state.pods) {
+        visitee_map.floor_plan[visitee_pod.pos.row][visitee_pod.pos.col] = visitee_pod.type;
+      }
+      // Log
       {
-        // Create a map with all the amphipods in their current lcoations
-        Burrow visitee_map{burrow};
-        for (auto const& visitee_pod : visitee_state.pods) {
-          visitee_map.floor_plan[visitee_pod.pos.row][visitee_pod.pos.col] = visitee_pod.type;
+        std::cout << "\n<visitee map>";
+        for (auto const& row : visitee_map.floor_plan) {
+          std::cout << "\n" << row;
         }
-        // Log
-        {
-          std::cout << "\n<visitee map>";
-          for (auto const& row : visitee_map.floor_plan) {
-            std::cout << "\n" << row;
-          }
+      }
+      // Expand visitee pod into all possible states to move to
+      for (int pix=0;pix<visitee_state.pods.size();pix++) {
+        auto visitee_pod = visitee_state.pods[pix];
+        // Exhaust the reachable positions from visitee pod position
+        
+        // Is this pos already home = do NOT move
+        if (is_home(visitee_map,visitee_pod)) {
+          // skip
         }
-        // Expand visitee pod into all possible states to move to
-        for (int pix=0;pix<visitee_state.pods.size();pix++) {
-          auto visitee_pod = visitee_state.pods[pix];
-          // Exhaust the reachable positions from visitee pod position
+        else {
           auto reachable = free_space(visitee_pod.pos, visitee_map);
           // A pod in a room or in a hallway is allowed to go into its correct room right away.
           // Expand frontier with the valid move for this pod back to its correct room
@@ -303,21 +318,18 @@ int main(int argc, const char * argv[]) {
             if (pos.row==1) return false;
             return true;
           });
-          // Filter room_pos for a position in correct room and correct or no room mate
+          // Fold room_pos to an optional position in correct room and correct or no room mate
           std::optional<Pos> no_home{};
           std::optional<Pos> home = std::accumulate(
               room_pos.begin()
             , room_pos.end()
             , no_home
             ,[&visitee_map,&visitee_pod](auto acc, Pos const& pos)->std::optional<Pos>{
-              if (pos.col != visitee_map.room_column_ix[visitee_pod.type-'A']) return acc; // wrong room
-              if (visitee_map.floor_plan[pos.row+1][pos.col] == ' ') return acc; // not at bottom of room
-              if (visitee_map.floor_plan[pos.row+1][pos.col] == '#') return pos; // empty room ok
-              if (visitee_map.floor_plan[pos.row+1][pos.col] == visitee_pod.type) return pos; // correct room mate
-              return acc; // nop
+              if (is_home(visitee_map, visitee_pod)) return pos;
+              return acc;
           });
           if (home) {
-            // Pod can go home
+            // Pod can go home - prefer this
             auto dr = std::abs(home->row - visitee_pod.pos.row);
             auto dc = std::abs(home->col - visitee_pod.pos.col);
             auto cost = step_cost(visitee_pod.type, dr+dc);
@@ -329,57 +341,45 @@ int main(int argc, const char * argv[]) {
           else if (visitee_pod.pos.row!=1) {
             // Pod can go into the hallway
             std::set<Pos> hallway_pos{};
-            // Filder on valid hallway position
+            // Filter on valid hallway position
             std::copy_if(reachable.begin(), reachable.end(), std::inserter(hallway_pos, hallway_pos.begin()), [&visitee_map](Pos const& pos){
               if (std::any_of(visitee_map.room_column_ix.begin(), visitee_map.room_column_ix.end(), [&pos] (int col){
                 return (pos.col==col);
               })) return false;
               return true;
             });
-            // Expand frontier with valid hallway positions
+            // Expand frontier with possible hallway positions
             std::transform(hallway_pos.begin(),hallway_pos.end(),std::inserter(frontier,frontier.end())
                       ,[&pix,&visitee_pod,&visitee_state](Pos const& pos)->std::pair<State,Cost> {
               std::pair<State,Cost> result{};
               auto dr = std::abs(pos.row - visitee_pod.pos.row);
               auto dc = std::abs(pos.col - visitee_pod.pos.col);
               auto cost = step_cost(visitee_pod.type, dr+dc);
-              // add to frontier
               auto new_state = visitee_state;
+              new_state.pods[pix].pos = pos;
               return {new_state,cost};
             });
           }
         }
       }
-    //      for each vertex (front_visitee) in the "frontier"
-      for (auto const& front_visitee : frontier) {
-        if (lowest_cost_so_far.find(front_visitee.first) == lowest_cost_so_far.end()) {
-          // Expand our cost map with an entry for connected state
-          lowest_cost_so_far[front_visitee.first] = {std::numeric_limits<Cost>::max(),{}}; // init cost and parent
-        }
-    //        if: "current" "lowest cost so far" + cost to "to visit" < "connected" "lowest cost so far"
 
-        auto new_connected_cost = lowest_cost_so_far[visitee_state].first+front_visitee.second;
-        if (new_connected_cost < lowest_cost_so_far[front_visitee.first].first) {
-    //          then: update "connected" "lowest cost so far" to "current" "lowest cost so far" + cost to "connected"
-          lowest_cost_so_far[front_visitee.first].first = new_connected_cost;
-    //          and: update "connected" "from" to current
-          lowest_cost_so_far[front_visitee.first].second = visitee_state;
+      // Update best cost to step to all states is frontier
+      for (auto const& [front_state,step_cost] : frontier) {
+        if (lowest_cost_so_far.find(front_state) == lowest_cost_so_far.end()) {
+          // Expand our cost map with an initial entry for state
+          lowest_cost_so_far[front_state] = {std::numeric_limits<Cost>::max(),{}}; // init cost and parent
         }
-      } //      end-of-each-in-frontier
-      //      ensure all vertecies in "frontier" are present in "unvisited" (if not done initially = we generate the graph as we step)
-      for (auto const& front_visitee : frontier) {
-        unvisited.push(front_visitee.first);
-        // Note: We insert them here after they have been updated with the cost so far to have them
-        // correctly ordered by cost in the queue
+        auto new_connected_cost = lowest_cost_so_far[visitee_state].first+step_cost;
+        if (new_connected_cost < lowest_cost_so_far[front_state].first) {
+          lowest_cost_so_far[front_state].first = new_connected_cost;
+          lowest_cost_so_far[front_state].second = visitee_state;
+        }
+        unvisited.push(front_state);
       }
-    //      put "current" in "visited"
       visited.insert(visitee_state);
-    } //    end-of-while "unvisitied"
-    //    The map "cost_so_far" now maps "End" to the lowest cost to reach it from Start :)
+    }
     auto result = lowest_cost_so_far[end_state].first;
     std::cout << "\nLowest cost " << result;
-    
-    
   }
   std::cout << "\n";
   return 0;
