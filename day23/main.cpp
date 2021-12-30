@@ -678,13 +678,13 @@ int main(int argc, const char * argv[]) {
 //  #A#D#C#A#
 //  #########)";
 
-    char const* pTest_temp = R"(#############
-#...........#
-###B#A#C#D###
-  #A#B#C#D#
-  #########)";
-    std::istringstream in{pTest_temp};
-//    std::istringstream in{pTest};
+//    char const* pTest_temp = R"(#############
+//#...........#
+//###B#A#C#D###
+//  #A#B#C#D#
+//  #########)";
+//    std::istringstream in{pTest_temp};
+    std::istringstream in{pData};
     auto [start_state,burrow] = parse(in);
 //    // test
 //    if (true) {
