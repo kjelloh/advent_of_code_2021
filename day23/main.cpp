@@ -654,7 +654,7 @@ int main(int argc, const char * argv[]) {
     // See State above
 
     // 2. A lowest_cost_so_far that maps a State to the pair (initiate new mappings as we process the frontier through the graph)
-    std::map<State,std::pair<Cost,State>> lowest_cost_so_far{};
+    std::unordered_map<State,std::pair<Cost,State>> lowest_cost_so_far{};
 
     // 3. An "edge" as a "step cost" to go from one State to the next
     //    Note: In our case we generate the edges as we go but we still need the function to get us the cost from relevant factors
@@ -678,7 +678,7 @@ int main(int argc, const char * argv[]) {
     std::istringstream in{pTest_temp};
 //    std::istringstream in{pTest};
     auto [start_state,burrow] = parse(in);
-    // test
+//    // test
 //    if (true) {
 //      start_state.pods[0].pos = {2,5};
 //      start_state.pods[1].pos = {2,3};
@@ -688,6 +688,9 @@ int main(int argc, const char * argv[]) {
     auto end_state = burrow.end_state();
     if (start_state==end_state) {
       std::cout << "\nState==State OK";
+    }
+    if (std::hash<State>{}(start_state) == std::hash<State>{}(end_state)) {
+      std::cout << "\nsame hash start and end states";
     }
     // Log
     if (true) {
@@ -843,7 +846,10 @@ int main(int argc, const char * argv[]) {
         // Log
         if (true) {
           if (front_state==end_state) {
-            std::cout << "\nis end state!";
+            std::cout << "\nis == end state!";
+          }
+          if (std::hash<State>{}(front_state) == std::hash<State>{}(end_state)) {
+            std::cout << "\nsame hash as end state";
           }
           if (lowest_cost_so_far.find(end_state) != lowest_cost_so_far.end()) {
             std::cout << "lowest to end end state so far " << lowest_cost_so_far[end_state].first;
