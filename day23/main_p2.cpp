@@ -77,41 +77,59 @@ namespace part2 {
   };
   struct Room {
     int col;
-    int entry_row,bottom_row;
+    int const top_row{2},bottom_row{5};
+    bool operator==(Room const&) const = default;
   };
-  class Burrow {
-    public:
-    private:
-    std::array<Room,4> m_rooms;
+  struct Burrow {
+    Hallway const hallway;
+    std::map<Type,Room> m_rooms;
+    Burrow() : m_rooms{{Type::A,{3}},{Type::B,{5}},{Type::C,{7}},{Type::D,{9}}} {}
   };
+  const Burrow BURROW{};
   struct State {
     std::set<Pod> pods;
     auto operator<=>(const State&) const = default;
+    std::vector<Pod> at(Room const& room) const {
+      std::cout << "\nState::at NOT IMPLEMENTED";
+      return {};
+    }
   };
-
-  void dummy() {
-    std::set<State> ps{};
-
-  }
-
-  // bool operator<(State const& s1,State const& s2) {
-  //   std::cout << "\noperator< State NOT IMPLEMENTED"; 
-  //   return s1.pods<s2.pods;
-  // }
-  // bool operator==(State const& s1,State const& s2) {
-  //   std::cout << "\noperator== State NOT IMPLEMENTED"; 
-  //   return s1.pods==s2.pods;
-  // }
-  std::vector<State> possible_moves(State const& state) {
-    std::vector<State> result{};
+  struct Move {
+    State to;
+    Cost cost;
+    auto operator<=>(const Move&) const = default;
+  };
+  
+  std::vector<Move> possible_moves(State const& state) {
+    std::vector<Move> result{};
     std::cout << "\npossible_moves NOT IMPLEMENTED";
-    // for (auto const& pod : state.pods) {
+    for (auto const& pod : state.pods) {
+      /*
+      Amphipods will never stop on the space immediately outside any room. 
+      They can move into that space so long as they immediately continue moving. 
+      (Specifically, this refers to the four open spaces in the hallway that are directly above an amphipod starting position.)
 
-    // }
+      Amphipods will never move from the hallway into a room
+        unless that room is their destination room 
+        and that room contains no amphipods which do not also have that room as their own destination. 
+        
+      If an amphipod's starting room is not its destination room, it can stay in that room until it leaves the room.
+      (For example, an Amber amphipod will not move from the hallway into the right three rooms, and will only move into the leftmost room if that room is empty or if it only contains other Amber amphipods.)
+
+      Once an amphipod stops moving in the hallway, it will stay in that spot until it can move into a room.
+      (That is, once any amphipod starts moving, any other amphipods currently in the hallway are locked in place
+        and will not move again until they can move fully into a room.)
+      */
+      auto home = BURROW.m_rooms.at(pod.type);
+      auto at_home = state.at(home);
+      auto all_home = std::all_of(at_home.begin(),at_home.end(),[&home](Pod const& resident){
+        return (BURROW.m_rooms.at(resident.type) == home);
+      });
+    }
     return result;
   }
-  std::vector<State> apply_strategy(State const& state,std::vector<State> candidate_moves) {
-    std::vector<State> result{candidate_moves};
+  std::vector<Move> apply_strategy(State const& state,std::vector<Move> candidate_moves) {
+    std::vector<Move> result{candidate_moves};
     std::cout << "\napply_strategy NOP"; 
     return result;
   }
@@ -121,27 +139,11 @@ namespace part2 {
     std::optional<Cost> result;
     if (memoized.find(visitee) != memoized.end()) return memoized[visitee];
     if (visitee==end) return 0;
-    /*
-    Amphipods will never stop on the space immediately outside any room. 
-    They can move into that space so long as they immediately continue moving. 
-    (Specifically, this refers to the four open spaces in the hallway that are directly above an amphipod starting position.)
-    
-    Amphipods will never move from the hallway into a room
-      unless that room is their destination room 
-      and that room contains no amphipods which do not also have that room as their own destination. 
-      
-    If an amphipod's starting room is not its destination room, it can stay in that room until it leaves the room.
-     (For example, an Amber amphipod will not move from the hallway into the right three rooms, and will only move into the leftmost room if that room is empty or if it only contains other Amber amphipods.)
-
-    Once an amphipod stops moving in the hallway, it will stay in that spot until it can move into a room.
-     (That is, once any amphipod starts moving, any other amphipods currently in the hallway are locked in place
-      and will not move again until they can move fully into a room.)
-    */
     auto frontier = possible_moves(visitee);
     frontier = apply_strategy(visitee,frontier);
     std::set<std::optional<Cost>> costs;
-    for (auto const& next : frontier) {
-      costs.insert(best(next,end,memoized));
+    for (auto const& move : frontier) {
+      costs.insert(best(move.to,end,memoized));
     }
     auto min_iter = std::min_element(costs.begin(),costs.end());
     if (min_iter != costs.end()) result = *min_iter;
