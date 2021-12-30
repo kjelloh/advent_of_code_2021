@@ -612,6 +612,20 @@ bool is_home(Burrow const& visitee_map,char type,Pos const& pos) {
   return false; // nop
 }
 
+Cost min_cost(Burrow const& burrow,State const state) {
+  Cost result{std::numeric_limits<Cost>::max()};
+  // Calculate the theoretichal minimal cost if we could move
+  // all pods to their end positions in one move
+  for (auto const& pod : state.pods) {
+    int dr{};
+    if (pod.pos.row != 1) dr = (pod.pos.row-1) + burrow.room_height; // worst case
+    else dr=burrow.room_height;
+    auto dc = std::abs(pod.pos.col - burrow.room_column_ix[pod.type-'A']);
+    result += step_cost(pod.type, dr+dc);
+  }
+  return result;
+}
+
 // True if pod is in its home room with correct room mate
 bool is_home(Burrow const& visitee_map,State::Pod const& visitee_pod) {
   return is_home(visitee_map,visitee_pod.type,visitee_pod.pos);
@@ -720,12 +734,14 @@ int main(int argc, const char * argv[]) {
       // ...blows my mind...
     };
     std::priority_queue<State,std::vector<State>,decltype(least_cost)> unvisited(least_cost);
+//    std::priority_queue<State,std::vector<State>> unvisited{};
     // Insert our start state into unvisited
     unvisited.push(start_state);
     //    while "unvisited" contains vertecies
     size_t call_count{0};
     auto start = std::chrono::steady_clock::now();
     while (unvisited.size()>0) {
+      ++call_count;
       if (call_count%5000==0) {
         std::cout << "\n" << call_count;
         std::cout << " " << lowest_cost_so_far.size();
@@ -752,16 +768,19 @@ int main(int argc, const char * argv[]) {
       for (int pix=0;pix<visitee_state.pods.size();pix++) {
         auto visitee_pod = visitee_state.pods[pix];
         // Exhaust the reachable positions from visitee pod position
+
         // Log
         if (false) {
           std::cout << "\nvisitee pod: " << visitee_pod.type << " {" << visitee_pod.pos.row << "," << visitee_pod.pos.col << "}";
         }
+
         // Is this pos already home = do NOT move
         if (is_home(visitee_map,visitee_pod)) {
           // skip
         }
         else {
           auto reachable = free_space(visitee_pod.pos, visitee_map);
+          if (reachable.size()==0) continue; // can't move
           // A pod in a room or in a hallway is allowed to go into its correct room right away.
           // Expand frontier with the valid move for this pod back to its correct room
           std::set<Pos> room_pos{};
@@ -802,7 +821,7 @@ int main(int argc, const char * argv[]) {
             frontier[new_state] = cost;
           }
           else if (visitee_pod.pos.row!=1) {
-            // Pod can go into the hallway
+            // Pod is in room and may go into hallway
             std::set<Pos> hallway_pos{};
             // Filter on valid hallway position
             std::copy_if(reachable.begin(), reachable.end(), std::inserter(hallway_pos, hallway_pos.begin()), [&visitee_map](Pos const& pos){
@@ -824,11 +843,13 @@ int main(int argc, const char * argv[]) {
               return {new_state,cost};
             });
           }
+          else {
+            // pod is stuck for now = skip
+          }
         }
-        ++call_count;
       }
 
-      // Update best cost to step to all states is frontier
+      // Update best cost to step to all states in frontier
       for (auto const& [front_state,step_cost] : frontier) {
         if (visited.find(front_state) != visited.end()) continue; // don't expand into visited states
         // Log
