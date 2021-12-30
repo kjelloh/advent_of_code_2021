@@ -422,7 +422,7 @@ using Result = size_t;
 struct Pos {
   int row,col;
   bool operator<(Pos const& other) const {return (row!=other.row)?row<other.row:col<other.col;}
-  bool operator==(Pos const& other) const {return (row!=other.row)?row==other.row:col==other.col;}
+  bool operator==(Pos const& other) const {return (row==other.row and col==other.col);}
 };
 struct State {
   struct Pod {
@@ -432,20 +432,34 @@ struct State {
       return (type!=other.type?type<other.type:pos<other.pos);
     }
     bool operator==(Pod const& other) const {
-      return (type!=other.type?type==other.type:pos==other.pos);
+      return (type==other.type and pos==other.pos);
     }
   };
   std::vector<Pod> pods{};
   bool operator<(State const& other) const {return pods<other.pods;} // to work with std::map/set
-  bool operator==(State const& other) const {return pods == other.pods;}
+  bool operator==(State const& other) const {
+    // Due to my unconventional wisdom I created a pods representation that
+    // assigns pod index after the original state, NOT after their correct rooms...
+    // So to identify an equal state I have to check that the two states contains the same set of positions!
+    return std::all_of(pods.begin(), pods.end(), [&other](Pod const& pod){
+      return std::any_of(other.pods.begin(), other.pods.end(), [&pod](Pod const& other_pod){
+        return (pod==other_pod);
+      });
+    });
+  }
 };
 // custom specialization of std::hash for State injected into namespace std
 template<>
 struct std::hash<State>
 {
     std::size_t operator()(State const& state) const noexcept {
-      size_t result;
-      for (auto const& pod : state.pods) {
+      // Due to my unconventional wisdom I created a pods representation that
+      // assigns pod index after the original state, NOT after their correct rooms...
+      // So to produce the same hash for the same state I need to make it invariant to the order of the pods
+      auto pods = state.pods;
+      std::sort(pods.begin(), pods.end());
+      size_t result{};
+      for (auto const& pod : pods) {
         result ^= std::hash<char>{}(pod.type);
         result ^= std::hash<int>{}(pod.pos.row)<<1;
         result ^= std::hash<int>{}(pod.pos.col)<<1;
@@ -656,24 +670,25 @@ int main(int argc, const char * argv[]) {
 //  #A#D#C#A#
 //  #########)";
 
-//    char const* pTest_temp = R"(#############
-//#...........#
-//###A#B#C#D###
-//  #A#B#C#D#
-//  #########)";
-//    std::istringstream in{pTest_temp};
-    std::istringstream in{pTest};
+    char const* pTest_temp = R"(#############
+#...........#
+###B#A#C#D###
+  #A#B#C#D#
+  #########)";
+    std::istringstream in{pTest_temp};
+//    std::istringstream in{pTest};
     auto [start_state,burrow] = parse(in);
     // test
-    if (false) {
-      start_state.pods[0].pos = {1,2};
-      start_state.pods[1].pos = {1,4};
-      start_state.pods[2].pos = {1,6};
-      start_state.pods[3].pos = {1,8};
-    }
+//    if (true) {
+//      start_state.pods[0].pos = {2,5};
+//      start_state.pods[1].pos = {2,3};
+//    }
     // OK, lets find the cheapest (shortest) path
     // Prerequisite: A defined start vertex "Start" and a defined end vertex "End".
     auto end_state = burrow.end_state();
+    if (start_state==end_state) {
+      std::cout << "\nState==State OK";
+    }
     // Log
     if (true) {
       std::cout << "\n<End State>";
@@ -700,8 +715,6 @@ int main(int argc, const char * argv[]) {
       std::cout << "\n" << call_count++;
       auto visitee_state = unvisited.top();
       unvisited.pop();
-      if (visited.find(visitee_state) != visited.end()) continue; // already visited
-      if (visitee_state == end_state) break;
       std::unordered_map<State,Cost> frontier{};
       // Create a map with all the amphipods in their current lcoations
       Burrow visitee_map{burrow};
@@ -714,6 +727,8 @@ int main(int argc, const char * argv[]) {
         for (auto const& row : visitee_map.floor_plan) {
           std::cout << "\n" << row;
         }
+        auto cost = lowest_cost_so_far[visitee_state].first;
+        std::cout << "\nlowest cost so far " << cost;
       }
       // Expand visitee pod into all possible states to move to
       for (int pix=0;pix<visitee_state.pods.size();pix++) {
@@ -753,7 +768,14 @@ int main(int argc, const char * argv[]) {
             if (false) {
               std::cout << "\nis_home {" << home->row << "," << home->col << "}";
             }
-            auto dr = std::abs(home->row - visitee_pod.pos.row);
+            int dr{0};
+            if (visitee_pod.pos.row!=1) {
+              // we are moving from one room to another
+              dr = (visitee_pod.pos.row-1) + (home->row-1); // up then down
+            }
+            else {
+              dr = std::abs(home->row - visitee_pod.pos.row);
+            }
             auto dc = std::abs(home->col - visitee_pod.pos.col);
             auto cost = step_cost(visitee_pod.type, dr+dc);
             // add to frontier
@@ -791,7 +813,7 @@ int main(int argc, const char * argv[]) {
       for (auto const& [front_state,step_cost] : frontier) {
         if (visited.find(front_state) != visited.end()) continue; // don't expand into visited states
         // Log
-        if (false) {
+        if (true) {
           Burrow map{burrow};
           for (auto const& pod : front_state.pods) {
             map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
@@ -800,17 +822,36 @@ int main(int argc, const char * argv[]) {
           for (auto const& row : map.floor_plan) {
             std::cout << "\n        " << row;
           }
+          std::cout << "\nstep cost: " << step_cost;
         }
         if (lowest_cost_so_far.find(front_state) == lowest_cost_so_far.end()) {
+          std::cout << "\nnew state";
           // Expand our cost map with an initial entry for state
           lowest_cost_so_far[front_state] = {std::numeric_limits<Cost>::max(),{}}; // init cost and parent
+          unvisited.push(front_state);
+        }
+        // Log
+        {
+          std::cout << "\nlowest cost so far " << lowest_cost_so_far[front_state].first;
         }
         auto new_connected_cost = lowest_cost_so_far[visitee_state].first+step_cost;
         if (new_connected_cost < lowest_cost_so_far[front_state].first) {
+          std::cout << "\nnew lowest cost " << new_connected_cost;
           lowest_cost_so_far[front_state].first = new_connected_cost;
           lowest_cost_so_far[front_state].second = visitee_state;
         }
-        unvisited.push(front_state);
+        // Log
+        if (true) {
+          if (front_state==end_state) {
+            std::cout << "\nis end state!";
+          }
+          if (lowest_cost_so_far.find(end_state) != lowest_cost_so_far.end()) {
+            std::cout << "lowest to end end state so far " << lowest_cost_so_far[end_state].first;
+          }
+          else {
+            std::cout << "\nNO end state cost yet...";
+          }
+        }
       }
       visited.insert(visitee_state);
     }
