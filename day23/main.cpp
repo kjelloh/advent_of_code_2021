@@ -662,6 +662,7 @@ int main(int argc, const char * argv[]) {
     // See State above
 
     // 2. A lowest_cost_so_far that maps a State to the pair (initiate new mappings as we process the frontier through the graph)
+//    std::unordered_map<State,std::pair<Cost,State>> lowest_cost_so_far{};
     std::map<State,std::pair<Cost,State>> lowest_cost_so_far{};
 
     // 3. An "edge" as a "step cost" to go from one State to the next
@@ -694,6 +695,7 @@ int main(int argc, const char * argv[]) {
     // OK, lets find the cheapest (shortest) path
     // Prerequisite: A defined start vertex "Start" and a defined end vertex "End".
     auto end_state = burrow.end_state();
+    lowest_cost_so_far[end_state] = {std::numeric_limits<Cost>::max(),{}};
     if (start_state==end_state) {
       std::cout << "\nState==State OK";
     }
@@ -722,8 +724,13 @@ int main(int argc, const char * argv[]) {
     unvisited.push(start_state);
     //    while "unvisited" contains vertecies
     size_t call_count{0};
+    auto start = std::chrono::steady_clock::now();
     while (unvisited.size()>0) {
-      std::cout << "\n" << call_count++;
+      if (call_count%5000==0) {
+        std::cout << "\n" << call_count;
+        std::cout << " " << lowest_cost_so_far.size();
+        std::cout << " " << lowest_cost_so_far[end_state].first;
+      }
       auto visitee_state = unvisited.top();
       unvisited.pop();
       std::unordered_map<State,Cost> frontier{};
@@ -733,7 +740,7 @@ int main(int argc, const char * argv[]) {
         visitee_map.floor_plan[visitee_pod.pos.row][visitee_pod.pos.col] = visitee_pod.type;
       }
       // Log
-      if (true) {
+      if (false) {
         std::cout << "\n<VISITEE>";
         for (auto const& row : visitee_map.floor_plan) {
           std::cout << "\n" << row;
@@ -818,13 +825,14 @@ int main(int argc, const char * argv[]) {
             });
           }
         }
+        ++call_count;
       }
 
       // Update best cost to step to all states is frontier
       for (auto const& [front_state,step_cost] : frontier) {
         if (visited.find(front_state) != visited.end()) continue; // don't expand into visited states
         // Log
-        if (true) {
+        if (false) {
           Burrow map{burrow};
           for (auto const& pod : front_state.pods) {
             map.floor_plan[pod.pos.row][pod.pos.col] = pod.type;
@@ -836,23 +844,23 @@ int main(int argc, const char * argv[]) {
           std::cout << "\nstep cost: " << step_cost;
         }
         if (lowest_cost_so_far.find(front_state) == lowest_cost_so_far.end()) {
-          std::cout << "\nnew state";
+//          std::cout << "\nnew state";
           // Expand our cost map with an initial entry for state
           lowest_cost_so_far[front_state] = {std::numeric_limits<Cost>::max(),{}}; // init cost and parent
           unvisited.push(front_state);
         }
         // Log
-        {
+        if (false) {
           std::cout << "\nlowest cost so far " << lowest_cost_so_far[front_state].first;
         }
         auto new_connected_cost = lowest_cost_so_far[visitee_state].first+step_cost;
         if (new_connected_cost < lowest_cost_so_far[front_state].first) {
-          std::cout << "\nnew lowest cost " << new_connected_cost;
+//          std::cout << "\nnew lowest cost " << new_connected_cost;
           lowest_cost_so_far[front_state].first = new_connected_cost;
           lowest_cost_so_far[front_state].second = visitee_state;
         }
         // Log
-        if (true) {
+        if (false) {
           if (front_state==end_state) {
             std::cout << "\nis == end state!";
           }
@@ -869,6 +877,9 @@ int main(int argc, const char * argv[]) {
       }
       visited.insert(visitee_state);
     }
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end-start;
+    std::cout << "\nelapsed time: " << elapsed_seconds.count() << "s";
     auto result = lowest_cost_so_far[end_state].first;
     std::cout << "\nLowest cost " << result;
   }
