@@ -436,7 +436,15 @@ struct State {
     }
   };
   std::vector<Pod> pods{};
-  bool operator<(State const& other) const {return pods<other.pods;} // to work with std::map/set
+  bool operator<(State const& other) const {
+    // Due to my unconventional wisdom I created a pods representation that
+    // assigns pod index after the original state, NOT after their correct rooms...
+    auto sorted_pods = pods;
+    std::sort(sorted_pods.begin(),sorted_pods.end());
+    auto sorted_other_pods = other.pods;
+    std::sort(sorted_other_pods.begin(),sorted_other_pods.end());
+    return sorted_pods<sorted_other_pods;
+  }
   bool operator==(State const& other) const {
     // Due to my unconventional wisdom I created a pods representation that
     // assigns pod index after the original state, NOT after their correct rooms...
@@ -457,7 +465,7 @@ struct std::hash<State>
       // assigns pod index after the original state, NOT after their correct rooms...
       // So to produce the same hash for the same state I need to make it invariant to the order of the pods
       auto pods = state.pods;
-      std::sort(pods.begin(), pods.end());
+      std::sort(pods.begin(), pods.end()); // allign pod ordering to erase hash pod order dependance
       size_t result{};
       for (auto const& pod : pods) {
         result ^= std::hash<char>{}(pod.type);
@@ -654,7 +662,7 @@ int main(int argc, const char * argv[]) {
     // See State above
 
     // 2. A lowest_cost_so_far that maps a State to the pair (initiate new mappings as we process the frontier through the graph)
-    std::unordered_map<State,std::pair<Cost,State>> lowest_cost_so_far{};
+    std::map<State,std::pair<Cost,State>> lowest_cost_so_far{};
 
     // 3. An "edge" as a "step cost" to go from one State to the next
     //    Note: In our case we generate the edges as we go but we still need the function to get us the cost from relevant factors
