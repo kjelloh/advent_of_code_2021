@@ -56,10 +56,9 @@ namespace part1 {
 
 namespace part2 {
   using Cost = size_t;
-  class Pos {
-    public:
+  struct Pos {
     int row,col;
-    private:
+    auto operator<=>(const Pos&) const = default;
   };
   enum class Type {
     unknown
@@ -68,12 +67,11 @@ namespace part2 {
     ,C = 'C'
     ,D = 'D'
   };
-  class Pod {
-    public:
-    Type tupe;
+  struct Pod {
+    Type type;
     Pos pos;
-    private:
-  };
+    auto operator<=>(const Pod&) const = default;
+  };  
   struct Hallway {
     int const row{1},left_col{1},right_col{1};
   };
@@ -86,22 +84,30 @@ namespace part2 {
     private:
     std::array<Room,4> m_rooms;
   };
-  class State {
-    public:
-    size_t not_implemented;
-    private:
+  struct State {
+    std::set<Pod> pods;
+    auto operator<=>(const State&) const = default;
   };
-  bool operator<(State const& s1,State const& s2) {
-    std::cout << "\noperator< State NOT IMPLEMENTED"; 
-    return s1.not_implemented<s2.not_implemented;
+
+  void dummy() {
+    std::set<State> ps{};
+
   }
-  bool operator==(State const& s1,State const& s2) {
-    std::cout << "\noperator== State NOT IMPLEMENTED"; 
-    return s1.not_implemented==s2.not_implemented;
-  }
+
+  // bool operator<(State const& s1,State const& s2) {
+  //   std::cout << "\noperator< State NOT IMPLEMENTED"; 
+  //   return s1.pods<s2.pods;
+  // }
+  // bool operator==(State const& s1,State const& s2) {
+  //   std::cout << "\noperator== State NOT IMPLEMENTED"; 
+  //   return s1.pods==s2.pods;
+  // }
   std::vector<State> possible_moves(State const& state) {
     std::vector<State> result{};
-    std::cout << "\npossible_moves NOT IMPLEMENTED"; 
+    std::cout << "\npossible_moves NOT IMPLEMENTED";
+    // for (auto const& pod : state.pods) {
+
+    // }
     return result;
   }
   std::vector<State> apply_strategy(State const& state,std::vector<State> candidate_moves) {
