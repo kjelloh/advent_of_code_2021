@@ -9,6 +9,7 @@
 #include <vector>
 #include <chrono>
 #include <ostream>
+#include <set>
 
 char const* pTest = R"(#############
 #...........#
@@ -56,10 +57,26 @@ namespace part1 {
 namespace part2 {
   using Cost = size_t;
   class Pos {
+    public:
     int row,col;
+    private:
   };
-  using Type = std::optional<char>;
-  using Pods = std::map<Pos,Type>;
+  enum class Type {
+    unknown
+    ,A = 'A'
+    ,B = 'B'
+    ,C = 'C'
+    ,D = 'D'
+  };
+  class Pod {
+    public:
+    Type tupe;
+    Pos pos;
+    private:
+  };
+  struct Hallway {
+    int const row{1},left_col{1},right_col{1};
+  };
   struct Room {
     int col;
     int entry_row,bottom_row;
@@ -69,10 +86,59 @@ namespace part2 {
     private:
     std::array<Room,4> m_rooms;
   };
-  using State = Pods;
+  class State {
+    public:
+    size_t not_implemented;
+    private:
+  };
+  bool operator<(State const& s1,State const& s2) {
+    std::cout << "\noperator< State NOT IMPLEMENTED"; 
+    return s1.not_implemented<s2.not_implemented;
+  }
+  bool operator==(State const& s1,State const& s2) {
+    std::cout << "\noperator== State NOT IMPLEMENTED"; 
+    return s1.not_implemented==s2.not_implemented;
+  }
+  std::vector<State> possible_moves(State const& state) {
+    std::vector<State> result{};
+    std::cout << "\npossible_moves NOT IMPLEMENTED"; 
+    return result;
+  }
+  std::vector<State> apply_strategy(State const& state,std::vector<State> candidate_moves) {
+    std::vector<State> result{candidate_moves};
+    std::cout << "\napply_strategy NOP"; 
+    return result;
+  }
+  using Memoized = std::map<State,std::optional<Cost>>;
   // Recursive "find the lowest cost to re-arrange pods to reach end state"
-  Cost best(State const& visitee,State const& end) {
-    Cost result;
+  std::optional<Cost> best(State const& visitee,State const& end,Memoized& memoized) {
+    std::optional<Cost> result;
+    if (memoized.find(visitee) != memoized.end()) return memoized[visitee];
+    if (visitee==end) return 0;
+    /*
+    Amphipods will never stop on the space immediately outside any room. 
+    They can move into that space so long as they immediately continue moving. 
+    (Specifically, this refers to the four open spaces in the hallway that are directly above an amphipod starting position.)
+    
+    Amphipods will never move from the hallway into a room
+      unless that room is their destination room 
+      and that room contains no amphipods which do not also have that room as their own destination. 
+      
+    If an amphipod's starting room is not its destination room, it can stay in that room until it leaves the room.
+     (For example, an Amber amphipod will not move from the hallway into the right three rooms, and will only move into the leftmost room if that room is empty or if it only contains other Amber amphipods.)
+
+    Once an amphipod stops moving in the hallway, it will stay in that spot until it can move into a room.
+     (That is, once any amphipod starts moving, any other amphipods currently in the hallway are locked in place
+      and will not move again until they can move fully into a room.)
+    */
+    auto frontier = possible_moves(visitee);
+    frontier = apply_strategy(visitee,frontier);
+    std::set<std::optional<Cost>> costs;
+    for (auto const& next : frontier) {
+      costs.insert(best(next,end,memoized));
+    }
+    auto min_iter = std::min_element(costs.begin(),costs.end());
+    if (min_iter != costs.end()) result = *min_iter;
     return result;
   }
   Result solve_for(char const* pData) {
@@ -89,6 +155,11 @@ namespace part2 {
     }
     auto start_time = std::chrono::steady_clock::now();
     // Solve code goes here
+    State init_state{},end_state{};
+    Memoized memoized{};
+    auto best_cost = best(init_state,end_state,memoized);
+    if (best_cost) result = best_cost.value();
+    else std::cout << "\nFAILED - no best cost found";
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed_seconds = end_time-start_time;
     std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";      
