@@ -10,6 +10,8 @@
 #include <chrono>
 #include <ostream>
 #include <set>
+#include <memory>
+#include <variant>
 
 char const* pTest = R"(#############
 #...........#
@@ -56,54 +58,52 @@ namespace part1 {
 
 namespace part2 {
   using Cost = size_t;
-  struct Pos {
-    int row,col;
-    auto operator<=>(const Pos&) const = default;
-  };
-  enum class Type {
-    unknown
-    ,A = 'A'
-    ,B = 'B'
-    ,C = 'C'
-    ,D = 'D'
-  };
   struct Pod {
-    Type type;
-    Pos pos;
-    auto operator<=>(const Pod&) const = default;
+    char type;
+    Cost spent;
+    auto operator<=>(Pod const&) const = default;
   };  
+  enum class SpaceID {
+    unknown
+    ,Hallway
+    ,Room_A
+    ,Room_B
+    ,Room_C
+    ,Room_D
+    ,undefined
+  };
   struct Hallway {
-    int const row{1},left_col{1},right_col{1};
+    std::array<int,7> coord{1,2,4,6,8,10,11};
+    std::map<int,std::shared_ptr<Pod>> pods;
+    auto operator<=>(Hallway const&) const = default;
   };
   struct Room {
-    int col;
-    int const top_row{2},bottom_row{5};
-    bool operator==(Room const&) const = default;
+    std::array<int,4> coord{0,1,2,3};
+    std::map<int,Pod> pods;
+    auto operator<=>(Room const&) const = default;
   };
-  struct Burrow {
-    Hallway const hallway;
-    std::map<Type,Room> m_rooms;
-    Burrow() : m_rooms{{Type::A,{3}},{Type::B,{5}},{Type::C,{7}},{Type::D,{9}}} {}
-  };
-  const Burrow BURROW{};
-  struct State {
-    std::set<Pod> pods;
-    auto operator<=>(const State&) const = default;
-    std::vector<Pod> at(Room const& room) const {
-      std::cout << "\nState::at NOT IMPLEMENTED";
-      return {};
-    }
+  using Space = std::variant<Hallway,Room>;
+  struct Pos {
+    Space space;
+    int coord;
+    auto operator<=>(Pos const&) const = default;
   };
   struct Move {
-    State to;
-    Cost cost;
-    auto operator<=>(const Move&) const = default;
+    Pos from,to;
+    auto operator<=>(Move const&) const = default;
   };
-  
+  struct State {
+    std::map<SpaceID,Space> burrow;
+    auto operator<=>(const State&) const = default;
+    bool operator==(State const&) const = default;
+    State apply(Move const& move) const {
+      return *this;
+    }
+  };
+
   std::vector<Move> possible_moves(State const& state) {
     std::vector<Move> result{};
     std::cout << "\npossible_moves NOT IMPLEMENTED";
-    for (auto const& pod : state.pods) {
       /*
       Amphipods will never stop on the space immediately outside any room. 
       They can move into that space so long as they immediately continue moving. 
@@ -120,12 +120,31 @@ namespace part2 {
       (That is, once any amphipod starts moving, any other amphipods currently in the hallway are locked in place
         and will not move again until they can move fully into a room.)
       */
-      auto home = BURROW.m_rooms.at(pod.type);
-      auto at_home = state.at(home);
-      auto all_home = std::all_of(at_home.begin(),at_home.end(),[&home](Pod const& resident){
-        return (BURROW.m_rooms.at(resident.type) == home);
-      });
-    }
+
+      /*
+        #############
+        #...........#
+        ###C#D#A#B###
+          #D#C#B#A#
+          #D#B#A#C#
+          #B#A#D#C#
+          #########
+
+        #############
+        #...........#   Hallway 1,2,x,4,x,6,x,8,x,10,11
+        ### # # # ###   Room col 3,5,7,9
+          # # # # #     Room row 2,3,4,5
+          # # # # #
+          # # # # #
+          #########
+
+      This pod can potentially go to
+      
+        Hallway col 1,2,x,4,x,6,x,8,x,10,11 = 7 pos
+        A room A,B,C,D row 2,3,4,5 = 16 pos
+        --------------------------------------------
+        Total: 16+7 = 23 positions for 16 pods (leaving 7 positions free at any time)
+      */
     return result;
   }
   std::vector<Move> apply_strategy(State const& state,std::vector<Move> candidate_moves) {
@@ -134,21 +153,23 @@ namespace part2 {
     return result;
   }
   using Memoized = std::map<State,std::optional<Cost>>;
+  
   // Recursive "find the lowest cost to re-arrange pods to reach end state"
-  std::optional<Cost> best(State const& visitee,State const& end,Memoized& memoized) {
+  std::optional<Cost> best(State const& state,State const& end,Memoized& memoized) {
     std::optional<Cost> result;
-    if (memoized.find(visitee) != memoized.end()) return memoized[visitee];
-    if (visitee==end) return 0;
-    auto frontier = possible_moves(visitee);
-    frontier = apply_strategy(visitee,frontier);
+    if (memoized.find(state) != memoized.end()) return memoized[state];
+    if (state==end) return 0;
+    auto move_candidates = possible_moves(state);
+    auto moves = apply_strategy(state,move_candidates);
     std::set<std::optional<Cost>> costs;
-    for (auto const& move : frontier) {
-      costs.insert(best(move.to,end,memoized));
+    for (auto const& move : moves) {
+      costs.insert(best(state.apply(move),end,memoized));
     }
     auto min_iter = std::min_element(costs.begin(),costs.end());
     if (min_iter != costs.end()) result = *min_iter;
     return result;
   }
+  
   Result solve_for(char const* pData) {
     Result result{};
     std::stringstream in{ pData };
