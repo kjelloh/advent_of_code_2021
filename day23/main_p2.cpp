@@ -82,9 +82,11 @@ namespace part2 {
   };
   class Room {
     public:
+    SpaceID id() const {return this->room_id;}
     bool accept(Pod const& pod) const {
       return (wrong_occupants_count==0 and pod.home==this->room_id);
     }
+    bool has_wrong_occupants() const {return wrong_occupants_count>0;}
     Pod const& top() const {
       return pods.top();
     }
@@ -116,6 +118,9 @@ namespace part2 {
     auto operator<=>(Move const&) const = default;
   };
   struct State {
+    State(std::vector<std::string> tokens={}) {
+
+    }
     std::map<SpaceID,Space> spaces;
     auto operator<=>(const State&) const = default;
     bool operator==(State const&) const = default;
@@ -132,7 +137,30 @@ namespace part2 {
       return {};}
     std::vector<Move> operator()(Hallway const& hallway) const {
       // Room to Hallway
-      return {};}
+      std::vector<Move> result{};
+      if (room.has_wrong_occupants()) {
+        switch (room.id()) {
+          case SpaceID::Room_A: {
+            if (hallway.left_alcove.size()<2) {
+              Pos to{hallway,static_cast<int>(hallway.left_alcove.size()-1)};
+              result.push_back(Move{Pos{room},to});
+            }
+            if ((hallway.right_alcove.size()<2) and !hallway.between_rooms[0] and !hallway.between_rooms[1] and !hallway.between_rooms[2]) {
+              Pos to{hallway,static_cast<int>(11-hallway.right_alcove.size())};
+              result.push_back(Move{Pos{room},to});
+            }
+            for (int i=0;i<hallway.between_rooms.size();i++) {
+              auto pod = hallway.between_rooms[i];
+              if (pod) {
+                Pos to{hallway,3+2*i};
+                result.push_back(Move{Pos{room},to});
+              }
+            }
+          } break;
+        }
+      }
+      return result;
+    }
   };
 
   bool free_path(Move const& move, State const& state) {
@@ -346,7 +374,7 @@ namespace part2 {
     }
     auto start_time = std::chrono::steady_clock::now();
     // Solve code goes here
-    State init_state{},end_state{};
+    State init_state{tokens},end_state{};
     Memoized memoized{};
     auto best_cost = best(init_state,end_state,memoized);
     if (best_cost) result = best_cost.value();
