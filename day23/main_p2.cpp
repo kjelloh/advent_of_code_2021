@@ -61,9 +61,7 @@ namespace part2 {
   using Cost = size_t;
   enum class SpaceID {
     unknown
-    ,left_alcove    // a stack
-    ,right_alcove   // a stack
-    ,between_rooms  // an array
+    ,Hallway
     ,Room_A         // A stack
     ,Room_B         // a stack
     ,Room_C         // a stack
@@ -76,7 +74,7 @@ namespace part2 {
     auto operator<=>(Pod const&) const = default;
   };  
   using Alcove = std::stack<Pod>;
-  using BetweenRooms = std::array<Pod,3>;
+  using BetweenRooms = std::array<Pod,3>; // 0:between A,B, 1:between B,C 2: between C,D
   struct Hallway {
     Alcove left_alcove{},right_alcove{};
     BetweenRooms between_rooms{};
@@ -112,12 +110,18 @@ namespace part2 {
     auto operator<=>(Move const&) const = default;
   };
   struct State {
-    std::map<SpaceID,Space> burrow;
+    std::map<SpaceID,Space> spaces;
     auto operator<=>(const State&) const = default;
     bool operator==(State const&) const = default;
-    State apply(Move const& move) const {
+    State moved_to(Move const& move) const {
       return *this;
     }
+  };
+
+  struct PossibleMoves {
+    State const& state;
+    std::vector<Move> operator()(Room const& room) const {return {};}
+    std::vector<Move> operator()(Hallway const& hallway) const {return {};}
   };
 
   std::vector<Move> possible_moves(State const& state) {
@@ -163,7 +167,17 @@ namespace part2 {
         A room A,B,C,D row 2,3,4,5 = 16 pos
         --------------------------------------------
         Total: 16+7 = 23 positions for 16 pods (leaving 7 positions free at any time)
-
+      */
+     for (auto const& [id,space] : state.spaces) {
+       auto moves = std::visit(PossibleMoves{state},space);
+       std::copy(moves.begin(),moves.end(),std::back_inserter(result));
+     }
+     return result;
+  }
+  std::vector<Move> apply_strategy(State const& state,std::vector<Move> candidate_moves) {
+    std::vector<Move> result{candidate_moves};
+    std::cout << "\napply_strategy NOP"; 
+     /*
         Lets get some feel of possible and impossible moves
 
         #############
@@ -187,15 +201,37 @@ namespace part2 {
         #.C.........# ok
         ### #D#A#B###
 
-        #xx.......xx# Free alcoves are always ok to move too! 
+        #xx.......xx# Always OK to pop into an alcove if there is room (will never block other pods)
         ### #D#A#B###
 
+        #...C.......# NOT ok! (We have to empty 4 occupnads in room C into only 3 non-blocking spots)
+        ### #D#A#B### General rule: If there are more wrong occupants in home room than unblocking spots to move to -> INVALID
+          #D#C#B#A#
+          #D#B#A#C#
+          #B#A#D#C#
+
+        #...C.......# NOT ok! (We have to empty 4 occupnads in room C into only 3 non-blocking spots)
+        ### #D#A#B###
+          #D#C#B#A#
+          #D#B#A#C#
+          #B#A#D#C#
+
+        AHA - There is only three spots between rooms.
+        *) Between A,B is INVALID if the count of wrong occupants in home > number of non-blocking spots for occupants to move to.
+
+        #.....C.....# NOT ok! (We have to empty 4 occupnads in room C into only 3 non-blocking spots)
+        ### #D#A#B###
+          #D#C#B#A#
+          #D#B#A#C#
+          #B#A#D#C#
+
+        #.......C...# Must empty A,B,A,D into 4 empty spots (potentially OK)
+        ### #D#A#B###
+          #D#C#B#A#
+          #D#B#A#C#
+          #B#A#D#C#
+
       */
-    return result;
-  }
-  std::vector<Move> apply_strategy(State const& state,std::vector<Move> candidate_moves) {
-    std::vector<Move> result{candidate_moves};
-    std::cout << "\napply_strategy NOP"; 
     return result;
   }
   using Memoized = std::map<State,std::optional<Cost>>;
@@ -209,7 +245,7 @@ namespace part2 {
     auto moves = apply_strategy(state,move_candidates);
     std::set<std::optional<Cost>> costs;
     for (auto const& move : moves) {
-      costs.insert(best(state.apply(move),end,memoized));
+      costs.insert(best(state.moved_to(move),end,memoized));
     }
     auto min_iter = std::min_element(costs.begin(),costs.end());
     if (min_iter != costs.end()) result = *min_iter;
