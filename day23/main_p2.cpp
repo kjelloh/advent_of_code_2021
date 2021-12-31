@@ -12,6 +12,7 @@
 #include <set>
 #include <memory>
 #include <variant>
+#include <stack>
 
 char const* pTest = R"(#############
 #...........#
@@ -58,29 +59,47 @@ namespace part1 {
 
 namespace part2 {
   using Cost = size_t;
+  enum class SpaceID {
+    unknown
+    ,left_alcove    // a stack
+    ,right_alcove   // a stack
+    ,between_rooms  // an array
+    ,Room_A         // A stack
+    ,Room_B         // a stack
+    ,Room_C         // a stack
+    ,Room_D         // a stack
+    ,undefined
+  };
   struct Pod {
-    char type;
+    SpaceID home;
     Cost spent;
     auto operator<=>(Pod const&) const = default;
   };  
-  enum class SpaceID {
-    unknown
-    ,Hallway
-    ,Room_A
-    ,Room_B
-    ,Room_C
-    ,Room_D
-    ,undefined
-  };
+  using Alcove = std::stack<Pod>;
+  using BetweenRooms = std::array<Pod,3>;
   struct Hallway {
-    std::array<int,7> coord{1,2,4,6,8,10,11};
-    std::map<int,std::shared_ptr<Pod>> pods;
+    Alcove left_alcove{},right_alcove{};
+    BetweenRooms between_rooms{};
     auto operator<=>(Hallway const&) const = default;
   };
-  struct Room {
-    std::array<int,4> coord{0,1,2,3};
-    std::map<int,Pod> pods;
+  class Room {
+    public:
+    Room& push(Pod const& pod) {
+      pods.push(pod);
+      if (this->space_id!=pod.home) wrong_occupants_count++;
+      return*this;
+    } 
+    Pod pop() {
+      Pod pod = pods.top();
+      pods.pop();
+      if (this->space_id!=pod.home) wrong_occupants_count--;
+      return pod;
+    } 
     auto operator<=>(Room const&) const = default;
+    private:
+    SpaceID space_id;
+    int wrong_occupants_count{0};
+    std::stack<Pod> pods;
   };
   using Space = std::variant<Hallway,Room>;
   struct Pos {
@@ -144,6 +163,33 @@ namespace part2 {
         A room A,B,C,D row 2,3,4,5 = 16 pos
         --------------------------------------------
         Total: 16+7 = 23 positions for 16 pods (leaving 7 positions free at any time)
+
+        Lets get some feel of possible and impossible moves
+
+        #############
+        #...........#
+        ###C#D#A#B###
+          #D#C#B#A#
+          #D#B#A#C#
+          #B#A#D#C#
+          #########
+
+          *) The pods at the bottom of each room matters! We see they are ALL in the wrong room.
+          *) At each move only 1) the top pod in the wrong room can move and 2) a pod in the hallway that can go home
+          *) Pods can't move a second time in the hallway.
+
+        So initially pod C,D,A and B can move out in the hallway.
+        Is there somewhere C can NOT move?
+
+        #C..........# ok
+        ### #D#A#B###
+
+        #.C.........# ok
+        ### #D#A#B###
+
+        #xx.......xx# Free alcoves are always ok to move too! 
+        ### #D#A#B###
+
       */
     return result;
   }
