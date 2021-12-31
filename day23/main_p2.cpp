@@ -82,6 +82,9 @@ namespace part2 {
   };
   class Room {
     public:
+    Pod const& top() const {
+      return pods.top();
+    }
     Room& push(Pod const& pod) {
       pods.push(pod);
       if (this->space_id!=pod.home) wrong_occupants_count++;
@@ -118,10 +121,47 @@ namespace part2 {
     }
   };
 
+  struct PossibleMovesFromRoom {
+    Room const& room;
+    State const& state;
+    std::vector<Move> operator()(Room const& room) const {
+      // Room to room
+      return {};}
+    std::vector<Move> operator()(Hallway const& hallway) const {
+      // Room to Hallway
+      return {};}
+  };
+
+  struct PossibleMovesFromHallway {
+    Hallway const& hallway;
+    State const& state;
+    std::vector<Move> operator()(Room const& room) const {
+      // Hallway to room
+
+      return {};}
+    std::vector<Move> operator()(Hallway const& hallway) const {
+      // Hallway to Hallway - none
+      return {};}
+  };
+
   struct PossibleMoves {
     State const& state;
-    std::vector<Move> operator()(Room const& room) const {return {};}
-    std::vector<Move> operator()(Hallway const& hallway) const {return {};}
+    std::vector<Move> operator()(Room const& room) const {
+      std::vector<Move> result{};
+      for (auto const& [id,space] : state.spaces) {
+        auto moves = std::visit(PossibleMovesFromRoom{room,state},space);
+        std::copy(moves.begin(),moves.end(),std::back_inserter(result));
+      }
+      return {};
+    }
+    std::vector<Move> operator()(Hallway const& hallway) const {
+      std::vector<Move> result{};
+      for (auto const& [id,space] : state.spaces) {
+        auto moves = std::visit(PossibleMovesFromHallway{hallway,state},space);
+        std::copy(moves.begin(),moves.end(),std::back_inserter(result));
+      }
+      return result;
+    }
   };
 
   std::vector<Move> possible_moves(State const& state) {
