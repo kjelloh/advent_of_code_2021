@@ -70,7 +70,7 @@ namespace part2 {
   };
   struct Pod {
     SpaceID home;
-    Cost spent;
+    Cost spent{};
     auto operator<=>(Pod const&) const = default;
   };  
   using Alcove = std::stack<Pod>;
@@ -82,6 +82,11 @@ namespace part2 {
   };
   class Room {
     public:
+    Room(std::initializer_list<SpaceID> il) {
+      for (auto const& id : il) {
+        this->push(Pod{id});
+      }
+    }
     SpaceID id() const {return this->room_id;}
     bool accept(Pod const& pod) const {
       return (wrong_occupants_count==0 and pod.home==this->room_id);
@@ -119,7 +124,20 @@ namespace part2 {
   };
   struct State {
     State(std::vector<std::string> tokens={}) {
+      if (tokens.size()>0) {
+        for (auto token : tokens) {
+          if (token.find('.')!=std::string::npos) continue;
+          if (token.find(' ')!=std::string::npos) {
 
+          }
+          else continue;
+        }
+      }
+      else {
+        for (auto id : {SpaceID::Room_A,SpaceID::Room_B,SpaceID::Room_C,SpaceID::Room_D}) {
+          spaces[id] = Room{id,id,id,id};
+        }
+      }
     }
     std::map<SpaceID,Space> spaces;
     auto operator<=>(const State&) const = default;
