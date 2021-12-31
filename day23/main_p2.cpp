@@ -74,7 +74,7 @@ namespace part2 {
     auto operator<=>(Pod const&) const = default;
   };  
   using Alcove = std::stack<Pod>;
-  using BetweenRooms = std::array<Pod,3>; // 0:between A,B, 1:between B,C 2: between C,D
+  using BetweenRooms = std::array<std::optional<Pod>,3>; // 0:between A,B, 1:between B,C 2: between C,D
   struct Hallway {
     Alcove left_alcove{},right_alcove{};
     BetweenRooms between_rooms{};
@@ -82,29 +82,32 @@ namespace part2 {
   };
   class Room {
     public:
+    bool accept(Pod const& pod) const {
+      return (wrong_occupants_count==0 and pod.home==this->room_id);
+    }
     Pod const& top() const {
       return pods.top();
     }
     Room& push(Pod const& pod) {
       pods.push(pod);
-      if (this->space_id!=pod.home) wrong_occupants_count++;
+      if (this->room_id!=pod.home) wrong_occupants_count++;
       return*this;
     } 
     Pod pop() {
       Pod pod = pods.top();
       pods.pop();
-      if (this->space_id!=pod.home) wrong_occupants_count--;
+      if (this->room_id!=pod.home) wrong_occupants_count--;
       return pod;
     } 
     auto operator<=>(Room const&) const = default;
     private:
-    SpaceID space_id;
+    SpaceID room_id;
     int wrong_occupants_count{0};
     std::stack<Pod> pods;
   };
   using Space = std::variant<Hallway,Room>;
   struct Pos {
-    Space space;
+    Space const& space;
     int coord;
     auto operator<=>(Pos const&) const = default;
   };
@@ -132,16 +135,53 @@ namespace part2 {
       return {};}
   };
 
+  bool free_path(Move const& move, State const& state) {
+    return false;
+  }
+
   struct PossibleMovesFromHallway {
     Hallway const& hallway;
     State const& state;
     std::vector<Move> operator()(Room const& room) const {
+      std::vector<Move> result{};
       // Hallway to room
+      for (auto const& [id,space] : state.spaces) {
+        if (std::holds_alternative<Room>(space)) {
+          auto const& room = std::get<Room>(space);
+          // Hallway to room?
+          if (hallway.left_alcove.size()>0) {
+            if (room.accept(hallway.left_alcove.top())) {
+              Pos from{hallway,static_cast<int>(hallway.left_alcove.size()-1)}; // hallway coord 0,1,2,...10
+              Pos to{room}; // room coord given by pod stack size
+              result.push_back(Move{from,to});
+            }
+          }
+          if (hallway.right_alcove.size()>0) {
+            if (room.accept(hallway.left_alcove.top())) {
+              Pos from{hallway,static_cast<int>(11-hallway.left_alcove.size())}; // hallway coord 0,1,2,...10
+              Pos to{room}; // room coord given by pod stack size
+              result.push_back(Move{from,to});
+            }
+          }
+          for (int i=0;i<hallway.between_rooms.size();i++) {            
+            if (hallway.between_rooms[i]) {
+              Pod pod = hallway.between_rooms[i].value();
+              if (room.accept(pod)) {
+                Pos from{hallway,3+2*i}; // i=0,1,2 => hallway coord 3,5,7
+                Pos to{room};
+                result.push_back(Move{from,to});
+              }
+            }
+          }
+        }
+      }
 
-      return {};}
+      return result;
+    }
     std::vector<Move> operator()(Hallway const& hallway) const {
       // Hallway to Hallway - none
-      return {};}
+      return {};
+    }
   };
 
   struct PossibleMoves {
