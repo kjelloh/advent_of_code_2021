@@ -106,6 +106,7 @@ namespace part2 {
       if (this->room_id!=pod.home) wrong_occupants_count--;
       return pod;
     } 
+    int occupant_count() const {return static_cast<int>(pods.size());}
     auto operator<=>(Room const&) const = default;
     private:
     SpaceID room_id;
@@ -126,18 +127,18 @@ namespace part2 {
     State(std::vector<std::string> tokens={}) {
       if (tokens.size()>0) {
         this->spaces[SpaceID::Hallway] = Hallway{};
+        std::vector<Room> rooms(4,Room{});
         for (auto token : tokens) {
-          if (token.find('.')!=std::string::npos) continue;
-          if (token.find(' ')!=std::string::npos) {
-            std::vector<Room> rooms(4,Room{});
-            std::vector<char> ids{};
-            std::copy_if(token.begin(),token.end(),std::back_inserter(ids),[](char ch){
-              return (ch>='A' and ch<='D');
-            });
-            for (int i=0;i<4;i++) rooms[i].push(Pod{static_cast<SpaceID>(ids[i]),0});
-            for (auto const& room : rooms) this->spaces[room.id()] = room;
-          }
-          else continue;
+          std::vector<char> ids{};
+          std::copy_if(token.begin(),token.end(),std::back_inserter(ids),[](char ch){
+            return (ch>='A' and ch<='D');
+          });
+          if (ids.size()!=0 and ids.size()!=4) std::cout << "\nERROR - Four room occupants not found";
+          for (int i=0;i<ids.size();i++) rooms[i].push(Pod{static_cast<SpaceID>(ids[i]),0});
+        }
+        for (auto const& room : rooms) {
+          if (room.occupant_count()!=4) std::cout << "\nERROR - Room does not have four occupants";
+          this->spaces[room.id()] = room;
         }
       }
       else {
@@ -406,7 +407,7 @@ namespace part2 {
     else std::cout << "\nFAILED - no best cost found";
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed_seconds = end_time-start_time;
-    std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";      
+    std::cout << "\nElapsed time: " << elapsed_seconds.count() << "s";      
     return result;
   }
 }
