@@ -125,10 +125,17 @@ namespace part2 {
   struct State {
     State(std::vector<std::string> tokens={}) {
       if (tokens.size()>0) {
+        this->spaces[SpaceID::Hallway] = Hallway{};
         for (auto token : tokens) {
           if (token.find('.')!=std::string::npos) continue;
           if (token.find(' ')!=std::string::npos) {
-
+            std::vector<Room> rooms(4,Room{});
+            std::vector<char> ids{};
+            std::copy_if(token.begin(),token.end(),std::back_inserter(ids),[](char ch){
+              return (ch>='A' and ch<='D');
+            });
+            for (int i=0;i<4;i++) rooms[i].push(Pod{static_cast<SpaceID>(ids[i]),0});
+            for (auto const& room : rooms) this->spaces[room.id()] = room;
           }
           else continue;
         }
