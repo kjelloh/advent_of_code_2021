@@ -42,8 +42,8 @@ namespace part1 {
 
 namespace part2 {
 char const* pTest0 = R"(#############
-#..........D#
-###A#B#C#.###
+#...........#
+###A#B#D#C###
   #A#B#C#D#
   #A#B#C#D#
   #A#B#C#D#
@@ -150,16 +150,18 @@ char const* pEnd = R"(#############
   using value_type = Move;
     MoveSelector(State const& _state) : state{_state} {}
     MoveSelector& push_back(Move const& move) {
-      if (!this->blocked_move(move) and !this->will_not_work(move)) this->moves.push_back(move);
-      // std::cout << "\npush_back count:" << moves.size();
+      std::cout << "\npush_back";
+      if (!this->blocked_move(move) and !this->will_not_work(move)) {
+        this->moves.push_back(move);
+        std::cout << "\npush_back count:" << moves.size();
+      }
       return *this;
     }
     std::vector<Move> selected() {
-      /*
+      
       std::cout << "\nselected:";
       for (auto move : moves) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
         << "->{" << move.to.row << "," << move.to.col << "}";
-        */
       return this->moves;
     }
   private:
@@ -169,7 +171,7 @@ char const* pEnd = R"(#############
       bool result{false};
       // Only pods at between room positions can block (given we only try to move to/from top pod in alcoves and rooms)
       for (auto col : BETWEEN_ROOMS) {
-        if (result = result or (std::min(move.from.col,move.to.col) < col and std::max(move.from.col,move.to.col) > col);result) break;
+        if (result = result or (state[1][col]!='.' and std::min(move.from.col,move.to.col) < col and std::max(move.from.col,move.to.col) > col);result) break;
       }
       return result;
     }
@@ -277,7 +279,7 @@ char const* pEnd = R"(#############
     std::vector<Cost> costs{};
     for (auto const& move : strategic_moves) {
       auto [cost,next_state] = next(state,move); 
-      if (auto next_cost = best(next_state);cost) costs.push_back(cost + next_cost.value());
+      if (auto next_cost = best(next_state);next_cost) costs.push_back(cost + next_cost.value());
     }
     if (auto iter = std::min_element(costs.begin(),costs.end());iter!=costs.end()) result=*iter;
     return result;
