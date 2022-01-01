@@ -418,7 +418,7 @@ namespace part2 {
         auto moves = std::visit(PossibleMovesFromRoom{room,state},space);
         std::copy(moves.begin(),moves.end(),std::back_inserter(result));
       }
-      return {};
+      return result;
     }
     std::vector<Move> operator()(Hallway const& hallway) const {
       std::vector<Move> result{};
@@ -432,7 +432,6 @@ namespace part2 {
 
   std::vector<Move> possible_moves(State const& state) {
     std::vector<Move> result{};
-    std::cout << "\npossible_moves NOT IMPLEMENTED";
       /*
       Amphipods will never stop on the space immediately outside any room. 
       They can move into that space so long as they immediately continue moving. 
@@ -474,10 +473,13 @@ namespace part2 {
         --------------------------------------------
         Total: 16+7 = 23 positions for 16 pods (leaving 7 positions free at any time)
       */
+     std::cout << "\npossible_moves";
      for (auto const& [id,space] : state.spaces) {
        auto moves = std::visit(PossibleMoves{state},space);
+       std::cout << "\nmoves count " << moves.size();
        std::copy(moves.begin(),moves.end(),std::back_inserter(result));
      }
+     std::cout << "\nresult count " << result.size();
      return result;
   }
   std::vector<Move> apply_strategy(State const& state,std::vector<Move> candidate_moves) {
