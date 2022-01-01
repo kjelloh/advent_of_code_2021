@@ -80,7 +80,7 @@ namespace part2 {
     auto operator<=>(Hallway const&) const = default;
   };
   class Room {
-    public:
+  public:
     Room(SpaceID id,std::vector<SpaceID> occupants) : room_id{id} {
       for (auto const& id : occupants) {
         this->push(Pod{id});
@@ -108,20 +108,36 @@ namespace part2 {
     } 
     int occupant_count() const {return static_cast<int>(pods.size());}
     auto operator<=>(Room const&) const = default;
-    private:
+  private:
     SpaceID room_id{};
     int wrong_occupants_count{0};
     std::stack<Pod> pods;
   };
   using Space = std::variant<Hallway,Room>;
   struct Pos {
-    Space const& space;
+    Space const space;
     int coord;
     auto operator<=>(Pos const&) const = default;
   };
   struct Move {
     Pos from,to;
     auto operator<=>(Move const&) const = default;
+  };
+  struct SpaceColumn {
+    int coord;
+    int operator()(Hallway const& hallway) const {
+      return coord;
+    }
+    int operator()(Room const& room) const {
+      int result{0};
+      switch (room.id()) {
+        case SpaceID::Room_A: result = 2;
+        case SpaceID::Room_B: result = 4;
+        case SpaceID::Room_C: result = 6;
+        case SpaceID::Room_D: result = 8;
+      }
+      return result;
+    }
   };
   struct State {
     State(std::vector<std::string> tokens={}) {
@@ -152,14 +168,42 @@ namespace part2 {
     std::map<SpaceID,Space> spaces;
     auto operator<=>(const State&) const = default;
     bool operator==(State const&) const = default;
-    bool free_path(Move const& move) const {
-      return false;
+    bool blocked_move(Move const& move) const {
+      bool result{false};
+      // Only pods in between rooms can block :) (given our model of rooms and alcoves as only top pod can be moved from/to)
+      // We can potentially move from top left alcove, right alocove, room A..D, between rooms 0,1,2 = 9 positions
+      // We can move to potentially 8 of the non moved positions.
+      // BUT - we must always move from or to a room redusing possible moves to max 4*hallway positions and min 4*3 room to room
+      // max 4*9=36 moves and min 4*3 = 12 moves
+      // of these most will be blocked by any pod in between rooms.
+      // Note: Blocking only happens between columns.
+      SpaceColumn space_column{move.from.coord};
+      int from_column = std::visit(space_column,move.from.space);
+      int to_column = std::visit(space_column,move.to.space);
+
+      Hallway hallway = std::get<Hallway>(this->spaces.at(SpaceID::Hallway));
+      if (hallway.between_rooms[0]) {
+        // A <-> B or D or D or between BC or between CD or left alcove blocked
+        result = result or (std::min(from_column,to_column)<3 and std::max(from_column,to_column)>3);
+      }      
+      if (hallway.between_rooms[1]) {
+        // A or B <-> Between BC or C or between CD or D or right alcove blocked
+        result = result or (std::min(from_column,to_column)<5 and std::max(from_column,to_column)>5);
+      }      
+      if (hallway.between_rooms[2]) {
+        // A,B,C <-> between CD or D or right alcove blocked
+        result = result or (std::min(from_column,to_column)<7 and std::max(from_column,to_column)>7);
+      }      
+      std::cout << "\nblocked_move column " << from_column << "->" << to_column;
+      if (result) std::cout << " BLOCKED";
+      else std::cout << " free";
+      return result;
     }
 
     State moved_to(Move const& move) const {
       std::cout << "\nmoved_to";
-      State result{*this};
-      if (!this->free_path(move)) std::cout << "\nERROR - can't make a blocked move";
+      State result{*this};      
+      if (this->blocked_move(move)) std::cout << "\nERROR - can't make a blocked move";
       // We shall remove the pod from move.from.space and put it at move.to.space
       if (std::holds_alternative<Hallway>(move.from.space)) {
         Hallway from = std::get<Hallway>(move.from.space);        
@@ -172,7 +216,8 @@ namespace part2 {
         }
       }
       else if (std::holds_alternative<Room>(move.from.space)) {
-        Room from = std::get<Room>(move.from.space);
+        auto id = std::get<Room>(move.from.space).id();
+        Room& from = std::get<Room>(result.spaces[id]);
         Pod pod = from.top();
         from.pop();
         if (std::holds_alternative<Room>(move.to.space)) {
@@ -180,7 +225,7 @@ namespace part2 {
           std::cout << "\nmove room to room NOT YET IMPLEMENTED";
         }
         else if (std::holds_alternative<Hallway>(move.to.space)) {
-          Hallway to = std::get<Hallway>(move.from.space);
+          Hallway& to = std::get<Hallway>(result.spaces[SpaceID::Hallway]);
           std::cout << "\nmove room to hallway";
           switch (move.to.coord) {
             case 0: 
@@ -546,6 +591,8 @@ namespace part2 {
   
   // Recursive "find the lowest cost to re-arrange pods to reach end state"
   std::optional<Cost> best(State const& state,State const& end,Memoized& memoized) {
+    static int call_count{0};
+    if (++call_count>2) return std::nullopt;
     std::cout << "\n\nbest";
     std::cout << state;
     std::optional<Cost> result;
