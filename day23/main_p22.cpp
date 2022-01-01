@@ -9,15 +9,11 @@
 char const* pTest = R"(#############
 #...........#
 ###B#C#B#D###
-  #D#C#B#A#
-  #D#B#A#C#
   #A#D#C#A#
-  #########";
+  #########)";
 char const* pData = R"(#############
 #...........#
 ###C#D#A#B###
-  #D#C#B#A#
-  #D#B#A#C#
   #B#A#D#C#
   #########)";
 
@@ -45,13 +41,21 @@ namespace part1 {
 }
 
 namespace part2 {
+char const* pTest0 = R"(#############
+#..........D#
+###A#B#C#.###
+  #A#B#C#D#
+  #A#B#C#D#
+  #A#B#C#D#
+  #########)";
+
 char const* pTest = R"(#############
 #...........#
 ###B#C#B#D###
   #D#C#B#A#
   #D#B#A#C#
   #A#D#C#A#
-  #########";
+  #########)";
 char const* pData = R"(#############
 #...........#
 ###C#D#A#B###
@@ -71,6 +75,7 @@ char const* pEnd = R"(#############
   using Map = std::vector<std::string>;
   struct Pos {
     int row,col;
+    bool operator==(Pos const&) const = default;
   };
   struct Move {
     Pos from,to;
@@ -116,53 +121,102 @@ char const* pEnd = R"(#############
     }
     return result;
   }
+  bool is_home( Pos const& pos,State const& state) {
+    bool result{true};
+    if (pos.row==1) return false;
+    char type = 'A'+(pos.col-3)/2;
+    for (auto row : ROOM_ROWS) {
+      char ch=state[row][pos.col];
+      if (result = result and (ch =='.' or ch==type);!result) break;
+    }
+    return result;
+  }
   std::optional<Pos> home_pos(char type,State const& state) {
     std::optional<Pos> result{};
     bool home_pos_exist{true};
     int col = 3+(type-'A')*2;
     for (auto row : ROOM_ROWS) {
       char ch=state[row][col];
-      if (ch==' ') {
+      if (ch=='.') {
         result = Pos{row,col};
         continue;
       }
       if (home_pos_exist = home_pos_exist and (ch==type);!home_pos_exist) break;
     }
     return result;
-  }  
+  }
+  class MoveSelector {
+  public:
+  using value_type = Move;
+    MoveSelector(State const& _state) : state{_state} {}
+    MoveSelector& push_back(Move const& move) {
+      if (!this->blocked_move(move) and !this->will_not_work(move)) this->moves.push_back(move);
+      // std::cout << "\npush_back count:" << moves.size();
+      return *this;
+    }
+    std::vector<Move> selected() {
+      /*
+      std::cout << "\nselected:";
+      for (auto move : moves) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
+        << "->{" << move.to.row << "," << move.to.col << "}";
+        */
+      return this->moves;
+    }
+  private:
+    std::vector<Move> moves{};
+    State const& state;
+    bool blocked_move(Move const& move) {
+      bool result{false};
+      // Only pods at between room positions can block (given we only try to move to/from top pod in alcoves and rooms)
+      for (auto col : BETWEEN_ROOMS) {
+        if (result = result or (std::min(move.from.col,move.to.col) < col and std::max(move.from.col,move.to.col) > col);result) break;
+      }
+      return result;
+    }
+    bool will_not_work(Move const& move) {
+      bool result{false};
+      // TODO: Find some way to optimise away moves that will not work!
+      return result;
+    }
+
+  };
   std::vector<Pos> expand_from(State const& state, Pos const& pos) {
     std::vector<Pos> result;
-    if (pos.row>1) {
-      // room to room
-      auto home = home_pos(state[pos.row][pos.col],state);
-      if (home) result.push_back(home.value());
-      // room to hallway
-    }
-    else {
-      // hallway to room
-      for (auto col : LEFT_ALCOVE) {
-
+    auto home = home_pos(state[pos.row][pos.col],state);
+    if (home) result.push_back(home.value()); // prefer go home
+    else if (pos.row>1) {
+      // room to left alcove
+      if (state[1][1]=='.') {
+          result.push_back(Pos{1,1});
+        if (state[1][0]=='.') {
+          result.push_back(Pos{1,0});
+        }
       }
-      for (auto col : RIGHT_ALCOVE) {
-
+      // room to right alcove
+      if (state[1][10]=='.') {
+          result.push_back(Pos{1,10});
+        if (state[1][11]=='.') {
+          result.push_back(Pos{1,11});
+        }
       }
+      // Room to between rooms
       for (auto col : BETWEEN_ROOMS) {
-
+        if (state[1][col]=='.') result.push_back(Pos{1,col});
       }
     }
     return result;
   }
   std::vector<Move> expand(State const& state) {
-    std::vector<Move> result;
-    std::vector<Pos> froms{};
+    MoveSelector move_selector{state};
     for (auto col : ROOM_COLUMNS) {
       for (auto row : ROOM_ROWS) {
+        if (is_home(Pos{row,col},state)) break;;
         auto ch = state[row][col];
         if (ch>='A' and ch <='D') {
           Pos from{row,col};
-          auto tos = expand_from(state,from);
-          std::transform(tos.begin(),tos.end(),std::back_inserter(result),[&from](Pos const& to){
-            return Move{to,from};
+          auto tos = expand_from(state,from);          
+          std::transform(tos.begin(),tos.end(),std::back_inserter(move_selector),[&from](Pos const& to){
+            return Move{from,to};
           });
           break;
         }
@@ -171,20 +225,61 @@ char const* pEnd = R"(#############
     for (auto col : HALLWAY_COLUMNS) {
         auto ch = state[1][col];
         if (ch>='A' and ch <='D') {
-          froms.push_back(Pos{1,col});
+          Pos from{1,col};
+          auto tos = expand_from(state,from);          
+          std::transform(tos.begin(),tos.end(),std::back_inserter(move_selector),[&from](Pos const& to){
+            return Move{from,to};
+          });
           break;
         }
     }
-    std::cout << "\ncandidates:";
-    for (auto move : result) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
-      << "->{" << move.to.row << "," << move.to.col << "}";
-
+    return move_selector.selected();
+  }
+  std::ostream& operator<<(std::ostream& os,State state) {
+    os << "\n";
+    for (auto row : state) {
+      os << "\n" << row;
+    }
+    return os;
+  }
+  
+  std::vector<Move> apply_strategy(std::vector<Move> const& potential_moves,State const& state) {
+    std::vector<Move> result{potential_moves};
     return result;
   }
+  std::pair<Cost,State> next(State const& state,Move const& move) {
+    State stepped_state{state};
+    char ch = stepped_state[move.from.row][move.from.col]; 
+    stepped_state[move.from.row][move.from.col] = '.';
+    stepped_state[move.to.row][move.to.col] = ch;
+    int step_cost{0};
+    switch (ch) {
+      case 'A':step_cost=1;break;
+      case 'B':step_cost=10;break;
+      case 'C':step_cost=100;break;
+      case 'D':step_cost=1000;break;
+    }
+    int dr{0};
+    if (move.from.row>1 and move.to.row>1) dr = (move.from.row-1) + (move.to.row-1);
+    int dc = std::abs(move.to.col-move.from.col);
+    Cost cost = step_cost*(dc+dr);
+    return {cost,stepped_state};
+  }
   std::optional<Cost> best(State const& state) {
+    static int call_count{0};
     std::optional<Cost> result{};
+    ++call_count;
+    // if (call_count>10000) return result;
+    if (call_count%1000) std::cout << "\n" << call_count << state;
     if (is_end_state(state)) return 0;
-    auto moves = expand(state);
+    auto potential_moves = expand(state);
+    auto strategic_moves = apply_strategy(potential_moves,state);
+    std::vector<Cost> costs{};
+    for (auto const& move : strategic_moves) {
+      auto [cost,next_state] = next(state,move); 
+      if (auto next_cost = best(next_state);cost) costs.push_back(cost + next_cost.value());
+    }
+    if (auto iter = std::min_element(costs.begin(),costs.end());iter!=costs.end()) result=*iter;
     return result;
   }
   Result solve_for(char const* pData) {
@@ -204,7 +299,8 @@ int main(int argc, char *argv[])
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
   // answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest)});
+  answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest0)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
