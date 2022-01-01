@@ -72,7 +72,7 @@ namespace part2 {
     SpaceID home;
     auto operator<=>(Pod const&) const = default;
   };  
-  using Alcove = std::stack<Pod>;
+  using Alcove = std::stack<std::optional<Pod>>; // allow for no pod in botom of alcove
   using BetweenRooms = std::array<std::optional<Pod>,3>; // 0:between A,B, 1:between B,C 2: between C,D
   struct Hallway {
     Alcove left_alcove{},right_alcove{};
@@ -90,6 +90,7 @@ namespace part2 {
     bool accept(Pod const& pod) const {
       return (wrong_occupants_count==0 and pod.home==this->room_id);
     }
+    int size() {return static_cast<int>(pods.size());}
     bool has_wrong_occupants() const {return wrong_occupants_count>0;}
     Pod const& top() const {
       return pods.top();
@@ -151,10 +152,164 @@ namespace part2 {
     std::map<SpaceID,Space> spaces;
     auto operator<=>(const State&) const = default;
     bool operator==(State const&) const = default;
+    bool free_path(Move const& move) const {
+      return false;
+    }
+
     State moved_to(Move const& move) const {
-      return *this;
+      std::cout << "\nmoved_to";
+      State result{*this};
+      if (!this->free_path(move)) std::cout << "\nERROR - can't make a blocked move";
+      // We shall remove the pod from move.from.space and put it at move.to.space
+      if (std::holds_alternative<Hallway>(move.from.space)) {
+        Hallway from = std::get<Hallway>(move.from.space);        
+        if (std::holds_alternative<Room>(move.to.space)) {
+          std::cout << "\nhallway to room - NOT YET IMPLEMENTED";
+          Room to = std::get<Room>(move.to.space);
+        }
+        else if (std::holds_alternative<Hallway>(move.to.space)) {
+          std::cout << "\nERROR - move from hallway to hallway ??";
+        }
+      }
+      else if (std::holds_alternative<Room>(move.from.space)) {
+        Room from = std::get<Room>(move.from.space);
+        Pod pod = from.top();
+        from.pop();
+        if (std::holds_alternative<Room>(move.to.space)) {
+          Room to = std::get<Room>(move.to.space);
+          std::cout << "\nmove room to room NOT YET IMPLEMENTED";
+        }
+        else if (std::holds_alternative<Hallway>(move.to.space)) {
+          Hallway to = std::get<Hallway>(move.from.space);
+          std::cout << "\nmove room to hallway";
+          switch (move.to.coord) {
+            case 0: 
+              if (to.left_alcove.size()!=0) std::cout << "\nERROR - move to left alcove 0. Is blocked/occupied";
+              if (to.left_alcove.size()==0) to.left_alcove.push(pod); 
+              break;
+            case 1:
+              if (to.left_alcove.size()>1) std::cout << "\nERROR - move to left alcove 1. Is occupied";
+              if (to.left_alcove.size()==0) to.left_alcove.push(std::nullopt);
+              to.left_alcove.push(pod); 
+              break;
+            case 3: 
+              if (to.between_rooms[0]) std::cout << "\nERROR - move to between rooms AB. Is occupied";
+              if (!to.between_rooms[0]) to.between_rooms[0] = pod;
+              break;
+            case 5: 
+              if (to.between_rooms[1]) std::cout << "\nERROR - move to between rooms BC. Is occupied";
+              if (!to.between_rooms[1]) to.between_rooms[1] = pod;
+              break;
+            case 7: 
+              if (to.between_rooms[2]) std::cout << "\nERROR - move to between rooms CD. Is occupied";
+              if (!to.between_rooms[2]) to.between_rooms[2] = pod;
+              break;
+            case 9: 
+              if (to.right_alcove.size()>1) std::cout << "\nERROR - move to right alcove 1. Is occupied";
+              if (to.right_alcove.size()==0) to.right_alcove.push(std::nullopt);
+              to.right_alcove.push(pod); 
+              break;
+            case 10: 
+              if (to.right_alcove.size()!=0) std::cout << "\nERROR - move to right alcove 0. Is blocked/occupied";
+              if (to.right_alcove.size()==0) to.right_alcove.push(pod); 
+              break;
+            default: std::cout << "\nERROR - move.to.coord " << move.to.coord;
+          }
+        }
+      }
+      else std::cout << "\nERROR - move from space??";
+      return result;
     }
   };
+
+  std::ostream& operator<<(std::ostream& os,State const& state) {
+    std::string hallway_s{"           "};
+    std::vector<std::string> rooms_s(5,"           ");
+    for (auto const& [id,space] : state.spaces) {
+      switch (id) {
+        case SpaceID::Hallway: {
+          Hallway hallway = std::get<Hallway>(space);
+          if (hallway.left_alcove.size()==0) {
+            hallway_s[0]='.';
+            hallway_s[1]='.';
+          }
+          else if (hallway.left_alcove.size()==1) {
+            if (hallway.left_alcove.top()) hallway_s[0] = static_cast<char>(hallway.left_alcove.top().value().home);
+            hallway_s[1] = '.';
+          }
+          else if (hallway.left_alcove.size()==2) {
+            if (hallway.left_alcove.top()) hallway_s[1] = static_cast<char>(hallway.left_alcove.top().value().home);
+            hallway_s[0] = '?';
+          }
+          if (hallway.between_rooms[0]) hallway_s[3] = static_cast<char>(hallway.between_rooms[0].value().home);
+          else hallway_s[3] = '.';
+          if (hallway.between_rooms[1]) hallway_s[5] = static_cast<char>(hallway.between_rooms[0].value().home);
+          else hallway_s[5] = '.';
+          if (hallway.between_rooms[2]) hallway_s[7] = static_cast<char>(hallway.between_rooms[0].value().home);
+          else hallway_s[7] = '.';
+          if (hallway.right_alcove.size()==0) {
+            hallway_s[9]='.';
+            hallway_s[10]='.';
+          }
+          else if (hallway.right_alcove.size()==1) {
+            if (hallway.left_alcove.top()) hallway_s[10] = static_cast<char>(hallway.left_alcove.top().value().home);
+            hallway_s[9] = '.';
+          }
+          else if (hallway.right_alcove.size()==2) {
+            if (hallway.left_alcove.top()) hallway_s[9] = static_cast<char>(hallway.left_alcove.top().value().home);
+            hallway_s[10] = '?';
+          }
+        }
+        break;
+        case SpaceID::Room_A: {
+          Room room = std::get<Room>(space);
+          for (int i=0;i<4;i++) {
+            if (i<4-room.size()) rooms_s[i][2] = '.';
+            else if (i==4-room.size()) rooms_s[i][2] = static_cast<char>(room.top().home);
+            else rooms_s[i][2] = '?';
+          }
+          rooms_s[4][2] = (room.has_wrong_occupants())?'!':'=';
+        }
+        break;
+        case SpaceID::Room_B: {
+          Room room = std::get<Room>(space);
+          for (int i=0;i<4;i++) {
+            if (i<4-room.size()) rooms_s[i][4] = '.';
+            else if (i==4-room.size()) rooms_s[i][4] = static_cast<char>(room.top().home);
+            else rooms_s[i][4] = '?';
+          }
+          rooms_s[4][4] = (room.has_wrong_occupants())?'!':'=';
+        }
+        break;
+        case SpaceID::Room_C: {
+          Room room = std::get<Room>(space);
+          for (int i=0;i<4;i++) {
+            if (i<4-room.size()) rooms_s[i][6] = '.';
+            else if (i==4-room.size()) rooms_s[i][6] = static_cast<char>(room.top().home);
+            else rooms_s[i][6] = '?';
+          }
+          rooms_s[4][6] = (room.has_wrong_occupants())?'!':'=';
+        }
+        break;
+        case SpaceID::Room_D: {
+          Room room = std::get<Room>(space);
+          for (int i=0;i<4;i++) {
+            if (i<4-room.size()) rooms_s[i][8] = '.';
+            else if (i==4-room.size()) rooms_s[i][8] = static_cast<char>(room.top().home);
+            else rooms_s[i][8] = '?';
+          }
+          rooms_s[4][8] = (room.has_wrong_occupants())?'!':'=';
+        }
+        break;
+        default: std::cout << "\nERROR - can't os << ??space?? ";
+      }
+    }
+    os << "\n" << hallway_s;
+    for (auto const& row : rooms_s) {
+      os << "\n" << row;
+    } 
+    return os;
+  }
 
   struct PossibleMovesFromRoom {
     Room const& room;
@@ -177,20 +332,20 @@ namespace part2 {
           case SpaceID::Room_B:
           case SpaceID::Room_C:
           case SpaceID::Room_D: {
-            if (hallway.left_alcove.size()<2) {
-              std::cout << "\nleft alcove has space";
-              Pos to{hallway,static_cast<int>(hallway.left_alcove.size()-1)};
+            for (int i=0;i<2-hallway.left_alcove.size();i++) {
+              std::cout << "\nMove to left alcove " << i;
+              Pos to{hallway,i};
               result.push_back(Move{Pos{room},to});
             }
-            if ((hallway.right_alcove.size()<2)) {
-              std::cout << "\nright alcove has space";
-              Pos to{hallway,static_cast<int>(11-hallway.right_alcove.size())};
+            for (int i=0;i<2-hallway.right_alcove.size();i++) {
+              std::cout << "\nMove to right alcove " << i;
+              Pos to{hallway,11-i};
               result.push_back(Move{Pos{room},to});
             }
             for (int i=0;i<hallway.between_rooms.size();i++) {
               auto pod = hallway.between_rooms[i];
               if (!pod) {
-                std::cout << "\nbetween room has space";
+                std::cout << "\nMove to between rooms " << i;
                 Pos to{hallway,3+2*i};
                 result.push_back(Move{Pos{room},to});
               }
@@ -206,10 +361,6 @@ namespace part2 {
     }
   };
 
-  bool free_path(Move const& move, State const& state) {
-    return false;
-  }
-
   struct PossibleMovesFromHallway {
     Hallway const& hallway;
     State const& state;
@@ -222,14 +373,16 @@ namespace part2 {
           auto const& room = std::get<Room>(space);
           // Hallway to room?
           if (hallway.left_alcove.size()>0) {
-            if (room.accept(hallway.left_alcove.top())) {
+            if (!hallway.left_alcove.top()) std::cout << "\nERROR - top Pod in left alcove is NULL";
+            if (room.accept(hallway.left_alcove.top().value())) {
               Pos from{hallway,static_cast<int>(hallway.left_alcove.size()-1)}; // hallway coord 0,1,2,...10
               Pos to{room}; // room coord given by pod stack size
               result.push_back(Move{from,to});
             }
           }
           if (hallway.right_alcove.size()>0) {
-            if (room.accept(hallway.left_alcove.top())) {
+            if (!hallway.right_alcove.top()) std::cout << "\nERROR - top Pod in right alcove is NULL";
+            if (room.accept(hallway.left_alcove.top().value())) {
               Pos from{hallway,static_cast<int>(11-hallway.left_alcove.size())}; // hallway coord 0,1,2,...10
               Pos to{room}; // room coord given by pod stack size
               result.push_back(Move{from,to});
@@ -391,6 +544,8 @@ namespace part2 {
   
   // Recursive "find the lowest cost to re-arrange pods to reach end state"
   std::optional<Cost> best(State const& state,State const& end,Memoized& memoized) {
+    std::cout << "\n\nbest";
+    std::cout << state;
     std::optional<Cost> result;
     if (memoized.find(state) != memoized.end()) return memoized[state];
     if (state==end) return 0;
