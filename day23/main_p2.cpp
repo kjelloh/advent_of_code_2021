@@ -70,7 +70,6 @@ namespace part2 {
   };
   struct Pod {
     SpaceID home;
-    Cost spent{};
     auto operator<=>(Pod const&) const = default;
   };  
   using Alcove = std::stack<Pod>;
@@ -82,8 +81,8 @@ namespace part2 {
   };
   class Room {
     public:
-    Room(std::initializer_list<SpaceID> il) {
-      for (auto const& id : il) {
+    Room(SpaceID id,std::vector<SpaceID> occupants) : room_id{id} {
+      for (auto const& id : occupants) {
         this->push(Pod{id});
       }
     }
@@ -109,7 +108,7 @@ namespace part2 {
     int occupant_count() const {return static_cast<int>(pods.size());}
     auto operator<=>(Room const&) const = default;
     private:
-    SpaceID room_id;
+    SpaceID room_id{};
     int wrong_occupants_count{0};
     std::stack<Pod> pods;
   };
@@ -125,16 +124,18 @@ namespace part2 {
   };
   struct State {
     State(std::vector<std::string> tokens={}) {
+      this->spaces[SpaceID::Hallway] = Hallway{};
       if (tokens.size()>0) {
-        this->spaces[SpaceID::Hallway] = Hallway{};
-        std::vector<Room> rooms(4,Room{});
-        for (auto token : tokens) {
+        std::vector<Room> rooms{{SpaceID::Room_A,{}},{SpaceID::Room_B,{}},{SpaceID::Room_C,{}},{SpaceID::Room_D,{}}};
+
+        for (int tix=tokens.size()-1;tix>=0;tix--) {
+          auto token = tokens[tix]; // reverse iteration to push pods into rooms in correct LIFO order
           std::vector<char> ids{};
           std::copy_if(token.begin(),token.end(),std::back_inserter(ids),[](char ch){
             return (ch>='A' and ch<='D');
           });
           if (ids.size()!=0 and ids.size()!=4) std::cout << "\nERROR - Four room occupants not found";
-          for (int i=0;i<ids.size();i++) rooms[i].push(Pod{static_cast<SpaceID>(ids[i]),0});
+          for (int i=0;i<ids.size();i++) rooms[i].push(Pod{static_cast<SpaceID>(ids[i])});
         }
         for (auto const& room : rooms) {
           if (room.occupant_count()!=4) std::cout << "\nERROR - Room does not have four occupants";
@@ -143,7 +144,7 @@ namespace part2 {
       }
       else {
         for (auto id : {SpaceID::Room_A,SpaceID::Room_B,SpaceID::Room_C,SpaceID::Room_D}) {
-          spaces[id] = Room{id,id,id,id};
+          spaces[id] = Room{id,{id,id,id,id}};
         }
       }
     }
@@ -160,31 +161,47 @@ namespace part2 {
     State const& state;
     std::vector<Move> operator()(Room const& room) const {
       // Room to room
-      return {};}
-    std::vector<Move> operator()(Hallway const& hallway) const {
-      // Room to Hallway
       std::vector<Move> result{};
+      std::cout << "\nroom->room NOT IMPLEMENTED";
+      std::cout << "\nresult.size() = " << result.size();
+      return result;
+    }
+    std::vector<Move> operator()(Hallway const& hallway) const {
+      std::vector<Move> result{};
+      // Room to Hallway
+      std::cout << "\nroom->hallway";
       if (room.has_wrong_occupants()) {
+        std::cout << "\nhas wrong occupants";
         switch (room.id()) {
-          case SpaceID::Room_A: {
+          case SpaceID::Room_A:
+          case SpaceID::Room_B:
+          case SpaceID::Room_C:
+          case SpaceID::Room_D: {
             if (hallway.left_alcove.size()<2) {
+              std::cout << "\nleft alcove has space";
               Pos to{hallway,static_cast<int>(hallway.left_alcove.size()-1)};
               result.push_back(Move{Pos{room},to});
             }
-            if ((hallway.right_alcove.size()<2) and !hallway.between_rooms[0] and !hallway.between_rooms[1] and !hallway.between_rooms[2]) {
+            if ((hallway.right_alcove.size()<2)) {
+              std::cout << "\nright alcove has space";
               Pos to{hallway,static_cast<int>(11-hallway.right_alcove.size())};
               result.push_back(Move{Pos{room},to});
             }
             for (int i=0;i<hallway.between_rooms.size();i++) {
               auto pod = hallway.between_rooms[i];
-              if (pod) {
+              if (!pod) {
+                std::cout << "\nbetween room has space";
                 Pos to{hallway,3+2*i};
                 result.push_back(Move{Pos{room},to});
               }
             }
           } break;
+          default:
+            std::cout << "\nRoom ID??";
+            break;
         }
       }
+      std::cout << "\nresult.size() = " << result.size();
       return result;
     }
   };
@@ -199,6 +216,7 @@ namespace part2 {
     std::vector<Move> operator()(Room const& room) const {
       std::vector<Move> result{};
       // Hallway to room
+      std::cout << "\nhallway->room";
       for (auto const& [id,space] : state.spaces) {
         if (std::holds_alternative<Room>(space)) {
           auto const& room = std::get<Room>(space);
@@ -229,11 +247,12 @@ namespace part2 {
           }
         }
       }
-
+      std::cout << "\nresult.size() = " << result.size();
       return result;
     }
     std::vector<Move> operator()(Hallway const& hallway) const {
       // Hallway to Hallway - none
+      std::cout << "\nhallway->hallway NOP";
       return {};
     }
   };
