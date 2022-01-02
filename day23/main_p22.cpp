@@ -46,10 +46,10 @@ namespace part2 {
 std::vector<std::string> pTestStates{
   R"(#############
 #...........#
-###A#B#D#C###
-  #A#B#C#D#
-  #A#B#C#D#
-  #A#B#C#D#
+###B#C#B#D###
+  #D#C#B#A#
+  #D#B#A#C#
+  #A#D#C#A#
   #########)"
   ,R"(#############
 #..........D#
@@ -342,7 +342,7 @@ char const* pEnd = R"(#############
       else if (home_pos_exist = home_pos_exist and (ch == '.' or ch==type);!home_pos_exist) break;
     }
     if (home_pos_exist) result = pos;
-    if (result) std::cout << " " << type << " has home";
+    // if (result) std::cout << " " << type << " has home";
     return result;
   }
   Cost move_cost(char type,Move const& move) {
@@ -367,10 +367,10 @@ char const* pEnd = R"(#############
     MoveSelector(std::pair<State,Cost> const& state_cost) : m_state_cost{state_cost} {}
     MoveSelector& push_back(Move const& move) {
       auto& [state,cost] = m_state_cost;
-      std::cout << "\npush_back";
+      // std::cout << "\npush_back";
       if (!this->blocked_move(move) and !this->will_not_work(move)) {
         this->steps.push_back({move,move_cost(state[move.from.row][move.from.col],move)});
-        std::cout << "\npush_back count:" << steps.size();
+        // std::cout << "\npush_back count:" << steps.size();
       }
       return *this;
     }
@@ -391,7 +391,7 @@ char const* pEnd = R"(#############
       for (auto col : BETWEEN_ROOMS) {
         if (result = result or (state[1][col]!='.' and std::min(move.from.col,move.to.col) < col and std::max(move.from.col,move.to.col) > col);result) break;
       }
-      if (result) std::cout << " blocked " << move;
+      // if (result) std::cout << " blocked " << move;
       return result;
     }
     bool will_not_work(Move const& move) {
@@ -404,11 +404,11 @@ char const* pEnd = R"(#############
   };
   std::vector<std::pair<Move,Cost>> expand_from(std::pair<State,Cost> const& state_cost, Pos const& pos) {
     MoveSelector move_selector{state_cost};
-    std::cout << "\nexpand_from {" << pos.row << "," << pos.col << "}";
+    // std::cout << "\nexpand_from {" << pos.row << "," << pos.col << "}";
     auto& [state,cost] = state_cost;
     auto home = home_pos(state[pos.row][pos.col],state);
     if (home) {
-      std::cout << "\npushed home";
+      // std::cout << "\npushed home";
       move_selector.push_back({pos,home.value()}); // prefer go home
     }
     else if (pos.row>1) {
@@ -554,16 +554,16 @@ char const* pEnd = R"(#############
       auto init_state = parse(in);
       std::stringstream end_in{ pEnd };
       auto end_state = parse(end_in);
-      // for (int i=1;i<pTestStates.size();i++) {
-      for (int i=10;i<11;i++) {
+      for (int i=1;i<pTestStates.size();i++) {
+      // for (int i=10;i<11;i++) {
         std::cout << "\n\nTEST " << i;
         std::stringstream in{ pTestStates[i-1] };
         auto init_state = parse(in);
-        std::stringstream end_state_in{pTestStates[i]};
-        auto test_state = parse(end_state_in);
+        std::stringstream end_in{pTestStates[i]};
+        auto end_state = parse(end_in);
         Visited visited{};
         try {
-          auto cost = best(0,{init_state,0},test_state,visited);
+          auto cost = best(0,{init_state,0},end_state,visited);
           if (cost) result = cost.value();
           else std::cout << "\nFAILED - No best cost found";
         }
