@@ -339,10 +339,10 @@ char const* pEnd = R"(#############
     for (auto row : ROOM_ROWS) {
       char ch=state[row][col];
       if (ch=='.') pos = {row,col};
-      else if (home_pos_exist = home_pos_exist and (ch==type);!home_pos_exist) break;
+      else if (home_pos_exist = home_pos_exist and (ch == '.' or ch==type);!home_pos_exist) break;
     }
     if (home_pos_exist) result = pos;
-    // if (result) std::cout << type << " has home";
+    if (result) std::cout << " " << type << " has home";
     return result;
   }
   Cost move_cost(char type,Move const& move) {
@@ -376,9 +376,9 @@ char const* pEnd = R"(#############
     }
     std::vector<std::pair<Move,Cost>> selected() {    
       auto& [state,cost] = m_state_cost;
-      std::cout << "\nselected:";
-      for (auto& [move,cost] : steps) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
-        << "->{" << move.to.row << "," << move.to.col << "}";
+      // std::cout << "\nselected:";
+      // for (auto& [move,cost] : steps) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
+      //   << "->{" << move.to.row << "," << move.to.col << "}";
       return this->steps;
     }
   private:
@@ -391,7 +391,7 @@ char const* pEnd = R"(#############
       for (auto col : BETWEEN_ROOMS) {
         if (result = result or (state[1][col]!='.' and std::min(move.from.col,move.to.col) < col and std::max(move.from.col,move.to.col) > col);result) break;
       }
-      // if (result) std::cout << " blocked " << move;
+      if (result) std::cout << " blocked " << move;
       return result;
     }
     bool will_not_work(Move const& move) {
@@ -404,9 +404,13 @@ char const* pEnd = R"(#############
   };
   std::vector<std::pair<Move,Cost>> expand_from(std::pair<State,Cost> const& state_cost, Pos const& pos) {
     MoveSelector move_selector{state_cost};
+    std::cout << "\nexpand_from {" << pos.row << "," << pos.col << "}";
     auto& [state,cost] = state_cost;
     auto home = home_pos(state[pos.row][pos.col],state);
-    if (home) move_selector.push_back({pos,home.value()}); // prefer go home
+    if (home) {
+      std::cout << "\npushed home";
+      move_selector.push_back({pos,home.value()}); // prefer go home
+    }
     else if (pos.row>1) {
       // room to left alcove
       if (state[1][2]=='.') {
@@ -455,7 +459,6 @@ char const* pEnd = R"(#############
           Pos from{1,col};
           auto moves = expand_from(state_cost,from);
           std::copy(moves.begin(),moves.end(),std::back_inserter(result));
-          break;
         }
     }
     return result;
@@ -484,8 +487,8 @@ char const* pEnd = R"(#############
       // Prefer alcoves before blocking hallway positions
       if (move1.to.row==1) heuristic1 += 100+((move1.to.col<3)?10:0)+((move1.to.col>9)?10:0); 
       if (move2.to.row==1) heuristic2 += 100+((move2.to.col<3)?10:0)+((move2.to.col>9)?10:0);
-      if (heuristic1>heuristic2) std::cout << "\n" << step1 << " h:" << heuristic1 << " before " << step2 << " h:" << heuristic2;
-      else std::cout << "\n" << step2 << " h:" << heuristic2 << " before " << step1 << " h:" << heuristic1;
+      // if (heuristic1>heuristic2) std::cout << "\n" << step1 << " h:" << heuristic1 << " before " << step2 << " h:" << heuristic2;
+      // else std::cout << "\n" << step2 << " h:" << heuristic2 << " before " << step1 << " h:" << heuristic1;
       return heuristic1>heuristic2; // prefer steps with highest heuristic
     });
     // std::cout << "\nstrategic: ";
@@ -493,7 +496,7 @@ char const* pEnd = R"(#############
     return result;
   }
   std::pair<State,Cost> next(std::pair<State,Cost> const& state_cost,std::pair<Move,Cost> const& step) {
-    std::cout << "\nnext " << step;
+    // std::cout << "\nnext " << step;
     auto& [state,cost] = state_cost;
     State stepped_state{state};
     auto [move,move_cost] = step;
@@ -526,7 +529,7 @@ char const* pEnd = R"(#############
     // for (auto const& step : strategic_steps) std::cout << step;
     std::vector<Cost> costs{};
 
-    if (call_count%1==0) std::cout << "\n" << call_count << state_cost;
+    if (call_count%10000==0) std::cout << "\n" << call_count;
 
     for (auto const& step : strategic_steps) {
       // std::cout << "\n" << step;
@@ -551,9 +554,10 @@ char const* pEnd = R"(#############
       auto init_state = parse(in);
       std::stringstream end_in{ pEnd };
       auto end_state = parse(end_in);
-      for (int i=1;i<pTestStates.size();i++) {
+      // for (int i=1;i<pTestStates.size();i++) {
+      for (int i=10;i<11;i++) {
         std::cout << "\n\nTEST " << i;
-        std::stringstream in{ pTestStates[i-1]};
+        std::stringstream in{ pTestStates[i-1] };
         auto init_state = parse(in);
         std::stringstream end_state_in{pTestStates[i]};
         auto test_state = parse(end_state_in);
