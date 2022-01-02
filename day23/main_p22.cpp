@@ -65,6 +65,153 @@ std::vector<std::string> pTestStates{
   #D#B#A#C#
   #A#D#C#A#
   #########)"
+  ,R"(#############
+#A........BD#
+###B#C#.#.###
+  #D#C#B#.#
+  #D#B#A#C#
+  #A#D#C#A#
+  #########)"
+  ,R"(#############
+#A......B.BD#
+###B#C#.#.###
+  #D#C#.#.#
+  #D#B#A#C#
+  #A#D#C#A#
+  #########)"
+  ,R"(#############
+#AA.....B.BD#
+###B#C#.#.###
+  #D#C#.#.#
+  #D#B#.#C#
+  #A#D#C#A#
+  #########)"
+  ,R"(#############
+#AA.....B.BD#
+###B#.#.#.###
+  #D#C#.#.#
+  #D#B#C#C#
+  #A#D#C#A#
+  #########)"
+  ,R"(#############
+#AA.....B.BD#
+###B#.#.#.###
+  #D#.#C#.#
+  #D#B#C#C#
+  #A#D#C#A#
+  #########)"
+  ,R"(#############
+#AA...B.B.BD#
+###B#.#.#.###
+  #D#.#C#.#
+  #D#.#C#C#
+  #A#D#C#A#
+  #########)"
+  ,R"(#############
+#AA.D.B.B.BD#
+###B#.#.#.###
+  #D#.#C#.#
+  #D#.#C#C#
+  #A#.#C#A#
+  #########)"
+  ,R"(#############
+#AA.D...B.BD#
+###B#.#.#.###
+  #D#.#C#.#
+  #D#.#C#C#
+  #A#B#C#A#
+  #########)"
+  ,R"(#############
+#AA.D.....BD#
+###B#.#.#.###
+  #D#.#C#.#
+  #D#B#C#C#
+  #A#B#C#A#
+  #########)"
+  ,R"(#############
+#AA.D......D#
+###B#.#.#.###
+  #D#B#C#.#
+  #D#B#C#C#
+  #A#B#C#A#
+  #########)"
+  ,R"(#############
+#AA.D......D#
+###B#.#C#.###
+  #D#B#C#.#
+  #D#B#C#.#
+  #A#B#C#A#
+  #########)"
+  ,R"(#############
+#AA.D.....AD#
+###B#.#C#.###
+  #D#B#C#.#
+  #D#B#C#.#
+  #A#B#C#.#
+  #########)"
+  ,R"(#############
+#AA.......AD#
+###B#.#C#.###
+  #D#B#C#.#
+  #D#B#C#.#
+  #A#B#C#D#
+  #########)"
+  ,R"(#############
+#AA.......AD#
+###.#B#C#.###
+  #D#B#C#.#
+  #D#B#C#.#
+  #A#B#C#D#
+  #########)"
+  ,R"(#############
+#AA.......AD#
+###.#B#C#.###
+  #.#B#C#.#
+  #D#B#C#D#
+  #A#B#C#D#
+  #########)"
+  ,R"(#############
+#AA.D.....AD#
+###.#B#C#.###
+  #.#B#C#.#
+  #.#B#C#D#
+  #A#B#C#D#
+  #########)"
+  ,R"(#############
+#A..D.....AD#
+###.#B#C#.###
+  #.#B#C#.#
+  #A#B#C#D#
+  #A#B#C#D#
+  #########)"
+  ,R"(#############
+#...D.....AD#
+###.#B#C#.###
+  #A#B#C#.#
+  #A#B#C#D#
+  #A#B#C#D#
+  #########)"
+  ,R"(#############
+#.........AD#
+###.#B#C#.###
+  #A#B#C#D#
+  #A#B#C#D#
+  #A#B#C#D#
+  #########)"
+  ,R"(#############
+#..........D#
+###A#B#C#.###
+  #A#B#C#D#
+  #A#B#C#D#
+  #A#B#C#D#
+  #########)"
+  ,R"(#############
+#...........#
+###A#B#C#D###
+  #A#B#C#D#
+  #A#B#C#D#
+  #A#B#C#D#
+  #########)"
 };
 char const* pTest0 = R"(#############
 #...........#
@@ -195,7 +342,7 @@ char const* pEnd = R"(#############
       else if (home_pos_exist = home_pos_exist and (ch==type);!home_pos_exist) break;
     }
     if (home_pos_exist) result = pos;
-    if (result) std::cout << type << " has home";
+    // if (result) std::cout << type << " has home";
     return result;
   }
   Cost move_cost(char type,Move const& move) {
@@ -243,7 +390,7 @@ char const* pEnd = R"(#############
       for (auto col : BETWEEN_ROOMS) {
         if (result = result or (state[1][col]!='.' and std::min(move.from.col,move.to.col) < col and std::max(move.from.col,move.to.col) > col);result) break;
       }
-      if (result) std::cout << " blocked " << move;
+      // if (result) std::cout << " blocked " << move;
       return result;
     }
     bool will_not_work(Move const& move) {
@@ -278,7 +425,7 @@ char const* pEnd = R"(#############
       for (auto col : BETWEEN_ROOMS) {
         char ch = state[1][col];
         if (ch=='.') {
-          std::cout << " free {1," << col << "}";
+          // std::cout << " free {1," << col << "}";
           move_selector.push_back({pos,Pos{1,col}});
         }
       }
@@ -336,16 +483,16 @@ char const* pEnd = R"(#############
       // Prefer alcoves before blocking hallway positions
       if (move1.to.row==1) heuristic1 += 100+((move1.to.col<3)?10:0)+((move1.to.col>9)?10:0); 
       if (move2.to.row==1) heuristic2 += 100+((move2.to.col<3)?10:0)+((move2.to.col>9)?10:0);
-      if (heuristic1>heuristic2) std::cout << "\n" << step1 << " h:" << heuristic1 << " before " << step2 << " h:" << heuristic2;
-      else std::cout << "\n" << step2 << " h:" << heuristic2 << " before " << step1 << " h:" << heuristic1;
+      // if (heuristic1>heuristic2) std::cout << "\n" << step1 << " h:" << heuristic1 << " before " << step2 << " h:" << heuristic2;
+      // else std::cout << "\n" << step2 << " h:" << heuristic2 << " before " << step1 << " h:" << heuristic1;
       return heuristic1>heuristic2; // prefer steps with highest heuristic
     });
-    std::cout << "\nstrategic: ";
-    for (auto const& step : result) std::cout << step;
+    // std::cout << "\nstrategic: ";
+    // for (auto const& step : result) std::cout << step;
     return result;
   }
   std::pair<State,Cost> next(std::pair<State,Cost> const& state_cost,std::pair<Move,Cost> const& step) {
-    std::cout << "\nnext " << step;
+    // std::cout << "\nnext " << step;
     auto& [state,cost] = state_cost;
     State stepped_state{state};
     auto [move,move_cost] = step;
@@ -355,37 +502,44 @@ char const* pEnd = R"(#############
     return {stepped_state,cost+move_cost};
   }
   std::optional<Cost> best(int stack_level,std::pair<State,Cost> const& state_cost,State const& end_state,Visited& visited) {
-    std::cout << "\nbest[" << stack_level << "]";
+    // std::cout << "\nbest[" << stack_level << "]";
     static int call_count{0};
     std::optional<Cost> result{};
     ++call_count;
     auto& [state,cost] = state_cost;
-    if (call_count>3) return result;
+    // if (call_count>3) return result;
     if (is_end_state(state)) return 0;
     if (state == end_state) {
       std::cout << state_cost << std::endl;
-      throw std::runtime_error("\n************** END STATE *****************");
+      throw std::runtime_error("\n************** END STATE OK *****************");
       return 0;
     }
     if (auto iter = visited.find(state);iter != visited.end()) {
-      std::cout << " visited";
+      // std::cout << " visited";
       return iter->second;
     }
     auto potential_steps = expand(state_cost);
     auto strategic_steps = apply_strategy(state_cost,potential_steps);
-    std::cout << "\nsteps count " << strategic_steps.size();
-    for (auto const& step : strategic_steps) std::cout << step;
+    // std::cout << "\nsteps count " << strategic_steps.size();
+    // for (auto const& step : strategic_steps) std::cout << step;
     std::vector<Cost> costs{};
-    if (call_count%1==0) std::cout << "\n" << call_count << state_cost;
+
+    // if (call_count%1000==0) std::cout << "\n" << call_count << state_cost;
+
     for (auto const& step : strategic_steps) {
-      std::cout << "\n" << step;
+      // std::cout << "\n" << step;
       auto next_state_cost = next(state_cost,step); 
       auto next_cost = best(stack_level+1,next_state_cost,end_state,visited);
       if (next_cost) costs.push_back(cost + next_cost.value());
       visited[next_state_cost.first] = next_cost;
     }
     if (auto iter = std::min_element(costs.begin(),costs.end());iter!=costs.end()) result=*iter;
-    if (result) std::cout << "best " << result.value();
+    // if (result) std::cout << "best " << result.value();
+    if (stack_level==0) {
+      using namespace impl;
+      std::cout << "\n<Cost to state>" << end_state;
+      if (result) std::cout << " " << result.value();
+    }
     return result;
   }
   Result solve_for(char const* pData) {
@@ -394,12 +548,20 @@ char const* pEnd = R"(#############
       auto init_state = parse(in);
       std::stringstream end_in{ pEnd };
       auto end_state = parse(end_in);
-      std::stringstream state0_in{ pTestStates[2]};
-      auto test_state = parse(state0_in);
-      Visited visited{};
-      auto cost = best(0,{init_state,0},test_state,visited);
-      if (cost) result = cost.value();
-      else std::cout << "\nFAILED - Not best cost found";
+      for (int i=1;i<pTestStates.size();i++) {
+        std::cout << "\n\nTEST " << i;
+        std::stringstream end_state_in{pTestStates[i]};
+        auto test_state = parse(end_state_in);
+        Visited visited{};
+        try {
+          auto cost = best(0,{init_state,0},test_state,visited);
+          if (cost) result = cost.value();
+          else std::cout << "\nFAILED - No best cost found";
+        }
+        catch (std::exception const& e) {
+          std::cout << e.what();
+        }
+      }
       return result;
   }
 }
