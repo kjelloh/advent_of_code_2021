@@ -357,6 +357,7 @@ char const* pEnd = R"(#############
     }
     int dr{0};
     if (move.from.row>1 and move.to.row>1) dr = (move.from.row-1) + (move.to.row-1);
+    else dr = std::max(move.from.row,move.to.row)-1;
     int dc = std::abs(move.to.col-move.from.col);
     result = step_cost*(dc+dr);
     return result;
@@ -557,8 +558,8 @@ char const* pEnd = R"(#############
       for (int i=1;i<pTestStates.size();i++) {
       // for (int i=10;i<11;i++) {
         std::cout << "\n\nTEST " << i;
-        std::stringstream in{ pTestStates[i-1] };
-        auto init_state = parse(in);
+        // std::stringstream in{ pTestStates[i-1] };
+        // auto init_state = parse(in);
         std::stringstream end_in{pTestStates[i]};
         auto end_state = parse(end_in);
         Visited visited{};
