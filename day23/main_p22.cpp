@@ -80,11 +80,7 @@ char const* pEnd = R"(#############
   struct Move {
     Pos from,to;
   };
-  using Step = std::vector<Move>;
   using State = Map;
-  State operator+(State const& state,Step const& step) {
-    return State{};
-  }
   /*
   #...........#
   ###x#x#x#x###
@@ -150,18 +146,17 @@ char const* pEnd = R"(#############
   using value_type = Move;
     MoveSelector(State const& _state) : state{_state} {}
     MoveSelector& push_back(Move const& move) {
-      std::cout << "\npush_back";
+      // std::cout << "\npush_back";
       if (!this->blocked_move(move) and !this->will_not_work(move)) {
         this->moves.push_back(move);
-        std::cout << "\npush_back count:" << moves.size();
+        // std::cout << "\npush_back count:" << moves.size();
       }
       return *this;
     }
-    std::vector<Move> selected() {
-      
-      std::cout << "\nselected:";
-      for (auto move : moves) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
-        << "->{" << move.to.row << "," << move.to.col << "}";
+    std::vector<Move> selected() {      
+      // std::cout << "\nselected:";
+      // for (auto move : moves) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
+      //   << "->{" << move.to.row << "," << move.to.col << "}";
       return this->moves;
     }
   private:
@@ -182,44 +177,42 @@ char const* pEnd = R"(#############
     }
 
   };
-  std::vector<Pos> expand_from(State const& state, Pos const& pos) {
-    std::vector<Pos> result;
+  std::vector<Move> expand_from(State const& state, Pos const& pos) {
+    MoveSelector move_selector{state};
     auto home = home_pos(state[pos.row][pos.col],state);
-    if (home) result.push_back(home.value()); // prefer go home
+    if (home) move_selector.push_back({pos,home.value()}); // prefer go home
     else if (pos.row>1) {
       // room to left alcove
       if (state[1][1]=='.') {
-          result.push_back(Pos{1,1});
         if (state[1][0]=='.') {
-          result.push_back(Pos{1,0});
+          move_selector.push_back({pos,Pos{1,0}});
         }
+        move_selector.push_back({pos,Pos{1,1}});
       }
       // room to right alcove
       if (state[1][10]=='.') {
-          result.push_back(Pos{1,10});
         if (state[1][11]=='.') {
-          result.push_back(Pos{1,11});
+          move_selector.push_back({pos,Pos{1,11}});
         }
+        move_selector.push_back({pos,Pos{1,10}});
       }
       // Room to between rooms
       for (auto col : BETWEEN_ROOMS) {
-        if (state[1][col]=='.') result.push_back(Pos{1,col});
+        if (state[1][col]=='.') move_selector.push_back({pos,Pos{1,col}});
       }
     }
-    return result;
+    return move_selector.selected();
   }
   std::vector<Move> expand(State const& state) {
-    MoveSelector move_selector{state};
+    std::vector<Move> result;
     for (auto col : ROOM_COLUMNS) {
       for (auto row : ROOM_ROWS) {
         if (is_home(Pos{row,col},state)) break;;
         auto ch = state[row][col];
         if (ch>='A' and ch <='D') {
           Pos from{row,col};
-          auto tos = expand_from(state,from);          
-          std::transform(tos.begin(),tos.end(),std::back_inserter(move_selector),[&from](Pos const& to){
-            return Move{from,to};
-          });
+          auto moves = expand_from(state,from);
+          std::copy(moves.begin(),moves.end(),std::back_inserter(result));
           break;
         }
       }
@@ -228,14 +221,12 @@ char const* pEnd = R"(#############
         auto ch = state[1][col];
         if (ch>='A' and ch <='D') {
           Pos from{1,col};
-          auto tos = expand_from(state,from);          
-          std::transform(tos.begin(),tos.end(),std::back_inserter(move_selector),[&from](Pos const& to){
-            return Move{from,to};
-          });
+          auto moves = expand_from(state,from);
+          std::copy(moves.begin(),moves.end(),std::back_inserter(result));
           break;
         }
     }
-    return move_selector.selected();
+    return result;
   }
   std::ostream& operator<<(std::ostream& os,State state) {
     os << "\n";
@@ -271,7 +262,7 @@ char const* pEnd = R"(#############
     static int call_count{0};
     std::optional<Cost> result{};
     ++call_count;
-    // if (call_count>10000) return result;
+    if (call_count>4) return result;
     if (call_count%1000) std::cout << "\n" << call_count << state;
     if (is_end_state(state)) return 0;
     auto potential_moves = expand(state);
@@ -301,8 +292,8 @@ int main(int argc, char *argv[])
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
   // answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest0)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest0)});
+  answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
