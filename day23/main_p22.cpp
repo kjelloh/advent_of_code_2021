@@ -372,6 +372,12 @@ char const* pEnd = R"(#############
       auto& [state,cost] = m_state_cost;
       // std::cout << "\npush_back";
       if (!this->blocked_move(move) and !this->will_not_work(move)) {
+        {
+          // Debug
+          // std::cout << " push" << move;
+          if (move.from.col==1 and state[1][2]!='.') std::cout << "Tried to move out of blocked left alcove";
+          if (move.from.col==11 and state[1][10]!='.') std::cout << "Tried to move out of blocked right alcove";
+        }
         this->steps.push_back({move,move_cost(state[move.from.row][move.from.col],move)});
         // std::cout << "\npush_back count:" << steps.size();
       }
@@ -410,26 +416,27 @@ char const* pEnd = R"(#############
     // std::cout << "\nexpand_from {" << pos.row << "," << pos.col << "}";
     auto& [state,cost] = state_cost;
     auto home = home_pos(state[pos.row][pos.col],state);
+    // Room or Hallway to home room
     if (home) {
       // std::cout << "\npushed home";
       move_selector.push_back({pos,home.value()}); // prefer go home
     }
-    else if (pos.row>1) {
-      // room to left alcove
+    else if (pos.row>1) { // from room
+      // to left alcove
       if (state[1][2]=='.') {
         if (state[1][1]=='.') {
           move_selector.push_back({pos,Pos{1,1}});
         }
         move_selector.push_back({pos,Pos{1,2}});
       }
-      // room to right alcove
+      // to right alcove
       if (state[1][10]=='.') {
         if (state[1][11]=='.') {
           move_selector.push_back({pos,Pos{1,11}});
         }
         move_selector.push_back({pos,Pos{1,10}});
       }
-      // Room to between rooms
+      // to between rooms
       for (auto col : BETWEEN_ROOMS) {
         char ch = state[1][col];
         if (ch=='.') {
@@ -443,6 +450,7 @@ char const* pEnd = R"(#############
   std::vector<std::pair<Move,Cost>> expand(std::pair<State,Cost> const& state_cost) {
     std::vector<std::pair<Move,Cost>> result;
     auto& [state,cost] = state_cost;
+    // From room top
     for (auto col : ROOM_COLUMNS) {
       for (auto row : ROOM_ROWS) {
         auto ch = state[row][col];
@@ -456,13 +464,31 @@ char const* pEnd = R"(#############
         }
       }
     }
-    for (auto col : HALLWAY_COLUMNS) {
-        auto ch = state[1][col];
-        if (ch>='A' and ch <='D') {
-          Pos from{1,col};
-          auto moves = expand_from(state_cost,from);
-          std::copy(moves.begin(),moves.end(),std::back_inserter(result));
-        }
+    // from left alcove
+    if (state[1][2]!='.') {
+      auto steps = expand_from(state_cost,{1,2});
+      std::copy(steps.begin(),steps.end(),std::back_inserter(result));
+    }
+    else if (state[1][1]!='.') {
+      auto steps = expand_from(state_cost,{1,1});
+      std::copy(steps.begin(),steps.end(),std::back_inserter(result));
+    }
+    // from right alcove
+    if (state[1][10]!='.') {
+      auto steps = expand_from(state_cost,{1,10});
+      std::copy(steps.begin(),steps.end(),std::back_inserter(result));
+    }
+    else if (state[1][11]!='.') {
+      auto steps = expand_from(state_cost,{1,11});
+      std::copy(steps.begin(),steps.end(),std::back_inserter(result));
+    }
+    // from between rooms
+    for (auto col : BETWEEN_ROOMS) {
+      char ch = state[1][col];
+      if (ch!='.') {
+        auto steps = expand_from(state_cost,{1,col});
+        std::copy(steps.begin(),steps.end(),std::back_inserter(result));
+      }
     }
     return result;
   }
@@ -538,7 +564,10 @@ char const* pEnd = R"(#############
     // for (auto const& step : strategic_steps) std::cout << step;
     std::vector<Cost> costs{};
 
-    if (call_count%10000==0) std::cout << "\n" << call_count;
+    if (call_count%1000==0) {
+      std::cout << "\nbest[" << stack_level << "] " << call_count << " acc:" << cost;
+      std::cout << state_cost;
+    }
 
     for (auto const& step : strategic_steps) {
       auto& [move,step_cost] = step;
@@ -569,20 +598,16 @@ char const* pEnd = R"(#############
   }
   Result solve_for(char const* pData) {
       Result result{};
-      std::stringstream in{ pData };
-      auto init_state = parse(in);
-      std::stringstream end_in{ pEnd };
-      auto end_state = parse(end_in);
-      Visited visited{};
       /*
       for (int i=1;i<pTestStates.size();i++) {
-      // for (int i=10;i<11;i++) {
+      // for (int i=18;i<19;i++) {
         std::cout << "\n\nTEST " << i;
         // std::stringstream in{ pTestStates[i-1] };
         // auto init_state = parse(in);
         std::stringstream end_in{pTestStates[i]};
         auto end_state = parse(end_in);
         try {
+          Visited visited{};
           auto cost = best(0,{init_state,0},end_state,visited);
           if (cost) result = cost.value();
           else std::cout << "\nFAILED - No best cost found";
@@ -592,9 +617,17 @@ char const* pEnd = R"(#############
         }
       }
       */
+      
+      std::stringstream in{ pData };
+      auto init_state = parse(in);
+      std::stringstream end_in{ pEnd };
+      auto end_state = parse(end_in);
+
+      Visited visited{};
       auto cost = best(0,{init_state,0},end_state,visited);
       if (cost) result = cost.value();
       else std::cout << "\nFAILED - No best cost found";
+      
       return result;
   }
 }
@@ -604,8 +637,8 @@ int main(int argc, char *argv[])
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
   // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest0)});
-  answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(part2::pData)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest)});
+  answers.push_back({"Part 2     ",part2::solve_for(part2::pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
