@@ -7,6 +7,7 @@
 #include <optional>
 #include <map>
 #include <ostream>
+#include <set>
 
 char const* pTest = R"(#############
 #...........#
@@ -247,6 +248,7 @@ char const* pEnd = R"(#############
   using Map = std::vector<std::string>;
   struct Pos {
     int row,col;
+    auto operator<=>(Pos const&) const = default;
     bool operator==(Pos const&) const = default;
   };
   struct Move {
@@ -497,6 +499,7 @@ char const* pEnd = R"(#############
     return result;
   }
   std::pair<State,Cost> next(std::pair<State,Cost> const& state_cost,std::pair<Move,Cost> const& step) {
+    // return the next state and the cost to reach next state
     // std::cout << "\nnext " << step;
     auto& [state,cost] = state_cost;
     State stepped_state{state};
@@ -504,22 +507,27 @@ char const* pEnd = R"(#############
     char ch = stepped_state[move.from.row][move.from.col]; 
     stepped_state[move.from.row][move.from.col] = '.';
     stepped_state[move.to.row][move.to.col] = ch;
-    return {stepped_state,cost+move_cost};
+    return {stepped_state,cost + move_cost}; // stepped state and cost to reach this state
   }
   std::optional<Cost> best(int stack_level,std::pair<State,Cost> const& state_cost,State const& end_state,Visited& visited) {
+    // return the best cost to reach the end state from provided state and cost to reach this state
+    // NOTE: The cost in state_cost is the cost so far (cost from 0 to this state) 
     if (stack_level==0) std::cout << "\nInit state " << state_cost;
     // std::cout << "\nbest[" << stack_level << "]";
     static int call_count{0};
+    static std::set<Pos> explored_froms{};
+    static std::set<Pos> explored_tos{};
+
     std::optional<Cost> result{};
     ++call_count;
     auto& [state,cost] = state_cost;
     // if (call_count>3) return result;
-    if (state == end_state) {
-      std::cout << state_cost << std::endl;
-      throw std::runtime_error("\n************** END STATE OK *****************");
-      return 0;
-    }
-    if (is_end_state(state)) return 0;
+    // if (state == end_state) {
+    //   std::cout << state_cost << std::endl;
+    //   throw std::runtime_error("\n************** END STATE OK *****************");
+    //   return 0;
+    // }
+    if (is_end_state(state)) return 0; // zero cost from here
     if (auto iter = visited.find(state);iter != visited.end()) {
       // std::cout << " visited";
       return iter->second;
@@ -533,11 +541,17 @@ char const* pEnd = R"(#############
     if (call_count%10000==0) std::cout << "\n" << call_count;
 
     for (auto const& step : strategic_steps) {
-      // std::cout << "\n" << step;
-      auto next_state_cost = next(state_cost,step); 
-      auto next_cost = best(stack_level+1,next_state_cost,end_state,visited);
-      if (next_cost) costs.push_back(cost + next_cost.value());
-      visited[next_state_cost.first] = next_cost;
+      auto& [move,step_cost] = step;
+      {
+        // Debug
+        // std::cout << "\n" << step;
+        explored_froms.insert(step.first.from);
+        explored_tos.insert(step.first.to);
+      }
+      auto next_state_cost = next(state_cost,step); // Next state and cost to reach this state
+      auto best_cost = best(stack_level+1,next_state_cost,end_state,visited);
+      if (best_cost) costs.push_back(step_cost + best_cost.value()); // best cost to end state from here
+      visited[next_state_cost.first] = best_cost;
     }
     if (auto iter = std::min_element(costs.begin(),costs.end());iter!=costs.end()) result=*iter;
     // if (result) std::cout << "best " << result.value();
@@ -546,6 +560,10 @@ char const* pEnd = R"(#############
       std::cout << "\n<Cost to state>" << end_state;
       if (result) std::cout << " " << result.value();
       else std::cout << "\nFAILED to find end state";
+      std::cout << "\nfroms size " << explored_froms.size();
+      for (auto const& pos : explored_froms) std::cout << " {" << pos.row << "," << pos.col << "}"; 
+      std::cout << "\ntos size " << explored_tos.size();
+      for (auto const& pos : explored_tos) std::cout << " {" << pos.row << "," << pos.col << "}"; 
     }
     return result;
   }
@@ -555,6 +573,8 @@ char const* pEnd = R"(#############
       auto init_state = parse(in);
       std::stringstream end_in{ pEnd };
       auto end_state = parse(end_in);
+      Visited visited{};
+      /*
       for (int i=1;i<pTestStates.size();i++) {
       // for (int i=10;i<11;i++) {
         std::cout << "\n\nTEST " << i;
@@ -562,7 +582,6 @@ char const* pEnd = R"(#############
         // auto init_state = parse(in);
         std::stringstream end_in{pTestStates[i]};
         auto end_state = parse(end_in);
-        Visited visited{};
         try {
           auto cost = best(0,{init_state,0},end_state,visited);
           if (cost) result = cost.value();
@@ -572,6 +591,10 @@ char const* pEnd = R"(#############
           std::cout << e.what();
         }
       }
+      */
+      auto cost = best(0,{init_state,0},end_state,visited);
+      if (cost) result = cost.value();
+      else std::cout << "\nFAILED - No best cost found";
       return result;
   }
 }
@@ -582,7 +605,7 @@ int main(int argc, char *argv[])
   // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest0)});
   answers.push_back({"Part 2 Test",part2::solve_for(part2::pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  // answers.push_back({"Part 2     ",part2::solve_for(part2::pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
