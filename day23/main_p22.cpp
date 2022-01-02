@@ -421,7 +421,7 @@ char const* pEnd = R"(#############
       // std::cout << "\npushed home";
       move_selector.push_back({pos,home.value()}); // prefer go home
     }
-    else if (pos.row>1) { // from room
+    if (pos.row>1) { // from room
       // to left alcove
       if (state[1][2]=='.') {
         if (state[1][1]=='.') {
@@ -564,7 +564,7 @@ char const* pEnd = R"(#############
     // for (auto const& step : strategic_steps) std::cout << step;
     std::vector<Cost> costs{};
 
-    if (call_count%1000==0) {
+    if (call_count%100000==0) {
       std::cout << "\nbest[" << stack_level << "] " << call_count << " acc:" << cost;
       std::cout << state_cost;
     }
