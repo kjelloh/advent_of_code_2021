@@ -15,6 +15,8 @@
 #include <numeric>
 #include <unordered_set>
 #include <unordered_map>
+#include <chrono>
+#include <optional>
 
 const char* pTest = R"(#############
 #...........#
@@ -1099,7 +1101,7 @@ void investigate() {
       });
       // Log
       {
-        std::cout << "\corridor:";
+        std::cout << "\ncorridor:";
         for (auto pos : corridor) {
           std::cout << " {row:" << pos.row << ",col:" << pos.col << "}";
         }
