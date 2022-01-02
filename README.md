@@ -11,6 +11,27 @@ Projects files includes,
   Visual Studio 2022
 
 C++ Source code requires between C++14 and C++20 (C++2a on Visual Studio 2022)
+# day 23
+Pittfalls I fell into when solving this puzzle
+* Vexing C++ parsing anyone?!
+
+```
+
+      if (move1.to.row==1) heuristic1 += 100+(move1.to.col<3)?10:0+(move1.to.col>9)?10:0; 
+      if (move2.to.row==1) heuristic2 += 100+(move2.to.col<3)?10:0+(move2.to.col>9)?10:0;
+```
+
+*The 100 is never added! The folloowing code does what I intended...*
+
+```
+
+      if (move1.to.row==1) heuristic1 += 100+((move1.to.col<3)?10:0)+((move1.to.col>9)?10:0); 
+      if (move2.to.row==1) heuristic2 += 100+((move2.to.col<3)?10:0)+((move2.to.col>9)?10:0);
+```
+*It turns out the ternary operator requires enclosing paranthesis to not evaluate also the 100+ before the '?'!*
+
+
+
 # day 21
 Pitfalls I fell into when solving this puzzle.
 * At first, for part 2, I got the impression that the quantum dice produced the same outcome as in part 1. The only difference was that it split the universe on each roll.
