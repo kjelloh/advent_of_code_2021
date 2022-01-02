@@ -58,6 +58,13 @@ std::vector<std::string> pTestStates{
   #D#B#A#C#
   #A#D#C#A#
   #########)"
+  ,R"(#############
+#A.........D#
+###B#C#B#.###
+  #D#C#B#.#
+  #D#B#A#C#
+  #A#D#C#A#
+  #########)"
 };
 char const* pTest0 = R"(#############
 #...........#
@@ -107,17 +114,27 @@ char const* pEnd = R"(#############
     return os;
   }
 
+  namespace impl {
+    std::ostream& operator<<(std::ostream& os,State state) {
+      os << "\n";
+      for (auto row : state) {
+        os << "\n" << row;
+      }
+      return os;
+    }
+  }
+
   std::ostream& operator<<(std::ostream& os,std::pair<Move,Cost> const& step) {
+    using namespace impl;
     os << step.first;
     os << " cost " << step.second;
     return os;
   }
 
-  std::ostream& operator<<(std::ostream& os,State state) {
-    os << "\n";
-    for (auto row : state) {
-      os << "\n" << row;
-    }
+  std::ostream& operator<<(std::ostream& os,std::pair<State,Cost> state_cost) {
+    using namespace impl;
+    auto& [state,cost] = state_cost;
+    os << state << " acc cost " << cost; 
     return os;
   }
 
@@ -239,7 +256,7 @@ char const* pEnd = R"(#############
   };
   std::vector<std::pair<Move,Cost>> expand_from(std::pair<State,Cost> const& state_cost, Pos const& pos) {
     MoveSelector move_selector{state_cost};
-    auto [state,cost] = state_cost;
+    auto& [state,cost] = state_cost;
     auto home = home_pos(state[pos.row][pos.col],state);
     if (home) move_selector.push_back({pos,home.value()}); // prefer go home
     else if (pos.row>1) {
@@ -270,7 +287,7 @@ char const* pEnd = R"(#############
   }
   std::vector<std::pair<Move,Cost>> expand(std::pair<State,Cost> const& state_cost) {
     std::vector<std::pair<Move,Cost>> result;
-    auto [state,cost] = state_cost;
+    auto& [state,cost] = state_cost;
     for (auto col : ROOM_COLUMNS) {
       for (auto row : ROOM_ROWS) {
         auto ch = state[row][col];
@@ -298,11 +315,34 @@ char const* pEnd = R"(#############
   
   std::vector<std::pair<Move,Cost>> apply_strategy(std::pair<State,Cost> const& state_cost, std::vector<std::pair<Move,Cost>> const& potential_steps) {
     std::vector<std::pair<Move,Cost>> result{potential_steps};
+    // std::sort(result.begin(),result.end(),[](auto const& step1,auto const& step2){
+    //   return (step1.second>step2.second); // sort highest cost steps first
+    // });
+    auto& [state,cost] = state_cost;
+    std::sort(result.begin(),result.end(),[&state](auto const& step1,auto const& step2){
+      auto& [move1,cost1] = step1;
+      auto& [move2,cost2] = step2;
+      bool result{move1.from.row>move2.from.row}; // default step1 before step2 if it is deeper into a room
+      char type1 = state[move1.from.row][move1.from.col];
+      char type2 = state[move1.from.row][move1.from.col];
+      // prioritize rooms that has to be emptied ordered room D to A
+      auto home1 = home_pos(type1,state);
+      auto home2 = home_pos(type2,state);
+      if (!home1 and !home2) {
+        std::cout << "\nfrom no home " << step1 << " nor " << step2;
+        result = (move1.from.col>move2.from.col); // step1 before step2 if from more expensive room that is not yet a home
+      }
+      if (result) std::cout << "\n" << step1 << " before " << step2;
+      else std::cout << "\n" << step1 << " after " << step2;
+      return result;
+    });
+    std::cout << "\nstrategic: ";
+    for (auto const& step : result) std::cout << step;
     return result;
   }
   std::pair<State,Cost> next(std::pair<State,Cost> const& state_cost,std::pair<Move,Cost> const& step) {
     std::cout << "\nnext " << step;
-    auto [state,cost] = state_cost;
+    auto& [state,cost] = state_cost;
     State stepped_state{state};
     auto [move,move_cost] = step;
     char ch = stepped_state[move.from.row][move.from.col]; 
@@ -315,11 +355,11 @@ char const* pEnd = R"(#############
     static int call_count{0};
     std::optional<Cost> result{};
     ++call_count;
-    auto [state,cost] = state_cost;
-    // if (call_count>100) return result;
+    auto& [state,cost] = state_cost;
+    if (call_count>3) return result;
     if (is_end_state(state)) return 0;
     if (state == end_state) {
-      std::cout << state;
+      std::cout << state_cost << std::endl;
       throw std::runtime_error("\n************** END STATE *****************");
       return 0;
     }
@@ -332,7 +372,7 @@ char const* pEnd = R"(#############
     std::cout << "\nsteps count " << strategic_steps.size();
     for (auto const& step : strategic_steps) std::cout << step;
     std::vector<Cost> costs{};
-    if (call_count%1==0) std::cout << "\n" << call_count << state;
+    if (call_count%1==0) std::cout << "\n" << call_count << state_cost;
     for (auto const& step : strategic_steps) {
       std::cout << "\n" << step;
       auto next_state_cost = next(state_cost,step); 
@@ -350,7 +390,7 @@ char const* pEnd = R"(#############
       auto init_state = parse(in);
       std::stringstream end_in{ pEnd };
       auto end_state = parse(end_in);
-      std::stringstream state0_in{ pTestStates[1]};
+      std::stringstream state0_in{ pTestStates[2]};
       auto test_state = parse(state0_in);
       Visited visited{};
       auto cost = best(0,{init_state,0},test_state,visited);
