@@ -5,6 +5,8 @@
 #include <sstream>
 #include <algorithm>
 #include <optional>
+#include <map>
+#include <ostream>
 
 char const* pTest = R"(#############
 #...........#
@@ -81,6 +83,22 @@ char const* pEnd = R"(#############
     Pos from,to;
   };
   using State = Map;
+  using Visited = std::map<State,std::optional<Cost>>;
+
+  std::ostream& operator<<(std::ostream& os,Move const& move) {
+    os << "{" << move.from.row << "," << move.from.col 
+      << "}->{" << move.to.row << "," << move.to.col << "}";
+    return os;
+  }
+
+  std::ostream& operator<<(std::ostream& os,State state) {
+    os << "\n";
+    for (auto row : state) {
+      os << "\n" << row;
+    }
+    return os;
+  }
+
   /*
   #...........#
   ###x#x#x#x###
@@ -131,14 +149,14 @@ char const* pEnd = R"(#############
     std::optional<Pos> result{};
     bool home_pos_exist{true};
     int col = 3+(type-'A')*2;
+    Pos pos{};
     for (auto row : ROOM_ROWS) {
       char ch=state[row][col];
-      if (ch=='.') {
-        result = Pos{row,col};
-        continue;
-      }
-      if (home_pos_exist = home_pos_exist and (ch==type);!home_pos_exist) break;
+      if (ch=='.') pos = {row,col};
+      else if (home_pos_exist = home_pos_exist and (ch==type);!home_pos_exist) break;
     }
+    if (home_pos_exist) result = pos;
+    if (result) std::cout << type << " has home";
     return result;
   }
   class MoveSelector {
@@ -168,6 +186,7 @@ char const* pEnd = R"(#############
       for (auto col : BETWEEN_ROOMS) {
         if (result = result or (state[1][col]!='.' and std::min(move.from.col,move.to.col) < col and std::max(move.from.col,move.to.col) > col);result) break;
       }
+      if (result) std::cout << " blocked " << move;
       return result;
     }
     bool will_not_work(Move const& move) {
@@ -198,7 +217,11 @@ char const* pEnd = R"(#############
       }
       // Room to between rooms
       for (auto col : BETWEEN_ROOMS) {
-        if (state[1][col]=='.') move_selector.push_back({pos,Pos{1,col}});
+        char ch = state[1][col];
+        if (ch=='.') {
+          std::cout << " free {1," << col << "}";
+          move_selector.push_back({pos,Pos{1,col}});
+        }
       }
     }
     return move_selector.selected();
@@ -207,9 +230,10 @@ char const* pEnd = R"(#############
     std::vector<Move> result;
     for (auto col : ROOM_COLUMNS) {
       for (auto row : ROOM_ROWS) {
-        if (is_home(Pos{row,col},state)) break;;
         auto ch = state[row][col];
+        if (ch=='.') continue;
         if (ch>='A' and ch <='D') {
+          if (is_home(Pos{row,col},state)) break;
           Pos from{row,col};
           auto moves = expand_from(state,from);
           std::copy(moves.begin(),moves.end(),std::back_inserter(result));
@@ -228,19 +252,13 @@ char const* pEnd = R"(#############
     }
     return result;
   }
-  std::ostream& operator<<(std::ostream& os,State state) {
-    os << "\n";
-    for (auto row : state) {
-      os << "\n" << row;
-    }
-    return os;
-  }
   
   std::vector<Move> apply_strategy(std::vector<Move> const& potential_moves,State const& state) {
     std::vector<Move> result{potential_moves};
     return result;
   }
   std::pair<Cost,State> next(State const& state,Move const& move) {
+    std::cout << "\nnext " << move;
     State stepped_state{state};
     char ch = stepped_state[move.from.row][move.from.col]; 
     stepped_state[move.from.row][move.from.col] = '.';
@@ -258,21 +276,32 @@ char const* pEnd = R"(#############
     Cost cost = step_cost*(dc+dr);
     return {cost,stepped_state};
   }
-  std::optional<Cost> best(State const& state) {
+  std::optional<Cost> best(State const& state,Visited& visited) {
+    std::cout << "\nbest";
     static int call_count{0};
     std::optional<Cost> result{};
     ++call_count;
-    if (call_count>4) return result;
-    if (call_count%1000) std::cout << "\n" << call_count << state;
+    // if (call_count>10) return result;
     if (is_end_state(state)) return 0;
+    if (auto iter = visited.find(state);iter != visited.end()) {
+      std::cout << " visited";
+      return iter->second;
+    }
     auto potential_moves = expand(state);
     auto strategic_moves = apply_strategy(potential_moves,state);
+    std::cout << "\nmove count " << strategic_moves.size();
+    for (auto const& move : strategic_moves) std::cout << move;
     std::vector<Cost> costs{};
+    if (call_count%1==0) std::cout << "\n" << call_count << state;
     for (auto const& move : strategic_moves) {
+      std::cout << "\n" << move;
       auto [cost,next_state] = next(state,move); 
-      if (auto next_cost = best(next_state);next_cost) costs.push_back(cost + next_cost.value());
+      auto next_cost = best(next_state,visited);
+      if (next_cost) costs.push_back(cost + next_cost.value());
+      visited[next_state] = next_cost;
     }
     if (auto iter = std::min_element(costs.begin(),costs.end());iter!=costs.end()) result=*iter;
+    if (result) std::cout << "best " << result.value();
     return result;
   }
   Result solve_for(char const* pData) {
@@ -281,7 +310,8 @@ char const* pEnd = R"(#############
       auto init_state = parse(in);
       std::stringstream end_in{ pEnd };
       auto end_state = parse(end_in);
-      auto cost = best(init_state);
+      Visited visited{};
+      auto cost = best(init_state,visited);
       if (cost) result = cost.value();
       else std::cout << "\nFAILED - Not best cost found";
       return result;
