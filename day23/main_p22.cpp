@@ -314,27 +314,31 @@ char const* pEnd = R"(#############
   }
   
   std::vector<std::pair<Move,Cost>> apply_strategy(std::pair<State,Cost> const& state_cost, std::vector<std::pair<Move,Cost>> const& potential_steps) {
+    // Rearrange the order of the potential steps to enhance our finding of a solution
+    // Asume potential_steps are valid steps (no self to self or move out of a room where pod is already home etc.)
     std::vector<std::pair<Move,Cost>> result{potential_steps};
-    // std::sort(result.begin(),result.end(),[](auto const& step1,auto const& step2){
-    //   return (step1.second>step2.second); // sort highest cost steps first
-    // });
     auto& [state,cost] = state_cost;
+    // Invent a heuristic to assign more or less value to certain steps
     std::sort(result.begin(),result.end(),[&state](auto const& step1,auto const& step2){
+      int heuristic1{0},heuristic2{0};
       auto& [move1,cost1] = step1;
       auto& [move2,cost2] = step2;
-      bool result{move1.from.row>move2.from.row}; // default step1 before step2 if it is deeper into a room
       char type1 = state[move1.from.row][move1.from.col];
       char type2 = state[move1.from.row][move1.from.col];
-      // prioritize rooms that has to be emptied ordered room D to A
       auto home1 = home_pos(type1,state);
       auto home2 = home_pos(type2,state);
-      if (!home1 and !home2) {
-        std::cout << "\nfrom no home " << step1 << " nor " << step2;
-        result = (move1.from.col>move2.from.col); // step1 before step2 if from more expensive room that is not yet a home
-      }
-      if (result) std::cout << "\n" << step1 << " before " << step2;
-      else std::cout << "\n" << step1 << " after " << step2;
-      return result;
+      // Prefer to a home room (any order)
+      if (home1) heuristic1 += 10000;
+      if (home2) heuristic2 += 10000;
+      // prefer from room that is not yet a home, D room before "lesser" rooms
+      if (!home1) heuristic1 += 1000*move1.from.col; 
+      if (!home2) heuristic2 += 1000*move2.from.col;
+      // Prefer alcoves before blocking hallway positions
+      if (move1.to.row==1) heuristic1 += 100+((move1.to.col<3)?10:0)+((move1.to.col>9)?10:0); 
+      if (move2.to.row==1) heuristic2 += 100+((move2.to.col<3)?10:0)+((move2.to.col>9)?10:0);
+      if (heuristic1>heuristic2) std::cout << "\n" << step1 << " h:" << heuristic1 << " before " << step2 << " h:" << heuristic2;
+      else std::cout << "\n" << step2 << " h:" << heuristic2 << " before " << step1 << " h:" << heuristic1;
+      return heuristic1>heuristic2; // prefer steps with highest heuristic
     });
     std::cout << "\nstrategic: ";
     for (auto const& step : result) std::cout << step;
