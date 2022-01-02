@@ -367,17 +367,18 @@ char const* pEnd = R"(#############
     MoveSelector(std::pair<State,Cost> const& state_cost) : m_state_cost{state_cost} {}
     MoveSelector& push_back(Move const& move) {
       auto& [state,cost] = m_state_cost;
-      // std::cout << "\npush_back";
+      std::cout << "\npush_back";
       if (!this->blocked_move(move) and !this->will_not_work(move)) {
         this->steps.push_back({move,move_cost(state[move.from.row][move.from.col],move)});
-        // std::cout << "\npush_back count:" << moves.size();
+        std::cout << "\npush_back count:" << steps.size();
       }
       return *this;
     }
-    std::vector<std::pair<Move,Cost>> selected() {      
-      // std::cout << "\nselected:";
-      // for (auto move : moves) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
-      //   << "->{" << move.to.row << "," << move.to.col << "}";
+    std::vector<std::pair<Move,Cost>> selected() {    
+      auto& [state,cost] = m_state_cost;
+      std::cout << "\nselected:";
+      for (auto& [move,cost] : steps) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
+        << "->{" << move.to.row << "," << move.to.col << "}";
       return this->steps;
     }
   private:
@@ -408,11 +409,11 @@ char const* pEnd = R"(#############
     if (home) move_selector.push_back({pos,home.value()}); // prefer go home
     else if (pos.row>1) {
       // room to left alcove
-      if (state[1][1]=='.') {
-        if (state[1][0]=='.') {
-          move_selector.push_back({pos,Pos{1,0}});
+      if (state[1][2]=='.') {
+        if (state[1][1]=='.') {
+          move_selector.push_back({pos,Pos{1,1}});
         }
-        move_selector.push_back({pos,Pos{1,1}});
+        move_selector.push_back({pos,Pos{1,2}});
       }
       // room to right alcove
       if (state[1][10]=='.') {
@@ -483,8 +484,8 @@ char const* pEnd = R"(#############
       // Prefer alcoves before blocking hallway positions
       if (move1.to.row==1) heuristic1 += 100+((move1.to.col<3)?10:0)+((move1.to.col>9)?10:0); 
       if (move2.to.row==1) heuristic2 += 100+((move2.to.col<3)?10:0)+((move2.to.col>9)?10:0);
-      // if (heuristic1>heuristic2) std::cout << "\n" << step1 << " h:" << heuristic1 << " before " << step2 << " h:" << heuristic2;
-      // else std::cout << "\n" << step2 << " h:" << heuristic2 << " before " << step1 << " h:" << heuristic1;
+      if (heuristic1>heuristic2) std::cout << "\n" << step1 << " h:" << heuristic1 << " before " << step2 << " h:" << heuristic2;
+      else std::cout << "\n" << step2 << " h:" << heuristic2 << " before " << step1 << " h:" << heuristic1;
       return heuristic1>heuristic2; // prefer steps with highest heuristic
     });
     // std::cout << "\nstrategic: ";
@@ -492,7 +493,7 @@ char const* pEnd = R"(#############
     return result;
   }
   std::pair<State,Cost> next(std::pair<State,Cost> const& state_cost,std::pair<Move,Cost> const& step) {
-    // std::cout << "\nnext " << step;
+    std::cout << "\nnext " << step;
     auto& [state,cost] = state_cost;
     State stepped_state{state};
     auto [move,move_cost] = step;
@@ -502,18 +503,19 @@ char const* pEnd = R"(#############
     return {stepped_state,cost+move_cost};
   }
   std::optional<Cost> best(int stack_level,std::pair<State,Cost> const& state_cost,State const& end_state,Visited& visited) {
+    if (stack_level==0) std::cout << "\nInit state " << state_cost;
     // std::cout << "\nbest[" << stack_level << "]";
     static int call_count{0};
     std::optional<Cost> result{};
     ++call_count;
     auto& [state,cost] = state_cost;
     // if (call_count>3) return result;
-    if (is_end_state(state)) return 0;
     if (state == end_state) {
       std::cout << state_cost << std::endl;
       throw std::runtime_error("\n************** END STATE OK *****************");
       return 0;
     }
+    if (is_end_state(state)) return 0;
     if (auto iter = visited.find(state);iter != visited.end()) {
       // std::cout << " visited";
       return iter->second;
@@ -524,7 +526,7 @@ char const* pEnd = R"(#############
     // for (auto const& step : strategic_steps) std::cout << step;
     std::vector<Cost> costs{};
 
-    // if (call_count%1000==0) std::cout << "\n" << call_count << state_cost;
+    if (call_count%1==0) std::cout << "\n" << call_count << state_cost;
 
     for (auto const& step : strategic_steps) {
       // std::cout << "\n" << step;
@@ -539,6 +541,7 @@ char const* pEnd = R"(#############
       using namespace impl;
       std::cout << "\n<Cost to state>" << end_state;
       if (result) std::cout << " " << result.value();
+      else std::cout << "\nFAILED to find end state";
     }
     return result;
   }
@@ -548,8 +551,11 @@ char const* pEnd = R"(#############
       auto init_state = parse(in);
       std::stringstream end_in{ pEnd };
       auto end_state = parse(end_in);
-      for (int i=1;i<pTestStates.size();i++) {
+      // for (int i=1;i<pTestStates.size();i++) {
+      for (int i=5;i<6;i++) {
         std::cout << "\n\nTEST " << i;
+        std::stringstream in{ pTestStates[i-1]};
+        auto init_state = parse(in);
         std::stringstream end_state_in{pTestStates[i]};
         auto test_state = parse(end_state_in);
         Visited visited{};
