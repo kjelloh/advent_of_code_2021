@@ -551,8 +551,7 @@ char const* pEnd = R"(#############
       auto init_state = parse(in);
       std::stringstream end_in{ pEnd };
       auto end_state = parse(end_in);
-      // for (int i=1;i<pTestStates.size();i++) {
-      for (int i=5;i<6;i++) {
+      for (int i=1;i<pTestStates.size();i++) {
         std::cout << "\n\nTEST " << i;
         std::stringstream in{ pTestStates[i-1]};
         auto init_state = parse(in);
