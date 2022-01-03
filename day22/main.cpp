@@ -15,6 +15,11 @@ extern char const* pData;
 
 using Result = std::ptrdiff_t;
 
+std::vector<std::pair<std::string,Result>> pTest0States{
+  {R"(on x=0..1,y=0..1,z=0..1)",8}
+  ,{R"(on x=1..2,y=1..2,z=1..2)",7}
+};
+
 std::vector<std::pair<std::string,Result>> pExample1States{
   {R"(on x=10..12,y=10..12,z=10..12)",27}
   ,{R"(on x=11..13,y=11..13,z=11..13)",19}
@@ -229,20 +234,30 @@ namespace part2 {
       // Solution part 1: Create one vector for each dimension and put the cube boundaries in that dimension into them.
       std::vector<Coord> x_boundaries{},y_boundaries{},z_boundaries{};
       for (auto const& cuboid : cuboids) {
-        // potential trap! Don't forget to add 1 to range.second to the the correct "volume" (include second face cubes to)
+        // Update the boundaries in each dimesnion where the state of a cube changes.
+        // This means the first in each range and the +1 after the last one in the range!
         x_boundaries.push_back(cuboid.x_range().first);
-        x_boundaries.push_back(cuboid.x_range().second+1); // +1 to include end coordinate, [first..second[ -> [first..second] 
+        x_boundaries.push_back(cuboid.x_range().second+1); // +1 to pin point the cube outside the range (potentially another state than those in range)
         y_boundaries.push_back(cuboid.y_range().first);
-        y_boundaries.push_back(cuboid.y_range().second+1); // +1 to include end coordinate, [first..second[ -> [first..second] 
+        y_boundaries.push_back(cuboid.y_range().second+1); // +1 to pin point the cube outside the range (potentially another state than those in range)
         z_boundaries.push_back(cuboid.z_range().first);
-        z_boundaries.push_back(cuboid.z_range().second+1); // +1 to include end coordinate, [first..second[ -> [first..second] 
+        z_boundaries.push_back(cuboid.z_range().second+1); // +1 to pin point the cube outside the range (potentially another state than those in range)
       }
 
-      // Surprise! Sort the boundaries vectors! (We will figure out below how to still get the mapping correct)
-      // Sorting ensure we have a continous "space" in each coordinate
+      // Sorting ensure we have a continous "space" in each dimension
       std::sort(x_boundaries.begin(),x_boundaries.end());
       std::sort(y_boundaries.begin(),y_boundaries.end());
       std::sort(z_boundaries.begin(),z_boundaries.end());
+
+      {
+        // Debug
+        std::cout << "\nx coordinates of state changes:";
+        for (auto c : x_boundaries) std::cout << " " << c;
+        std::cout << "\nx coordinates of state changes:";
+        for (auto c : y_boundaries) std::cout << " " << c;
+        std::cout << "\nx coordinates of state changes:";
+        for (auto c : z_boundaries) std::cout << " " << c;
+      }
 
       // Observation: the size of the boundary vectors now defines the dimensions of the on_off_grid
       auto const boundaries_count = x_boundaries.size();
@@ -260,20 +275,27 @@ namespace part2 {
         return std::distance(boundaries.begin(),iter);
       };
       for (auto const& cuboid : cuboids) {
+        /*
+        The on_off grid has a lcoation for each r a n g e of coordinates with the same state.
+        Thus, a boundary vector {c0,c1,c2...cn} defines ranges [c0,c1[, [c1,c2[, [c2,*[ .. [*,cn[
+        with index 0..n                     on_off grid index    0        1        2        n-1     
+        */
         auto on_off_x_first = on_off_grid_index(x_boundaries,cuboid.x_range().first);
-        auto on_off_x_second = on_off_grid_index(x_boundaries,cuboid.x_range().second);
+        auto on_off_x_second = on_off_grid_index(x_boundaries,cuboid.x_range().second+1);
         auto on_off_y_first = on_off_grid_index(y_boundaries,cuboid.y_range().first);
-        auto on_off_y_second = on_off_grid_index(y_boundaries,cuboid.y_range().second);
+        auto on_off_y_second = on_off_grid_index(y_boundaries,cuboid.y_range().second+1);
         auto on_off_z_first = on_off_grid_index(z_boundaries,cuboid.z_range().first);
-        auto on_off_z_second = on_off_grid_index(z_boundaries,cuboid.z_range().second);
+        auto on_off_z_second = on_off_grid_index(z_boundaries,cuboid.z_range().second+1);
         bool state = cuboid.on();
-        // Observation: The on_off_grid "space" is defined by the index in x,y,z for each boundary 
-        // of all the 3d space cuboids.
-        // So what we need to do now is to apply the on/off state switching to the on_off_grid
-        // as defined by the applied cuboid.
+        // We can now update the state of each range using the index into the on_off grid
+        // Note: loop over range [first..last[ (last is NOT part of the range of coord with the same state)
         for (int on_off_x=on_off_x_first;on_off_x<on_off_x_second;on_off_x++) {
           for (int on_off_y=on_off_y_first;on_off_y<on_off_y_second;on_off_y++) {
             for (int on_off_z=on_off_z_first;on_off_z<on_off_z_second;on_off_z++) {
+              {
+                // Debug
+                std::cout << "\non_off_x " << on_off_x << " on_off_y " << on_off_y << " on_off_z " << on_off_z;
+              }
               on_off_grid[on_off_x][on_off_y][on_off_z] = state; // For this cuboid, set this state
               // Note that overlapping cuboids will overwrite prevous state
               // in the overlapping region (just as they should)
@@ -284,18 +306,45 @@ namespace part2 {
       // Now Magic has happened! The on_off_grid now represents the on/off state of the 3d space.
       // We "just" needs to map the on-regions back to actual 3d space dimensions to get the
       // "volume" of all  3d space that is "on".
-      // Note: loop to size-1 to take into account that we use index+1 to get volume sides below
       Result on_volume_count{0};
       for (int on_off_x=0;on_off_x < boundaries_count-1;on_off_x++) {
         for (int on_off_y=0;on_off_y < boundaries_count-1;on_off_y++) {
           for (int on_off_z=0;on_off_z < boundaries_count-1;on_off_z++) {
+            {
+              // Debug
+              std::cout << "\ncuboid"
+              << " [{x:" << x_boundaries[on_off_x]
+              << ",y:"  << y_boundaries[on_off_y]
+              << ",z:"  << z_boundaries[on_off_z]
+              << "}"
+              << " -> [{x:" << x_boundaries[on_off_x+1]
+              << ",y:"  << y_boundaries[on_off_y+1]
+              << ",z:"  << z_boundaries[on_off_z+1]
+              << "}[";
+            }
+
             if (on_off_grid[on_off_x][on_off_y][on_off_z]) {
-              // Note: the reason we added +1 when we added range.second to the boundaries vectors above,
-              // were to get this "volume" correct (second-first) includes "second face".
+              {
+                // Debug
+                std::cout << " ON";
+              }
+              // Note that the range is [..[ (the last coordinate is NOT part of the range)
+              // Thus end-start IS the count of cubes in the range [..[
               auto dx = (x_boundaries[on_off_x+1] - x_boundaries[on_off_x]);
               auto dy = (y_boundaries[on_off_y+1] - y_boundaries[on_off_y]);
               auto dz = (z_boundaries[on_off_z+1] - z_boundaries[on_off_z]);
-              on_volume_count += dx*dy*dz;
+              auto volume = dx*dy*dz;
+              on_volume_count += volume;
+              {
+                // Debug
+                std::cout << " volume:" << volume;
+              }
+            }
+            else {
+              {
+                // Debug
+                std::cout << " off";
+              }
             }
           }
         }
@@ -312,9 +361,12 @@ namespace part2 {
       Reactor reactor{};
       if (pData==nullptr) {
         // Run the test sequence
-        for (int i=0; i<pExample1States.size();i++) {
+        // auto pExampleStates = pTest0States;
+        auto pExampleStates = pExample1States;
+        std::vector<Result> count_hist{{0}};
+        for (int i=0; i<pExampleStates.size();i++) {
           std::pair<std::string,Result> unit{};
-          auto entry = std::accumulate(pExample1States.begin(),pExample1States.begin()+i+1,unit,[](auto acc,auto const& entry){
+          auto entry = std::accumulate(pExampleStates.begin(),pExampleStates.begin()+i+1,unit,[](auto acc,auto const& entry){
             if (acc.first.size()>0) acc.first += "\n";
             acc.first += entry.first;
             acc.second = entry.second;
@@ -322,15 +374,18 @@ namespace part2 {
             return acc;
           });
           // std::cout << "\nentry.first=" << entry.first << ",entry.second=" << entry.second << std::flush;
-          auto [pData,count] = entry;
+          auto [pData,expected_delta] = entry;
           // std::cout << "\npData=" << pData;
           // std::cout << "\ncount=" << count;
           std::stringstream in{ pData };
           auto cuboids = parse(in);
           std::cout << "\napplied:\n" << pData;
-          auto count_change = reactor.apply(cuboids);
-          if (count_change == count) std::cout << "\n" << count_change << " == " << count <<   " passed";
-          else std::cout << "\n" << count_change << " != " << count <<   " FAILED";
+          auto prev_count = count_hist.back();
+          auto count = reactor.apply(cuboids);
+          count_hist.push_back(count);
+          auto delta = count-prev_count;
+          if (delta == expected_delta) std::cout << "\noutcome " << delta << " == expected " << expected_delta <<   " ==> passed";
+          else std::cout << "\noutcome " << delta << " != expected " << expected_delta <<   " ==> FAILED";
         }
       }
       else {
