@@ -7,12 +7,13 @@
 #include <array>
 #include <set>
 #include <iterator>
+#include <numeric>
 
 extern char const* pTestp1;
 extern char const* pTestp2;
 extern char const* pData;
 
-using Result = size_t;
+using Result = std::ptrdiff_t;
 
 std::vector<std::pair<std::string,Result>> pExample1States{
   {R"(on x=10..12,y=10..12,z=10..12)",27}
@@ -184,10 +185,10 @@ namespace part1 {
         for (auto const& entry : pExample1States) {
           auto [pData,count] = entry;
           std::stringstream in{ pData };
-          auto puzzle_model = parse(in);
+          auto cuboids = parse(in);
           std::cout << "\napplied:" << pData;
-          if (auto count_change = reactor.apply(puzzle_model.front());count_change == count) std::cout << " == " << count_change <<   " passed";
-          else std::cout << " != " << count_change <<   " FAILED";
+          if (auto count_change = reactor.apply(cuboids.front());count_change == count) std::cout << " : " << count_change << " == " << count <<   " passed";
+          else std::cout << " : " << count_change << " != " << count <<   " FAILED";
         }
       }
       else {
@@ -311,13 +312,25 @@ namespace part2 {
       Reactor reactor{};
       if (pData==nullptr) {
         // Run the test sequence
-        for (auto const& entry : pExample1States) {
+        for (int i=0; i<pExample1States.size();i++) {
+          std::pair<std::string,Result> unit{};
+          auto entry = std::accumulate(pExample1States.begin(),pExample1States.begin()+i+1,unit,[](auto acc,auto const& entry){
+            if (acc.first.size()>0) acc.first += "\n";
+            acc.first += entry.first;
+            acc.second = entry.second;
+            // std::cout << "\nacc.first=" << acc.first << ",acc.second=" << acc.second << std::flush;
+            return acc;
+          });
+          // std::cout << "\nentry.first=" << entry.first << ",entry.second=" << entry.second << std::flush;
           auto [pData,count] = entry;
+          // std::cout << "\npData=" << pData;
+          // std::cout << "\ncount=" << count;
           std::stringstream in{ pData };
           auto cuboids = parse(in);
-          std::cout << "\napplied:" << pData;
-          if (auto count_change = reactor.apply(cuboids);count_change == count) std::cout << " == " << count_change <<   " passed";
-          else std::cout << " != " << count_change <<   " FAILED";
+          std::cout << "\napplied:\n" << pData;
+          auto count_change = reactor.apply(cuboids);
+          if (count_change == count) std::cout << "\n" << count_change << " == " << count <<   " passed";
+          else std::cout << "\n" << count_change << " != " << count <<   " FAILED";
         }
       }
       else {
@@ -334,10 +347,10 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
+  // answers.push_back({"Part 1 Test",part1::solve_for(nullptr)});
   // answers.push_back({"Part 1 Test",part1::solve_for(pTestp1)});
-  answers.push_back({"Part 1 Test",part1::solve_for(nullptr)});
   // answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pSnippet2)});
+  answers.push_back({"Part 2 Test",part2::solve_for(nullptr)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTestp1)}); 
   // answers.push_back({"Part 2 Test",part2::solve_for(pTestp2)}); 
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
