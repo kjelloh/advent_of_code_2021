@@ -30,7 +30,47 @@ Pittfalls I fell into when solving this puzzle
 ```
 *It turns out the ternary operator requires enclosing paranthesis to not evaluate also the 100+ before the '?'!*
 
+* Apart from that I REALLY struggled with getting all the rules right to get the state search space correct!
+* The final key, It hink, was my added heuristics to shuffle the moves to try in an order that really sped up the search
 
+```
+
+std::vector<std::pair<Move,Cost>> apply_strategy(std::pair<State,Cost> const& state_cost, std::vector<std::pair<Move,Cost>> const& potential_steps) {
+  // Rearrange the order of the potential steps to enhance our finding of a solution
+  // Asume potential_steps are valid steps (no self to self or move out of a room where pod is already home etc.)
+  std::vector<std::pair<Move,Cost>> result{potential_steps};
+  auto& [state,cost] = state_cost;
+  // Invent a heuristic to assign more or less value to certain steps
+  // NOTE: I implemented a hunch about what good steps are from the example solution in the puzzle descruption.
+  //       As long as we do not drop any moves we are at least safe, but can make solviong the possible more or less time consuming
+
+  // note: C++ issue with capturing a structured binding in the lambda below...
+  // note: Structured binding introduces names, not variables (https://stackoverflow.com/questions/54842919/k-in-capture-list-does-not-name-a-variable?noredirect=1&lq=1 )
+  // note: Not exatly sure about the semantics though (name vs variable?)
+  // note: clang reports error while gcc accepts
+  // note: the following code works in both gcc and clang (capture capture by reference to varaiable state from structured binding name state)
+  std::sort(result.begin(),result.end(),[&state=state](auto const& step1,auto const& step2){
+    int heuristic1{0},heuristic2{0};
+    auto& [move1,cost1] = step1;
+    auto& [move2,cost2] = step2;
+    char type1 = state[move1.from.row][move1.from.col];
+    char type2 = state[move1.from.row][move1.from.col];
+    auto home1 = home_pos(type1,state);
+    auto home2 = home_pos(type2,state);
+    // Prefer to a home room (any order)
+    if (home1) heuristic1 += 10000;
+    if (home2) heuristic2 += 10000;
+    // prefer from room that is not yet a home, D room before "lesser" rooms
+    if (!home1) heuristic1 += 1000*move1.from.col; 
+    if (!home2) heuristic2 += 1000*move2.from.col;
+    // Prefer alcoves before blocking hallway positions
+    if (move1.to.row==1) heuristic1 += 100+((move1.to.col<3)?10:0)+((move1.to.col>9)?10:0); 
+    if (move2.to.row==1) heuristic2 += 100+((move2.to.col<3)?10:0)+((move2.to.col>9)?10:0);
+    return heuristic1>heuristic2; // prefer steps with highest heuristic
+  });
+  return result;
+
+```
 
 # day 21
 Pitfalls I fell into when solving this puzzle.
