@@ -8,14 +8,26 @@
 #include <set>
 #include <iterator>
 
-const char* pSnippet1 = R"(on x=10..12,y=10..12,z=10..12
-on x=11..13,y=11..13,z=11..13
-off x=9..11,y=9..11,z=9..11
-on x=10..10,y=10..10,z=10..10)";
-const char* pSnippet0 = R"(on x=-20..26,y=-36..17,z=-47..7)";
-const char* pSnippet2 = R"(on x=-20..26,y=-36..17,z=-47..7
-off x=-20..26,y=-36..17,z=-47..7)";
-const char* pSnippet3 = R"(on x=-20..26,y=-36..17,z=-47..7
+extern char const* pTestp1;
+extern char const* pTestp2;
+extern char const* pData;
+
+using Result = size_t;
+
+std::vector<std::pair<std::string,Result>> pExample1States{
+  {R"(on x=10..12,y=10..12,z=10..12)",27}
+  ,{R"(on x=11..13,y=11..13,z=11..13)",19}
+  ,{R"(off x=9..11,y=9..11,z=9..11)",-8}
+  ,{R"(on x=10..10,y=10..10,z=10..10)",1}
+};
+std::vector<std::string> pSnippets{
+// single cube
+  R"(on x=-20..26,y=-36..17,z=-47..7)"
+// single cube on then off
+  ,R"(on x=-20..26,y=-36..17,z=-47..7
+off x=-20..26,y=-36..17,z=-47..7)"
+// initialization cubes
+,R"(on x=-20..26,y=-36..17,z=-47..7
 on x=-20..33,y=-21..23,z=-26..28
 on x=-22..28,y=-29..23,z=-38..16
 on x=-46..7,y=-6..46,z=-50..-1
@@ -34,36 +46,9 @@ on x=-16..35,y=-41..10,z=-47..6
 off x=-32..-23,y=11..30,z=-14..3
 on x=-49..-5,y=-3..45,z=-29..18
 off x=18..30,y=-20..-8,z=-3..13
-on x=-41..9,y=-7..43,z=-33..15)";
+on x=-41..9,y=-7..43,z=-33..15)"
+};
 
-/*
-<cuboid> {-20,-36,-47} ..  {26,17,7} ON!
-<cuboid> {-20,-21,-26} ..  {33,23,28} ON!
-<cuboid> {-22,-29,-38} ..  {28,23,16} ON!
-<cuboid> {-46,-6,-50} ..  {7,46,-1} ON!
-<cuboid> {-49,-3,-24} ..  {1,46,28} ON!
-<cuboid> {2,-22,-23} ..  {47,22,27} ON!
-<cuboid> {-27,-28,-21} ..  {23,26,29} ON!
-<cuboid> {-39,-6,-3} ..  {5,47,44} ON!
-<cuboid> {-30,-8,-13} ..  {21,43,34} ON!
-<cuboid> {-22,-27,-29} ..  {26,20,19} ON!
-<cuboid> {-48,26,-47} ..  {-32,41,-37} off
-<cuboid> {-12,6,-50} ..  {35,50,-2} ON!
-<cuboid> {-48,-32,-15} ..  {-32,-16,-5} off
-<cuboid> {-18,-33,-7} ..  {26,15,46} ON!
-<cuboid> {-40,-38,23} ..  {-22,-28,41} off
-<cuboid> {-16,-41,-47} ..  {35,10,6} ON!
-<cuboid> {-32,11,-14} ..  {-23,30,3} off
-<cuboid> {-49,-3,-29} ..  {-5,45,18} ON!
-<cuboid> {18,-20,-3} ..  {30,-8,13} off
-<cuboid> {-41,-7,-33} ..  {9,43,15} ON!
-*/
-
-extern char const* pTestp1;
-extern char const* pTestp2;
-extern char const* pData;
-
-using Result = size_t;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
 using Coord = int;
@@ -79,6 +64,8 @@ public:
 private:
   std::array<Coord, 3> m_v;
 };
+// A cubeoid is a volume of cubes all in the same state on/off
+// A cubeoid may grow with the cubes of another cubeoid (see on())
 class Cuboid {
 public:
   Cuboid(bool on,CoordRange<std::string> xr, CoordRange<std::string> yr, CoordRange<std::string> zr)
@@ -101,6 +88,7 @@ public:
   CoordRange<Coord> y_range() const {return m_yr;}
   CoordRange<Coord> z_range() const {return m_zr;}
   void for_each_50(auto f) const {
+    // apply provided mutating function f to each cubeoid in 50x50x50 cube coordinate volume
     for (Coord x = std::max(-50,m_xr.first); x <= std::min(50,m_xr.second); x++) {
       for (Coord y = std::max(-50,m_yr.first); y <= std::min(50,m_yr.second); y++) {
         for (Coord z = std::max(-50,m_zr.first); z <= std::min(50,m_zr.second); z++) {
@@ -114,7 +102,6 @@ private:
   CoordRange<Coord> coord_range(CoordRange<std::string> const& r) {
     auto first = std::stoi(r.first);
     auto second = std::stoi(r.second);
-    // return {std::min(first,second),std::max(first,second)};
     return {first,second};
   }
   CoordRange<Coord> m_xr;
@@ -159,36 +146,59 @@ Model parse(auto& in) {
     return result;
 }
 
-class Reactor {
-public:
-  void set_cube(Vector const& v,bool on) {
-    if (on) {
-      m_cubes.insert(v);
-    }
-    else {
-      m_cubes.erase(v);
-    }
-  }
-  void set_cubes(Cuboid const& cuboid) {
-    cuboid.for_each_50([this](Vector const& v,bool on) {
-      this->set_cube(v, on);
-      });
-  }
-  Result cubes_on_count() const { return m_cubes.size(); }
-private:
-  std::set<Vector> m_cubes;
-};
-
 namespace part1 {
+  // A reactor wraps a, potentally sparse, set of cubes (each being on or off) 
+  class Reactor {
+  public:
+    using CountChange = Result;
+    CountChange apply(Cuboid const& command) {
+      auto count_before{this->cubes_on_count()};
+      this->set_cubes(command);
+      auto count_after{this->cubes_on_count()};
+      return count_after-count_before;
+    }
+    void set_cube(Vector const& v,bool on) {
+      if (on) {
+        m_cubes.insert(v);
+      }
+      else {
+        m_cubes.erase(v);
+      }
+    }
+    void set_cubes(Cuboid const& cuboid) {
+      // call for_each... of cuboid with lambda to set each required cube to on
+      cuboid.for_each_50([this](Vector const& v,bool on) {
+        this->set_cube(v, on);
+        });
+    }
+    Result cubes_on_count() const { return m_cubes.size(); }
+  private:
+    std::set<Vector> m_cubes{}; // reactor cubes in a volume spanned by Vectors
+  };
+
   Result solve_for(char const* pData) {
       Result result{};
-      std::stringstream in{ pData };
-      auto puzzle_model = parse(in);
       Reactor reactor{};
-      for (auto const& cuboid : puzzle_model) {
-        reactor.set_cubes(cuboid);
+      if (pData==nullptr) {
+        // Run the test sequence
+        for (auto const& entry : pExample1States) {
+          auto [pData,count] = entry;
+          std::stringstream in{ pData };
+          auto puzzle_model = parse(in);
+          std::cout << "\napplied:" << pData;
+          if (auto count_change = reactor.apply(puzzle_model.front());count_change == count) std::cout << " == " << count_change <<   " passed";
+          else std::cout << " != " << count_change <<   " FAILED";
+        }
       }
-      result = reactor.cubes_on_count();
+      else {
+        std::stringstream in{ pData };
+        auto puzzle_model = parse(in);
+        for (auto const& cuboid : puzzle_model) {
+          reactor.set_cubes(cuboid);
+        }
+        result = reactor.cubes_on_count();
+      }
+
       return result;
   }
 }
@@ -212,19 +222,20 @@ namespace part2 {
       // we should get the final cube states represented by the grid.
 
       // Problem 1: We need to map the huge 3D cube space to indexies in the on_off_grid matrix.
-      // Solution part 1: Create one vector for each dimension and put the cube boundaries into them.
+      // Solution part 1: Create one vector for each dimension and put the cube boundaries in that dimension into them.
       std::vector<Coord> x_boundaries{},y_boundaries{},z_boundaries{};
       for (auto const& cuboid : cuboids) {
-        // trap! Don't forget to add 1 to range.second to the the correct "volume" (include second face cubes to)
+        // potential trap! Don't forget to add 1 to range.second to the the correct "volume" (include second face cubes to)
         x_boundaries.push_back(cuboid.x_range().first);
-        x_boundaries.push_back(cuboid.x_range().second+1); // +1 to include end coordinate in [first..second[
+        x_boundaries.push_back(cuboid.x_range().second+1); // +1 to include end coordinate, [first..second[ -> [first..second] 
         y_boundaries.push_back(cuboid.y_range().first);
-        y_boundaries.push_back(cuboid.y_range().second+1); // +1 to include end coordinate in [first..second[
+        y_boundaries.push_back(cuboid.y_range().second+1); // +1 to include end coordinate, [first..second[ -> [first..second] 
         z_boundaries.push_back(cuboid.z_range().first);
-        z_boundaries.push_back(cuboid.z_range().second+1); // +1 to include end coordinate in [first..second[
+        z_boundaries.push_back(cuboid.z_range().second+1); // +1 to include end coordinate, [first..second[ -> [first..second] 
       }
 
       // Surprise! Sort the boundaries vectors! (We will figure out below how to still get the mapping correct)
+      // Sorting ensure we have a continous "space" in each coordinate
       std::sort(x_boundaries.begin(),x_boundaries.end());
       std::sort(y_boundaries.begin(),y_boundaries.end());
       std::sort(z_boundaries.begin(),z_boundaries.end());
@@ -295,16 +306,19 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  //answers.push_back({"Part 1 Test",part1::solve_for(pTestp1)});
+  // answers.push_back({"Part 1 Test",part1::solve_for(pTestp1)});
+  answers.push_back({"Part 1 Test",part1::solve_for(nullptr)});
   // answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pSnippet2)});
-  answers.push_back({"Part 2 Test",part2::solve_for(pTestp2)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(pTestp1)}); 
+  // answers.push_back({"Part 2 Test",part2::solve_for(pTestp2)}); 
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
-  std::cout << "\nPress <enter>...";
-  std::cin.get();
+  // Visual Studio fix if unchecking "Tools->Options->Debugging->Automatically close the console when debugging stops" does not work
+  // std::cout << "\nPress <enter>...";
+  // std::cin.get();
   std::cout << "\n";
   return 0;
 }
