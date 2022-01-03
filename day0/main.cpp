@@ -16,7 +16,7 @@ using Model = std::vector<std::string>;
 Model parse(auto& in) {
     Model result{};
     std::string line{};
-    while (in >> line) {
+    while (std::getline(in,line)) {
         result.push_back(line);
     }
     return result;
@@ -50,6 +50,7 @@ int main(int argc, char *argv[])
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
+  // Visual Studio fix if unchecking "Tools->Options->Debugging->Automatically close the console when debugging stops" does not work
   // std::cout << "\nPress <enter>...";
   // std::cin.get();
   std::cout << "\n";
