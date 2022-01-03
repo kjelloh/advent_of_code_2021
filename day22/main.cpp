@@ -204,10 +204,13 @@ namespace part1 {
 }
 
 namespace part2 {
-  Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto cuboids = parse(in);
+  struct Reactor {
+    public:
+    using CountChange = Result;
+    CountChange apply(std::vector<Cuboid> const& cuboids) {
+      CountChange result{};
+      auto before_count=this->m_on_volume_count;
+
       // Kudos to Jonathan Paulsson for teaching me about this approach (https://youtu.be/7gW_h0RTDd8?t=2653)
       // Kudos to Neal Wu for his beatiful C++ teaching of the same approach (https://youtu.be/YKpViLcTp64?t=882)
 
@@ -296,7 +299,32 @@ namespace part2 {
           }
         }
       }
-      result = on_volume_count;
+      this->m_on_volume_count += on_volume_count;
+      return this->m_on_volume_count-before_count;
+    }
+  private:
+    Result m_on_volume_count{0};
+  };
+
+  Result solve_for(char const* pData) {
+      Result result{};
+      Reactor reactor{};
+      if (pData==nullptr) {
+        // Run the test sequence
+        for (auto const& entry : pExample1States) {
+          auto [pData,count] = entry;
+          std::stringstream in{ pData };
+          auto cuboids = parse(in);
+          std::cout << "\napplied:" << pData;
+          if (auto count_change = reactor.apply(cuboids);count_change == count) std::cout << " == " << count_change <<   " passed";
+          else std::cout << " != " << count_change <<   " FAILED";
+        }
+      }
+      else {
+        std::stringstream in{ pData };
+        auto cuboids = parse(in);
+        result = reactor.apply(cuboids);
+      }
       // 2758514936282235 expected to part 2 test
       // 55034886912308   is 100 times to small...
       return result;
