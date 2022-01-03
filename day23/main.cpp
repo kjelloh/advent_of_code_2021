@@ -8,6 +8,7 @@
 #include <map>
 #include <ostream>
 #include <set>
+#include <compare>
 
 using Result = size_t;
 using Answers = std::vector<std::pair<std::string,Result>>;
@@ -70,7 +71,6 @@ auto const ROOM_COLUMNS = {3,5,7,9};
 #xx.x.x.x.xx#
 ###A#B#C#D###
 */
-auto const HALLWAY_COLUMNS = {1,2,4,6,8,10,11};
 // auto const LEFT_ALCOVE = {1,2};
 // auto const RIGHT_ALCOVE = {10,11};
 auto const BETWEEN_ROOMS = {4,6,8};
@@ -106,7 +106,6 @@ std::optional<Pos> home_pos(char type,State const& state) {
     else if (home_pos_exist = home_pos_exist and (ch == '.' or ch==type);!home_pos_exist) break;
   }
   if (home_pos_exist) result = pos;
-  // if (result) std::cout << " " << type << " has home";
   return result;
 }
 Cost move_cost(char type,Move const& move) {
@@ -132,24 +131,12 @@ using value_type = Move;
   MoveSelector(std::pair<State,Cost> const& state_cost) : m_state_cost{state_cost} {}
   MoveSelector& push_back(Move const& move) {
     auto& [state,cost] = m_state_cost;
-    // std::cout << "\npush_back";
     if (!this->blocked_move(move) and !this->will_not_work(move)) {
-      {
-        // Debug
-        // std::cout << " push" << move;
-        if (move.from.col==1 and state[1][2]!='.') std::cout << "Tried to move out of blocked left alcove";
-        if (move.from.col==11 and state[1][10]!='.') std::cout << "Tried to move out of blocked right alcove";
-      }
       this->steps.push_back({move,move_cost(state[move.from.row][move.from.col],move)});
-      // std::cout << "\npush_back count:" << steps.size();
     }
     return *this;
   }
   std::vector<std::pair<Move,Cost>> selected() {    
-    auto& [state,cost] = m_state_cost;
-    // std::cout << "\nselected:";
-    // for (auto& [move,cost] : steps) std::cout << state[move.from.row][move.from.col] << "{" << move.from.row << "," << move.from.col << "}"
-    //   << "->{" << move.to.row << "," << move.to.col << "}";
     return this->steps;
   }
 private:
@@ -162,12 +149,10 @@ private:
     for (auto col : BETWEEN_ROOMS) {
       if (result = result or (state[1][col]!='.' and std::min(move.from.col,move.to.col) < col and std::max(move.from.col,move.to.col) > col);result) break;
     }
-    // if (result) std::cout << " blocked " << move;
     return result;
   }
   bool will_not_work(Move const& move) {
     bool result{false};
-    auto& [state,cost] = m_state_cost;
     // TODO: Find some way to optimise away moves that will not work!
     return result;
   }
@@ -175,23 +160,21 @@ private:
 };
 std::vector<std::pair<Move,Cost>> expand_from(std::pair<State,Cost> const& state_cost, Pos const& pos) {
   MoveSelector move_selector{state_cost};
-  // std::cout << "\nexpand_from {" << pos.row << "," << pos.col << "}";
   auto& [state,cost] = state_cost;
   auto home = home_pos(state[pos.row][pos.col],state);
   // Room or Hallway to home room
   if (home) {
-    // std::cout << "\npushed home";
     move_selector.push_back({pos,home.value()}); // prefer go home
   }
   if (pos.row>1) { // from room
-    // to left alcove
+    // to left alcove (possible top)
     if (state[1][2]=='.') {
       if (state[1][1]=='.') {
         move_selector.push_back({pos,Pos{1,1}});
       }
       move_selector.push_back({pos,Pos{1,2}});
     }
-    // to right alcove
+    // to right alcove (possible top)
     if (state[1][10]=='.') {
       if (state[1][11]=='.') {
         move_selector.push_back({pos,Pos{1,11}});
@@ -226,7 +209,7 @@ std::vector<std::pair<Move,Cost>> expand(std::pair<State,Cost> const& state_cost
       }
     }
   }
-  // from left alcove
+  // from left alcove top
   if (state[1][2]!='.') {
     auto steps = expand_from(state_cost,{1,2});
     std::copy(steps.begin(),steps.end(),std::back_inserter(result));
@@ -235,7 +218,7 @@ std::vector<std::pair<Move,Cost>> expand(std::pair<State,Cost> const& state_cost
     auto steps = expand_from(state_cost,{1,1});
     std::copy(steps.begin(),steps.end(),std::back_inserter(result));
   }
-  // from right alcove
+  // from right alcove top
   if (state[1][10]!='.') {
     auto steps = expand_from(state_cost,{1,10});
     std::copy(steps.begin(),steps.end(),std::back_inserter(result));
@@ -261,7 +244,15 @@ std::vector<std::pair<Move,Cost>> apply_strategy(std::pair<State,Cost> const& st
   std::vector<std::pair<Move,Cost>> result{potential_steps};
   auto& [state,cost] = state_cost;
   // Invent a heuristic to assign more or less value to certain steps
-  std::sort(result.begin(),result.end(),[&state](auto const& step1,auto const& step2){
+  // NOTE: I implemented a hunch about what good steps are from the example solution in the puzzle descruption.
+  //       As long as we do not drop any moves we are at least safe, but can make solviong the possible more or less time consuming
+
+  // note: C++ issue with capturing a structured binding in the lambda below...
+  // note: Structured binding introduces names, not variables (https://stackoverflow.com/questions/54842919/k-in-capture-list-does-not-name-a-variable?noredirect=1&lq=1 )
+  // note: Not exatly sure about the semantics though (name vs variable?)
+  // note: clang reports error while gcc accepts
+  // note: the following code works in both gcc and clang (capture capture by reference to varaiable state from structured binding name state)
+  std::sort(result.begin(),result.end(),[&state=state](auto const& step1,auto const& step2){
     int heuristic1{0},heuristic2{0};
     auto& [move1,cost1] = step1;
     auto& [move2,cost2] = step2;
@@ -278,28 +269,29 @@ std::vector<std::pair<Move,Cost>> apply_strategy(std::pair<State,Cost> const& st
     // Prefer alcoves before blocking hallway positions
     if (move1.to.row==1) heuristic1 += 100+((move1.to.col<3)?10:0)+((move1.to.col>9)?10:0); 
     if (move2.to.row==1) heuristic2 += 100+((move2.to.col<3)?10:0)+((move2.to.col>9)?10:0);
-    // if (heuristic1>heuristic2) std::cout << "\n" << step1 << " h:" << heuristic1 << " before " << step2 << " h:" << heuristic2;
-    // else std::cout << "\n" << step2 << " h:" << heuristic2 << " before " << step1 << " h:" << heuristic1;
     return heuristic1>heuristic2; // prefer steps with highest heuristic
   });
-  // std::cout << "\nstrategic: ";
-  // for (auto const& step : result) std::cout << step;
   return result;
 }
 std::pair<State,Cost> next(std::pair<State,Cost> const& state_cost,std::pair<Move,Cost> const& step) {
-  // return the next state and the cost to reach next state
-  // std::cout << "\nnext " << step;
+  // return the next state and the accumulated cost to reach next state from our search start
   auto& [state,cost] = state_cost;
   State stepped_state{state};
   auto [move,move_cost] = step;
   char ch = stepped_state[move.from.row][move.from.col]; 
   stepped_state[move.from.row][move.from.col] = '.';
   stepped_state[move.to.row][move.to.col] = ch;
-  return {stepped_state,cost + move_cost}; // stepped state and cost to reach this state
+  return {stepped_state,cost + move_cost}; // acc cost = stepped state and cost to reach this state
 }
+/*
+ Note that there is an accumuluated cost past downwards the recursion.
+ While the returned cost is the found cost to reach the end state.
+ I though I could use the accumulated cost to give up on som recursuon but never had to do so...
+ Can be a subject for improvement on this depth first search for "shortest path"
+ */
 std::optional<Cost> best(int stack_level,std::pair<State,Cost> const& state_cost,Visited& visited) {
   // return the best cost to reach the end state from provided state and cost to reach this state
-  // NOTE: The cost in state_cost is the cost so far (cost from 0 to this state) 
+  // NOTE: The cost in state_cost is the accumulated cost so far (cost from 0 to this state)
   static int call_count{-1};
   ++call_count;
   std::optional<Cost> result{};
@@ -313,7 +305,7 @@ std::optional<Cost> best(int stack_level,std::pair<State,Cost> const& state_cost
   std::vector<Cost> costs{};
   for (auto const& step : strategic_steps) {
     auto& [move,step_cost] = step;
-    auto next_state_cost = next(state_cost,step); // Next state and cost to reach this state
+    auto next_state_cost = next(state_cost,step); // Next state and accumulated cost to reach this state
     auto best_cost = best(stack_level+1,next_state_cost,visited);
     if (best_cost) costs.push_back(step_cost + best_cost.value()); // best cost to end state from here
     visited[next_state_cost.first] = best_cost;
@@ -340,14 +332,14 @@ namespace part1 {
   #########)";
 
   Result solve_for(char const* pData) {
-      Result result{};      
-      std::stringstream in{ pData };
-      auto init_state = parse(in);
-      Visited visited{};
-      auto cost = best(0,{init_state,0},visited);
-      if (cost) result = cost.value();
-      else std::cout << "\nFAILED - No best cost found";      
-      return result;
+    Result result{};
+    std::stringstream in{ pData };
+    auto init_state = parse(in);
+    Visited visited{};
+    auto cost = best(0,{init_state,0},visited);
+    if (cost) result = cost.value();
+    else std::cout << "\nFAILED - No best cost found";
+    return result;
   }
 }
 
@@ -368,16 +360,14 @@ char const* pData = R"(#############
   #########)";
 
   Result solve_for(char const* pData) {
-      Result result{};      
-      std::stringstream in{ pData };
-      auto init_state = parse(in);
-
-      Visited visited{};
-      auto cost = best(0,{init_state,0},visited);
-      if (cost) result = cost.value();
-      else std::cout << "\nFAILED - No best cost found";
-      
-      return result;
+    Result result{};
+    std::stringstream in{ pData };
+    auto init_state = parse(in);
+    Visited visited{};
+    auto cost = best(0,{init_state,0},visited);
+    if (cost) result = cost.value();
+    else std::cout << "\nFAILED - No best cost found";
+    return result;
   }
 }
 int main(int argc, char *argv[])
