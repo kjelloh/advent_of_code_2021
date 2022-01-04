@@ -6,6 +6,7 @@ namespace coord_compress {
     bool test() {
       std::cout << "\ntest\n";
       // Five test cases for colouring two ranges
+      
       return false;
     }
   }

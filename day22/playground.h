@@ -9,6 +9,11 @@ namespace coord_compress {
     };
     using Boundaries = std::vector<Coord>;
 
+    template <typename C>
+    using Compressed = std::vector<C>;
+
+    template <typename C>
+    Compressed<C> color(C c,Region const& r);
 
     bool test();
   }
