@@ -8,6 +8,7 @@
 #include <set>
 #include <iterator>
 #include <numeric>
+#include "playground.h"
 
 extern char const* pTestp1;
 extern char const* pTestp2;
@@ -503,6 +504,9 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
+  if (true) {
+    return coord_compress::d1::test();
+  }
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(nullptr)});
   // answers.push_back({"Part 1 Test",part1::solve_for(pTestp1)});
@@ -1026,3 +1030,4 @@ off x=-59552..-40954,y=48890..63902,z=-39700..-21599
 off x=12390..31538,y=65013..80718,z=-15195..9149
 off x=-82717..-58814,y=9792..34867,z=31729..41188
 off x=-62226..-36572,y=-17931..-2307,z=64240..74646)";
+
