@@ -433,9 +433,9 @@ namespace part2 {
               // }
               // Note that the range is [..[ (the last coordinate is NOT part of the range)
               // Thus end-start IS the count of cubes in the range [..[
-              auto dx = (x_boundaries[on_off_x+1] - x_boundaries[on_off_x]);
-              auto dy = (y_boundaries[on_off_y+1] - y_boundaries[on_off_y]);
-              auto dz = (z_boundaries[on_off_z+1] - z_boundaries[on_off_z]);
+              Result dx = (x_boundaries[on_off_x+1] - x_boundaries[on_off_x]);
+              Result dy = (y_boundaries[on_off_y+1] - y_boundaries[on_off_y]);
+              Result dz = (z_boundaries[on_off_z+1] - z_boundaries[on_off_z]);
               auto volume = dx*dy*dz;
               on_volume_count += volume;
               // {
@@ -495,16 +495,13 @@ namespace part2 {
         auto cuboids = parse(in);
         result = reactor.apply(cuboids);
       }
-      // 2758514936282235 expected to part 2 test
-      // 55034886912308   is 100 times to small...
-      // 55034886913147
       return result;
   }
 }
 
 int main(int argc, char *argv[])
 {
-  if (true) {
+  if (false) {
     return coord_compress::d1::test();
   }
   Answers answers{};
@@ -514,10 +511,10 @@ int main(int argc, char *argv[])
   // answers.push_back({"Part 2 Test",part2::solve_for(nullptr)});  
   // answers.push_back({"Part 2 Test 1",part2::solve_for(pSnippets[2].c_str())});
   // answers.push_back({"Part 2 Test 1",part2::solve_for(pTestp1)}); 
-  answers.push_back({"Part 2 Test",part2::solve_for(pTestp2)});                // 55034886913147
-  answers.push_back({"Part 2 Test 1",part2::solve_for(pSnippets[3].c_str())}); // 55507332841567 (diff )
-  std::cout << "\ndiff " << answers[answers.size()-2].second - answers[answers.size()-1].second;
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  // answers.push_back({"Part 2 Test",part2::solve_for(pTestp2)});
+  // answers.push_back({"Part 2 Test 1",part2::solve_for(pSnippets[3].c_str())});
+  // std::cout << "\ndiff " << answers[answers.size()-2].second - answers[answers.size()-1].second;
+  answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
