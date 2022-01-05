@@ -8,7 +8,6 @@
 #include <set>
 #include <iterator>
 #include <numeric>
-#include "playground.h"
 
 extern char const* pTestp1;
 extern char const* pTestp2;
@@ -117,7 +116,6 @@ on x=-53470..21291,y=-120233..-33476,z=-44150..38147
 off x=-93533..-4276,y=-16170..68771,z=-104985..-24507
 off x=-50..50,y=-50..50,z=-50..50)" // should remove 474140 cubes according to example in part 2
 };
-
 
 using Answers = std::vector<std::pair<std::string,Result>>;
 
@@ -261,6 +259,7 @@ namespace part1 {
         }
       }
       else {
+        // Solve puzzle for indata
         std::stringstream in{ pData };
         auto puzzle_model = parse(in);
         for (auto const& cuboid : puzzle_model) {
@@ -278,6 +277,7 @@ namespace part2 {
     public:
     using CountChange = Result;
     CountChange apply(std::vector<Cuboid> const& cuboids) {
+      static int progress_counter{0};
       CountChange result{};
 
       // Kudos to Jonathan Paulsson for teaching me about this approach (https://youtu.be/7gW_h0RTDd8?t=2653)
@@ -298,7 +298,7 @@ namespace part2 {
       std::vector<Coord> x_boundaries{},y_boundaries{},z_boundaries{};
       for (auto const& cuboid : cuboids) {
         // Update the boundaries in each dimesnion where the state of a cube changes.
-        // This means the first in each range and the +1 after the last one in the range!
+        // This means the first in each range and the +1 after the last one in the provided range!
         x_boundaries.push_back(cuboid.x_range().first);
         x_boundaries.push_back(cuboid.x_range().second+1); // +1 to pin point the cube outside the range (potentially another state than those in range)
         y_boundaries.push_back(cuboid.y_range().first);
@@ -383,6 +383,7 @@ namespace part2 {
               on_off_grid[on_off_x][on_off_y][on_off_z] = state; // For this cuboid, set this state
               // Note that overlapping cuboids will overwrite prevous state
               // in the overlapping region (just as they should)
+              if (progress_counter++%10000000==0) std::cout << '.' << std::flush;
             }            
           }
         }
@@ -410,6 +411,8 @@ namespace part2 {
             //   I suppose this is a consequence of the fact we get equal counts of x,y and z ranges?
             //   And if any of these are zero (cut on same coorinate) the volume will be zero (although the range in other coordinates are >0)?
             //   TODO: Can we eliminate adding zero volume cut cubes?
+            //
+            //  Example:
             //   ...
             //   cuboid [{x:11,y:11,z:11} -> [{x:12,y:12,z:12}[ off
             //   cuboid [{x:11,y:11,z:12} -> [{x:12,y:12,z:13}[ ON volume:1
@@ -427,10 +430,6 @@ namespace part2 {
             // }
 
             if (on_off_grid[on_off_x][on_off_y][on_off_z]) {
-              // {
-              //   // Debug
-              //   std::cout << " ON";
-              // }
               // Note that the range is [..[ (the last coordinate is NOT part of the range)
               // Thus end-start IS the count of cubes in the range [..[
               Result dx = (x_boundaries[on_off_x+1] - x_boundaries[on_off_x]);
@@ -438,16 +437,7 @@ namespace part2 {
               Result dz = (z_boundaries[on_off_z+1] - z_boundaries[on_off_z]);
               auto volume = dx*dy*dz;
               on_volume_count += volume;
-              // {
-              //   // Debug
-              //   std::cout << " volume:" << volume;
-              // }
-            }
-            else {
-              // {
-              //   // Debug
-              //   std::cout << " off";
-              // }
+              if (progress_counter++%1000000==0) std::cout << "\nCount:" << on_volume_count << std::flush;
             }
           }
         }
@@ -491,6 +481,7 @@ namespace part2 {
         }
       }
       else {
+        // Solve Puzzle for indata
         std::stringstream in{ pData };
         auto cuboids = parse(in);
         result = reactor.apply(cuboids);
@@ -501,17 +492,14 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
-  if (false) {
-    return coord_compress::d1::test();
-  }
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(nullptr)});
-  // answers.push_back({"Part 1 Test",part1::solve_for(pTestp1)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 1 Test",part1::solve_for(pTestp1)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(nullptr)});  
   // answers.push_back({"Part 2 Test 1",part2::solve_for(pSnippets[2].c_str())});
   // answers.push_back({"Part 2 Test 1",part2::solve_for(pTestp1)}); 
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTestp2)});
+  answers.push_back({"Part 2 Test",part2::solve_for(pTestp2)});
   // answers.push_back({"Part 2 Test 1",part2::solve_for(pSnippets[3].c_str())});
   // std::cout << "\ndiff " << answers[answers.size()-2].second - answers[answers.size()-1].second;
   answers.push_back({"Part 2     ",part2::solve_for(pData)});
