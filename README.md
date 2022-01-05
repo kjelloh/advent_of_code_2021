@@ -28,7 +28,7 @@ Pitfalls I fell into when solving this puzzle
       if (move1.to.row==1) heuristic1 += 100+((move1.to.col<3)?10:0)+((move1.to.col>9)?10:0); 
       if (move2.to.row==1) heuristic2 += 100+((move2.to.col<3)?10:0)+((move2.to.col>9)?10:0);
 ```
-*It turns out the ternary operator requires enclosing parantheses to not evaluate also the 100+ before the '?'!*
+*It turns out the ternary operator requires enclosing parentheses to not evaluate also the 100+ before the '?'!*
 
 * Apart from that I REALLY struggled with getting all the rules right to get the state search space correct!
 * The final key, It think, was my added heuristics to shuffle the moves to try in an order that really sped up the search
@@ -37,18 +37,18 @@ Pitfalls I fell into when solving this puzzle
 
 std::vector<std::pair<Move,Cost>> apply_strategy(std::pair<State,Cost> const& state_cost, std::vector<std::pair<Move,Cost>> const& potential_steps) {
   // Rearrange the order of the potential steps to enhance our finding of a solution
-  // Asume potential_steps are valid steps (no self to self or move out of a room where pod is already home etc.)
+  // Assume potential_steps are valid steps (no self to self or move out of a room where pod is already home etc.)
   std::vector<std::pair<Move,Cost>> result{potential_steps};
   auto& [state,cost] = state_cost;
   // Invent a heuristic to assign more or less value to certain steps
-  // NOTE: I implemented a hunch about what good steps are from the example solution in the puzzle descruption.
-  //       As long as we do not drop any moves we are at least safe, but can make solviong the possible more or less time consuming
+  // NOTE: I implemented a hunch about what good steps are from the example solution in the puzzle description.
+  //       As long as we do not drop any moves we are at least safe, but can make solving the possible more or less time consuming
 
   // note: C++ issue with capturing a structured binding in the lambda below...
   // note: Structured binding introduces names, not variables (https://stackoverflow.com/questions/54842919/k-in-capture-list-does-not-name-a-variable?noredirect=1&lq=1 )
-  // note: Not exatly sure about the semantics though (name vs variable?)
+  // note: Not exactly sure about the semantics though (name vs variable?)
   // note: clang reports error while gcc accepts
-  // note: the following code works in both gcc and clang (capture capture by reference to varaiable state from structured binding name state)
+  // note: the following code works in both gcc and clang (capture capture by reference to variable state from structured binding name state)
   std::sort(result.begin(),result.end(),[&state=state](auto const& step1,auto const& step2){
     int heuristic1{0},heuristic2{0};
     auto& [move1,cost1] = step1;
@@ -124,7 +124,7 @@ Pitfalls I fell into when solving this puzzle.
 Pitfalls I fell into when solving this puzzle in C++17
 
 * Multidimensional std::array member in a Matrix class could not be brace initialised!
-    * It has something to do with what this article "Nested Initializer Lists for Multidimensional Arrays" solves (https://christophercrouzet.com/blog/dev/nested-initializers)?
+    * It has something to do with what this article "Nested Initialiser Lists for Multidimensional Arrays" solves (https://christophercrouzet.com/blog/dev/nested-initializers)?
     * I have to come back to this Issue. But the bottom line is that I lost valuable time trying to get my code to compile...
     * The following code does NOT compile (however many curly braces I try to add in trial and error...)
 ```
@@ -281,15 +281,15 @@ Paths all_paths(std::string const& v1,std::string const& v2,Graph const& graph,V
 
 # day11
 The lesson after this days puzzle is to remember to KISS (Keep it simple stupid) ;)
-* I tried to be clever form the start and squeeze the processing through standard C++ library algorithms. I failed. I beleive it may still be possible but for this small puzzle I am not sure it is worth the overhead?
+* I tried to be clever form the start and squeeze the processing through standard C++ library algorithms. I failed. I believe it may still be possible but for this small puzzle I am not sure it is worth the overhead?
 * I failed to see through the weeds of details, that I can mutate the same grid of crabs to get the answer (I do not need a temp grid to mutate and them switch back for each flash mutations of the grid).
 * I want to learn to solve these puzzles in small iterations with a lot of checks and logging of each progress. So I know I am on the right track. I can use the approach applied by the fastest Python programmers when they solve these puzzles :).
-* I Do have a tendancy to go for the cleanest solution right away. But so far this mostly means a get stuck in compiler errors in my "smart" wrapper classes 8-)
-* I am still not satisfied with the final code as it re-uses an automata class for part 1&2 that relies on mutaable referbces to local variables. I suppose we will see more cellular automatas in the 2021 puzzles to come so I try to design my automata in a more elegant way then ;)
+* I Do have a tendency to go for the cleanest solution right away. But so far this mostly means a get stuck in compiler errors in my "smart" wrapper classes 8-)
+* I am still not satisfied with the final code as it re-uses an automata class for part 1&2 that relies on mutable references to local variables. I suppose we will see more cellular automata in the 2021 puzzles to come so I try to design my automata in a more elegant way then ;)
 # day9
 Pitfalls for me in C++ for this puzzle.
 * C++ standard library operator<< to std::cout treats size8_t as a char! So when I made a map of size8_t values and tried to print it it got gibberish and lost some hair and time trying to figure out what went wrong.
-* Using std::transform to expand the frontier of a basin I had to remember to use std::back_inserter to get the new candidates into the candidate list. I also had to flatten the candidate list as the transform created a vector of vectors. NOTE that using the begin() interator to the result will compile but fail to expand the output.
+* Using std::transform to expand the frontier of a basin I had to remember to use std::back_inserter to get the new candidates into the candidate list. I also had to flatten the candidate list as the transform created a vector of vectors. NOTE that using the begin() iterator to the result will compile but fail to expand the output.
 
 ```
         std::vector<Points> points_vector{};
@@ -300,7 +300,7 @@ Pitfalls for me in C++ for this puzzle.
 ```
 
 * At first I imagined for part 2 that I needed to expand also to diagonal points on the map. But that will leak as the input data does NOT define basin boundaries in this way.
-* To make my own Point struct work in std::set I needed to define an operator< for it. And I defind it by calculating an integer from the x and y coordinates by offsetting the x by 10000. This is a quick-and-dirty way and I would not recommend it (unless you are sure y will never be greater that 10000) ;).
+* To make my own Point struct work in std::set I needed to define an operator< for it. And I defined it by calculating an integer from the x and y coordinates by offsetting the x by 10000. This is a quick-and-dirty way and I would not recommend it (unless you are sure y will never be greater that 10000) ;).
 
 ```
 struct Point {
@@ -321,14 +321,14 @@ bool in_range(int coord, CoordRange const& range) {
 ```
 # day4
 For me the Day 4 puzzle challenged me the same way as day 3 did!
-* Again I found myself being dragged into rabbit holes of ever and ever more details and entagled data and logic.
-* In fact - I have a hunch day 4 is day 3 in disguise? I mean, both these puzzles has a grid of data as input. We need to accumulate over rows or columns to extract infromation.
+* Again I found myself being dragged into rabbit holes of ever and ever more details and entangled data and logic.
+* In fact - I have a hunch day 4 is day 3 in disguise? I mean, both these puzzles has a grid of data as input. We need to accumulate over rows or columns to extract information.
 * If I have time I want to come back to this puzzle and see if I can solve day 3 and day 4 with some common framework? 
 # day3
 Note: 211210 - Solved the puzzle from scratch and got a somewhat cleaner code ;)
 
-Originally - The day 3 puzzle was one of those I easilly stumble on due to all small +/- one and true/false problems.
-* I failed to design the code so that I did not shoot myself in the foot over and over again (detail overflow). Just look at this exmple...
+Originally - The day 3 puzzle was one of those I easily stumble on due to all small +/- one and true/false problems.
+* I failed to design the code so that I did not shoot myself in the foot over and over again (detail overflow). Just look at this example...
 ```
        result = std::accumulate(std::begin(v), std::end(v), Rates<BIT_COUNT>{}, [&predicate](auto acc, auto entry) {
             if (entry.first.active_oxygen_generator_rating) ++acc.oxygen_generator_rating_count;
@@ -341,7 +341,7 @@ Originally - The day 3 puzzle was one of those I easilly stumble on due to all s
                 }
             }
 ```
-* For me part of the challange of this puzzle was that I falied to name "things" properly so that my code could "talk" about the problem in a clear way.
+* For me part of the challenge of this puzzle was that I failed to name "things" properly so that my code could "talk" about the problem in a clear way.
 * After I finished I was left with the feeling that this problem was in fact just a transform + accumulate problem? If I have time I want to come back to is and solve it properly.
 
 # day2
