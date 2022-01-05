@@ -7,6 +7,9 @@
 #include <tuple>
 #include <array>
 #include <numeric>
+#include <map>
+#include <random>
+#include <cmath>
 
 std::pair<std::string,std::string> split(std::string const& line,std::string delim) {
   if (auto pos = line.find(delim); pos != std::string::npos) {
@@ -54,13 +57,35 @@ Vector operator-(Vector const v1,Vector const& v2) {
 }
 using Matrix = std::array<std::array<int,3>,3>;
 using Vectors = std::vector<Vector>;
+using Beacon = Vector;
+using Beacons = std::vector<Beacon>;
 struct Scanner {
   int id{};
-  Vectors beacons{};
+  Beacons beacons{};
 };
 using Scanners = std::vector<Scanner>;
 using Model = Scanners;
-using Beacons = Vectors;
+
+Vector operator*(Matrix const& m,Vector const& v) {
+  Vector result;
+  for (int i=0;i<m.size();i++) {
+    result[i] = std::inner_product(m[i].begin(),m[i].end(),v.begin(),int{0});
+  }
+  return result;
+}
+Matrix operator*(Matrix const& m1,Matrix const& m2) {
+  Matrix result{};
+  for (int i=0;i<m1.size();i++) {
+    for (int j=0;j<m2[0].size();j++) {
+      int acc{0};
+      for (int k=0;k<m1.size();k++) {
+        acc += m1[i][k] * m2[k][j];
+      }
+      result[i][j] = acc;
+    }  
+  }
+  return result;
+}
 
 Model parse(auto& in) {
     Model result{};
@@ -161,7 +186,7 @@ Matrix RUnit = {{ // No rotation
   ,{0,0,1}}};
 
 // See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
-// To be multipliet with column vector so M x v = v´ (v and v´ column vectors)
+// To be multiplied with column vector so M x v = v´ (v and v´ column vectors)
 Matrix Rx90 = {{
    {1,0,0}
   ,{0,0,-1}
@@ -174,27 +199,6 @@ Matrix Rz90 = {{
    {0,-1,0}
   ,{1,0,0}
   ,{0,0,-1}}};
-
-Vector operator*(Matrix const& m,Vector const& v) {
-  Vector result;
-  for (int i=0;i<m.size();i++) {
-    result[i] = std::inner_product(m[i].begin(),m[i].end(),v.begin(),int{0});
-  }
-  return result;
-}
-Matrix operator*(Matrix const& m1,Matrix const& m2) {
-  Matrix result{};
-  for (int i=0;i<m1.size();i++) {
-    for (int j=0;j<m2[0].size();j++) {
-      int acc{0};
-      for (int k=0;k<m1.size();k++) {
-        acc += m1[i][k] * m2[k][j];
-      }
-      result[i][j] = acc;
-    }  
-  }
-  return result;
-}
 
 class Viewer {
 public:
@@ -283,6 +287,266 @@ Beacons find_beacons(Scanners const& scanners) {
   return result;
 }
 
+namespace prototype {
+  /*
+  // 1-dimension thinking
+  // If scanner 1 and 2 lives on the same map at different locations they may see the same beacons B as,
+
+        <scanner 1>               <scanner 2 view 0>    <scanner 2 view 1>
+    S1 . . B1 . . B2 . B3   . . . B1 . . B2 . B3 S2     S2 B3 . B2 . . B1 . . .
+    0      3      6    8 +       -6     -3   -1  0      0  1    3      6
+
+  Meaning scanner 1 is to the left of the beacons and scanner 2 is to the right.
+  S1 sees B1 at 3, B2 at 6 and B3 at 8
+  S2 sees B1 at -6, B2 at -3 and B3 at -1
+  
+  Assuming we know there is full overlap (scanner 1 and 2 sees the all and same beacons) we can identify the same beacons in two ways (I think?)
+
+  1) Identify pairwise beacons [B1..B2[ = [3..6[ == [-6..-3[, [B1..B3[ = [3..8[ == [-6..-1[, [B2..B3[ = [6..8[ == [-3..-1[
+     I.e., follows the same "edge" direction and length indicates the same beacon pair.
+
+     We can count the ranges of the same size by mapping the range to a count and do if (r1==r2) map[r1]++
+
+  2) Identify the same pairwise transaction between S1 and S2 view of the same beacons
+     S1[B1] - S2[B1] == S1[B2] - S2[B2] == S1[B3] - S2[B3] == S1-S2
+
+    S1 . . B1 . . B2 . B3   - . . . B1 . . B2 . B3 S2 = S1 . . D . . D . D S2 where D = translation between S1 and S2
+                                                        0      3     6   8 9 
+
+    We can find this translation by translating S2 until the distance between *all* seen beacons by S1 and S2 becomes 0.
+
+  *) If scanner 1 and 2 can have left and right "mixed upp" we need to alco check for matches in a mirrored view
+
+    <scanner 2 mirrored>
+    . . . B1 . . B2 . B3 S2 ==> S2 B3 . B2 . . B1 . . . 
+
+  // 2-dimensional thinking
+
+  We add a second dimension to the 1-dimensional thinking
+
+  <scanner 1>            <scanner 2>
+    .  .  .  B2 .     .  .  .  B2 .  .
+    B1 .  .  .  .     B1 .  .  .  .  S2
+    .  .  .  .  B3    .  .  .  .  B3 .
+    S1 .  .  .  .     .  .  .  .  .  .
+
+  1) Identify "edges" bnetween seen beacons
+  <scanner 1>               <scanner 2 view 0>
+  .  .  .  .  .   .  .    .  .  .  .  .   .  .
+  .  .  .  .  e1  .  .    .  .  .  .  e1  .  .
+  .  +  .  .  .  .  .     .  +  .  .  .  .   eS
+  .  .  .  .  .  e2  .    .  .  .  .  .  e2  .
+  .  eS e3 .  .  .   .    .  .  e3 .  .  .   .
+
+  Where + is origo, DS is the edge between S->B1 and Dn are the pairwise edges B1->B2, B1->B3, B2->B3 (some enumeration of beacons seen by S1 and S2)
+
+  NOTE: We need to enumerate ALL edges in each map (each perumation of Ba->Bb and Bx->S on each map)
+
+  2) Identify "edges" between beacons seens by scanner 1 and scanner 2
+
+  <scanner 1>         <scanner 2 view 0>      <scanner1> - <scanner 2 view 0>          
+    .  .  .  B2 .     .  .  .  B2 .  .        .  .  .  .  .  .  .  e
+    B1 .  .  .  .     B1 .  .  .  .  S2       .  .  .  .  .  .  .  .
+    .  .  .  .  B3    .  .  .  .  B3 .        .  .  +  .  .  .  .  .
+    S1 .  .  .  .     .  .  .  .  .  .        .  .  .  .  .  .  .  .
+
+  Where + is origo and e is the common S1-S2 == S1[B1]-S2[B1] == ...
+
+  *) AND we need to try all "flipping" of scanner 2 map left/right and up/down to ensure we find the orientation of scanner 2 vs scanner 1 so they "see" the same reality
+
+  OBSERVATION ==> Scheme 2 requires only one edges-calculation while scheme 1 requires we make an edges calculation for each scanner separatly before comparing!
+                  In scheme 2 we basically searches for the orientation where all beasons seens by scanner 2 is just translated.
+                  And we do this by computing the beacopn translations for each orientation of scanner 2 vs scanner 1.
+
+  PROPOSED ALGORITHM
+
+    *) Compute the translation between beacons on scanner 1 map and all possible orienations (4) of beacons as seen by scanner 2.
+    *) find the orientation where *all* beacons are translated the same amount (same translation vector e)
+
+  // 3-dimensional thinking
+
+  We add a third dimension to the 2-dimensional thinking
+
+  It seems in addition to the 2-dimensional flipping left/right and up/down we can now also "look" in the direction of any of the 6 sides of a cube?
+
+  If we imagine a die we can look from inside the die out through the face 1,2,3,4,5,6.
+  And for each of these "looking" orientation we can rotate around the looking axis in four ways (0,1/4,1/2,3/4 turns).
+  Gives us a total of 6*4 = 24 possible unique orientations.
+
+PROPOSED ALGORITHM
+
+    *) Compute the translation between beacons on scanner 1 map and all possible orienations (24) of beacons as seen by scanner 2.
+    *) find the orientation where *all* beacons are translated the same amount (same translation vector e)
+
+  */
+
+  void test() {
+
+    /*
+        --- scanner 0 ---
+    0,2
+    4,1
+    3,3
+
+    --- scanner 1 ---
+    -1,-1
+    -5,0
+    -2,1
+    */
+
+    const std::vector<std::pair<int,int>> scanner_0 = {{0,2},{4,1},{3,3}};
+    const std::vector<std::pair<int,int>> scanner_1 = {{-1,-1},{-5,0},{-2,1}};
+
+    // 1) Explore edge matching
+    std::vector<std::pair<int,int>> edges_0{};
+    for (auto const& b0 : scanner_0) {
+      for (auto const& b1 : scanner_0) {
+        edges_0.push_back({b0.first-b1.first,b0.second-b1.second});
+      }
+    }
+    std::vector<std::pair<int,int>> edges_1{};
+    for (auto const& b0 : scanner_1) {
+      for (auto const& b1 : scanner_1) {
+        edges_1.push_back({b0.first-b1.first,b0.second-b1.second});
+      }
+    }
+    std::map<std::pair<int,int>,int> edge_map{};
+    std::cout << "\nedges_0:";
+    for (auto const& edge : edges_0) {
+      edge_map[edge]++;
+      std::cout << "\n{" << edge.first << "," << edge.second << "}";
+    }
+    std::cout << "\nedges_1:";
+    for (auto const& edge : edges_1) {
+      edge_map[edge]++;
+      std::cout << "\n{" << edge.first << "," << edge.second << "}";
+    }
+    for (auto const& [edge,count] : edge_map) {
+      std::cout << "\nedge {" << edge.first << "," << edge.second << "} count: " << count;
+    }
+    // Output:
+    // edge {-4,1} count: 2
+    // edge {-3,-1} count: 2
+    // edge {-1,2} count: 2
+    // edge {0,0} count: 6
+    // edge {1,-2} count: 2
+    // edge {3,1} count: 2
+    // edge {4,-1} count: 2    
+    // ==> Conclusion, we need to filter out self-self {0,0} and we do extra work by generating each edge twice.
+    //     We also lose he translation information!
+    //     In theory we can detect a macth when *all* edges match but approach 2 below is less work and gives us the translation "for free"
+
+    // Explore translation matching
+    std::vector<std::pair<int,int>> translations{};
+    for (auto const& b0 : scanner_0) {
+      for (auto const& b1 : scanner_1) {
+        translations.push_back({b0.first-b1.first,b0.second-b1.second});
+      }
+    }
+    std::map<std::pair<int,int>,int> translation_map{};
+    std::cout << "\ntranslations:";
+    for (auto const& edge : translations) {
+      translation_map[edge]++;
+      std::cout << "\n{" << edge.first << "," << edge.second << "}";
+    }
+    for (auto const& [edge,count] : translation_map) {
+      std::cout << "\nedge {" << edge.first << "," << edge.second << "} count: " << count;
+    }
+    auto iter = std::max_element(translation_map.begin(),translation_map.end(),[](auto const& e1,auto const& e2){
+      return e1.second < e2.second;
+    });
+    std::cout << "\nmatched translation {" << iter->first.first << "," << iter->first.second << "} count:" << iter->second;
+    // Example:
+    // edge {1,3} count: 1
+    // edge {2,1} count: 1
+    // edge {4,4} count: 1
+    // edge {5,2} count: 3
+    // edge {6,0} count: 1
+    // edge {8,3} count: 1
+    // edge {9,1} count: 1
+    // matched translation {5,2} count:3    
+    // CONCLUSION: This is the way to go! We can identify the translation shared by *all* beacons seen by scanner 1 and 2 and this is
+    //             also the translation between the scanners :)
+
+    // What is now missing is a way to find the correct orientation of scanner 2
+  }
+
+  using Vector2D = std::array<int,2>;
+  using Matrix2D = std::array<std::array<int,2>,2>;
+  Vector2D operator*(Matrix2D const& m, Vector2D const& v){
+    Vector2D result{};
+    for (int r=0;r<m.size();r++) {
+      for (int c=0;c<m[0].size();c++) {
+        result[r] += m[r][c]*v[c];
+      }
+    }
+    return result;
+  }
+  Matrix2D operator*(Matrix2D const& m1, Matrix2D const& m2){
+    Matrix2D result{};
+    for (int r=0;r<m1.size();r++) {
+      for (int c=0;c<m2[0].size();c++) {
+        for (int k=0;k<m1[0].size();k++) {
+          result[r][c] += m1[r][k]*m2[k][c];
+        }
+      }
+    }
+    return result;
+  }
+
+  const std::vector<Vector2D> scanner_0 = {{0,2},{4,1},{3,3}};
+  const std::vector<Vector2D> scanner_1 = {{-1,-1},{-5,0},{-2,1}};
+
+  
+  void test2() {
+    // 2D rotation 90 degree anticlockwise (x,y) -> (-y,x) can be defined as multiplying a matrix m90 to column vector v
+     Matrix2D m0{{
+      {1,0}
+      ,{0,1}
+    }};
+     Matrix2D m90{{
+      {0,-1}
+      ,{1,0}
+    }};
+
+    Vector2D v{-5,0};
+    std::cout << "\n{" << v[0] << "," << v[1] << "}";
+
+    std::cout << "\n<rotate>";
+    auto v1 = v;
+    for (int i=0;i<4;i++) {
+      v1 = m90*v1;
+      std::cout << "\n{" << v1[0] << "," << v1[1] << "}";
+    }
+
+    std::vector<Matrix2D> rotations{m0};
+    for (auto i : {1,2,3}) {
+      rotations.push_back(m90*rotations.back());
+    }
+
+    if (m90*rotations.back() != rotations.front()) std::cout << "\nERROR: Four rotations should return to unit";
+    else std::cout << "\nSUCCESS - Four rotations gets us back to unit";
+
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_int_distribution<> distrib(0,3);
+
+    for (int i=0;i<20;i++) std::cout << "\nrandom: " << distrib(gen);
+
+    auto rand_rot = rotations[distrib(gen)];
+    std::vector<Vector2D> scanner_x{};
+    for (auto const& v : scanner_1) {
+      scanner_x.push_back(rand_rot*v);
+    }
+
+    std::cout << "\nscanner_x";
+    for (auto const& b : scanner_x) std::cout << "\n{" << b.at(0) << "," << b.at(1) << "}";
+
+    // Now try to find out what the rotation and translation is?
+
+  }
+}
+
 namespace part1 {
   Result solve_for(char const* pData) {
     std::string caption{"\nsolve_for:"};
@@ -307,6 +571,9 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
+  // prototype::test();
+  prototype::test2();
+  return 0;
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
   answers.push_back({"Part 1 Test 2",part1::solve_for(pTest2)});
