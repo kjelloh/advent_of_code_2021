@@ -10,6 +10,7 @@
 #include <map>
 #include <random>
 #include <cmath>
+#include <optional>
 
 std::pair<std::string,std::string> split(std::string const& line,std::string delim) {
   if (auto pos = line.find(delim); pos != std::string::npos) {
@@ -469,7 +470,7 @@ PROPOSED ALGORITHM
     //             also the translation between the scanners :)
 
     // What is now missing is a way to find the correct orientation of scanner 2
-  }
+  } // test()
 
   using Vector2D = std::array<int,2>;
   using Matrix2D = std::array<std::array<int,2>,2>;
@@ -497,7 +498,6 @@ PROPOSED ALGORITHM
   const std::vector<Vector2D> scanner_0 = {{0,2},{4,1},{3,3}};
   const std::vector<Vector2D> scanner_1 = {{-1,-1},{-5,0},{-2,1}};
 
-  
   void test2() {
     // 2D rotation 90 degree anticlockwise (x,y) -> (-y,x) can be defined as multiplying a matrix m90 to column vector v
      Matrix2D m0{{
@@ -543,8 +543,66 @@ PROPOSED ALGORITHM
     for (auto const& b : scanner_x) std::cout << "\n{" << b.at(0) << "," << b.at(1) << "}";
 
     // Now try to find out what the rotation and translation is?
+    // Apply each possible orientation of other scanner to see if any enables us to match with the first scanner?
+    std::optional<std::pair<Matrix2D,Vector2D>> found_deviation{};
+    for (auto const& orientation : rotations) {
+      // count the translaton vectors between beacons of scanner 1 and x until one translatition matches *all* seen beacons
+      std::cout << "\torientation try:";
+      std::map<Vector2D,int> translations_count{};
+      for (auto const& b0 : scanner_0) {
+        for (auto const& bx : scanner_x) {
+          std::cout << "\tre-oriented bx try:";
+          Vector2D rotated_bx = orientation*bx;
+          // b0 + translation = bx 
+          Vector2D translation{b0[0]-rotated_bx[0],b0[1]-rotated_bx[1]};
+          std::cout << "\ncount " << translations_count[translation]+1;
+          if (++translations_count[translation]>=3) {
+            found_deviation={orientation,translation};
+            goto done;
+          }
+        }
+      }
+    }
+    done:
+    if (found_deviation) {
+      std::cout << "\nfound translation (b0+translation=bx): {" << found_deviation->second.at(0) << "," << found_deviation->second.at(1) << "}";
+      std::cout << "\nfound rotation (rotation*bx same rot as b0): ";
+      for (auto const& row : found_deviation->first) {
+        std::cout << "\n(" << row.at(0) << " " << row.at(1) << ")";
+      }
+    }
+  }
+
+  using Vector3D = std::array<int,3>;
+  using Matrix3D = std::array<Vector3D,3>;
+  Vector3D operator*(Matrix3D const& m, Vector3D const& v){
+    Vector3D result{};
+    for (int r=0;r<m.size();r++) {
+      for (int c=0;c<m[0].size();c++) {
+        result[r] += m[r][c]*v[c];
+      }
+    }
+    return result;
+  }
+  Matrix3D operator*(Matrix3D const& m1, Matrix3D const& m2){
+    Matrix3D result{};
+    for (int r=0;r<m1.size();r++) {
+      for (int c=0;c<m2[0].size();c++) {
+        for (int k=0;k<m1[0].size();k++) {
+          result[r][c] += m1[r][k]*m2[k][c];
+        }
+      }
+    }
+    return result;
+  }
+
+
+  void test3() {
+    // lets go 3D and build some support code
+    
 
   }
+
 }
 
 namespace part1 {
