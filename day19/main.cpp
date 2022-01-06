@@ -598,91 +598,68 @@ PROPOSED ALGORITHM
   using Scanner = std::vector<Vector3D>;
   using Scanners = std::vector<Scanner>;
 
-  Matrix3D const RUNIT = {{ // No rotation
-    {1,0,0}
-    ,{0,1,0}
-    ,{0,0,1}}};
-
-  // See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
-  // We can use these to gerenate all 24 possible rotations
-  // 6 for each "facing" out through a face of a die
-  // 4 rotations around the face normal
-  // 24 in total 
-  Matrix3D const RX90 = {{
-    {1,0,0}
-    ,{0,0,-1}
-    ,{0,1,0}}};
-  Matrix3D const RY90 = {{
-    {0,0,1}
-    ,{0,1,0}
-    ,{-1,0,0}}};
-  Matrix3D const RZ90 = {{
-    {0,-1,0}
-    ,{1,0,0}
-    ,{0,0,1}}};
-
-  void test3() {
-    // lets go 3D and build some support code
-
-    // Part 1 example of one scanner in different orientations 
-    const Scanners scanners = {
-       { {-1,-1,1}
-        ,{-2,-2,2}
-        ,{-3,-3,3}
-        ,{-2,-3,1}
-        ,{5,6,-4}
-        ,{8,0,7}}
-      ,{ {1,-1,1}
-        ,{2,-2,2}
-        ,{3,-3,3}
-        ,{2,-1,3}
-        ,{-5,4,-6}
-        ,{-8,-7,0}}
-      ,{ {-1,-1,-1}
-        ,{-2,-2,-2}
-        ,{-3,-3,-3}
-        ,{-1,-3,-2}
-        ,{4,6,5}
-        ,{-7,0,8}}
-      ,{ {1,1,-1}
-        ,{2,2,-2}
-        ,{3,3,-3}
-        ,{1,3,-2}
-        ,{-4,-6,5}
-        ,{7,0,8}}
-      ,{ {1,1,1}
-        ,{2,2,2}
-        ,{3,3,3}
-        ,{3,1,2}
-        ,{-6,-4,-5}
-        ,{0,7,-8}}
-    };
-
-    // Generate all 24 rotations
-    std::vector<Matrix3D> rotations{};
-    int face_index{0};    
-    for (auto i : {1,2,3,4,5,6}) {
-      switch (i) {
-        case 1: rotations.push_back(RUNIT); break; // outward x
-        case 2: rotations.push_back(RZ90*rotations[face_index]); break; // outward y
-        case 3: rotations.push_back(RZ90*rotations[face_index]);break; // outward -x
-        case 4: rotations.push_back(RZ90*rotations[face_index]); break; // outward -y
-        case 5: rotations.push_back(RY90);break; // outward -z
-        case 6: rotations.push_back(RY90*RY90*rotations[face_index]); break; // outward z
-      }
-      face_index=rotations.size()-1;
-      for (auto j : {2,3,4}) {
+  class Orientations3D {
+  public:
+    Orientations3D() {
+      // Generate all 24 rotations
+      int face_index{0};    
+      for (auto i : {1,2,3,4,5,6}) {
         switch (i) {
-          case 1: rotations.push_back(RX90*rotations.back()); break; // rotate x
-          case 2: rotations.push_back(RY90*rotations.back()); break; // rotate y
-          case 3: rotations.push_back(RX90*rotations.back()); break; // rotate x (should be -x but we get all rotations clockwise too)
-          case 4: rotations.push_back(RY90*rotations.back()); break; // rotate y (should be -y but we get all rotations clockwise too)
-          case 5: rotations.push_back(RZ90*rotations.back()); break; // rotate z (should be -z but we get all rotations clockwise too)
-          case 6: rotations.push_back(RZ90*rotations.back()); break; // rotate z 
+          case 1: rotations.push_back(RUNIT); break; // outward x
+          case 2: rotations.push_back(RZ90*rotations[face_index]); break; // outward y
+          case 3: rotations.push_back(RZ90*rotations[face_index]);break; // outward -x
+          case 4: rotations.push_back(RZ90*rotations[face_index]); break; // outward -y
+          case 5: rotations.push_back(RY90);break; // outward -z
+          case 6: rotations.push_back(RY90*RY90*rotations[face_index]); break; // outward z
+        }
+        face_index=rotations.size()-1;
+        for (auto j : {2,3,4}) {
+          switch (i) {
+            case 1: rotations.push_back(RX90*rotations.back()); break; // rotate x
+            case 2: rotations.push_back(RY90*rotations.back()); break; // rotate y
+            case 3: rotations.push_back(RX90*rotations.back()); break; // rotate x (should be -x but we get all rotations clockwise too)
+            case 4: rotations.push_back(RY90*rotations.back()); break; // rotate y (should be -y but we get all rotations clockwise too)
+            case 5: rotations.push_back(RZ90*rotations.back()); break; // rotate z (should be -z but we get all rotations clockwise too)
+            case 6: rotations.push_back(RZ90*rotations.back()); break; // rotate z 
+          }
         }
       }
     }
-    
+
+    // See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
+    // We can use these to gerenate all 24 possible rotations
+    // 6 for each "facing" out through a face of a die
+    // 4 rotations around the face normal
+    // 24 in total 
+    Matrix3D const RUNIT = {{ // No rotation
+      {1,0,0}
+      ,{0,1,0}
+      ,{0,0,1}}};
+    Matrix3D const RX90 = {{
+      {1,0,0}
+      ,{0,0,-1}
+      ,{0,1,0}}};
+    Matrix3D const RY90 = {{
+      {0,0,1}
+      ,{0,1,0}
+      ,{-1,0,0}}};
+    Matrix3D const RZ90 = {{
+      {0,-1,0}
+      ,{1,0,0}
+      ,{0,0,1}}};
+
+    auto begin() const {return rotations.begin();}
+    auto end() const {return rotations.end();}
+    auto size() {return rotations.size();}
+    auto operator[](auto i) {return rotations[i];}
+
+  private:
+    std::vector<Matrix3D> rotations{};
+  };
+
+  void test3() {
+    // lets go 3D and build some support code
+    Orientations3D rotations{};
     // Test all 24 rotations
     std::cout << "\nrotations count " << rotations.size();
     Vector3D v{5,0,1};
@@ -720,9 +697,85 @@ PROPOSED ALGORITHM
       if (r==e) std::cout << " ok";
       else std::cout << " FAILED";
     }
-    
-
   } // test3()
+
+void test4() {
+  std::cout << "\ntest4";
+  // Part 1 example of one scanner in different orientations 
+  const Scanners scanners = {
+      { {-1,-1,1}
+      ,{-2,-2,2}
+      ,{-3,-3,3}
+      ,{-2,-3,1}
+      ,{5,6,-4}
+      ,{8,0,7}}
+    ,{ {1,-1,1}
+      ,{2,-2,2}
+      ,{3,-3,3}
+      ,{2,-1,3}
+      ,{-5,4,-6}
+      ,{-8,-7,0}}
+    ,{ {-1,-1,-1}
+      ,{-2,-2,-2}
+      ,{-3,-3,-3}
+      ,{-1,-3,-2}
+      ,{4,6,5}
+      ,{-7,0,8}}
+    ,{ {1,1,-1}
+      ,{2,2,-2}
+      ,{3,3,-3}
+      ,{1,3,-2}
+      ,{-4,-6,5}
+      ,{7,0,8}}
+    ,{ {1,1,1}
+      ,{2,2,2}
+      ,{3,3,3}
+      ,{3,1,2}
+      ,{-6,-4,-5}
+      ,{0,7,-8}}
+  };
+  std::cout << "\nscanners size " << scanners.size();
+
+  struct Deviation {
+    Matrix3D rotation;
+    Vector3D translation;
+  };
+
+  Orientations3D orientations{};
+  std::cout << "\norientations size " << orientations.size();
+  const int THRESHOLD = 6;
+  auto scanner_0 = scanners[0];
+  for (int i=1;i<scanners.size();i++) {
+    auto scanner_x = scanners[i];
+    std::cout << "\nscanner x";
+    // Now try to find out what the rotation and translation is?
+    // Apply each possible orientation of other scanner to see if any enables us to match with the first scanner?
+    std::optional<Deviation> deviation{};
+    for (auto const& orientation : orientations) {
+      // count the translaton vectors between beacons of scanner 1 and x until one translatition matches *all* seen beacons
+      std::map<Vector3D,int> translations_count{};
+      for (auto const& b0 : scanner_0) {
+        for (auto const& bx : scanner_x) {
+          auto rotated_bx = orientation*bx;
+          // b0 + translation = bx 
+          Vector3D translation{b0[0]-rotated_bx[0],b0[1]-rotated_bx[1],b0[2]-rotated_bx[2]};
+          if (++translations_count[translation]>=THRESHOLD) {
+            deviation={orientation,translation};
+            goto done;
+          }
+        }
+      }
+    }
+    done:
+    if (deviation) {
+      std::cout << "\nfound translation (b0+translation=bx): {" << deviation->translation.at(0) << "," << deviation->translation.at(1) << "," << deviation->translation.at(2) << "}";
+      std::cout << "\nfound rotation (rotation*bx same rot as b0): ";
+      for (auto const& row : deviation->rotation) {
+        std::cout << "\n(" << row.at(0) << " " << row.at(1) << " " << row.at(2) << ")";
+      }
+    }    
+  }
+}
 
 } // namespace
 
@@ -752,7 +805,7 @@ int main(int argc, char *argv[])
 {
   // prototype::test();
   // prototype::test2();
-  prototype::test3();
+  prototype::test4();
   return 0;
   Answers answers{};
   // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
