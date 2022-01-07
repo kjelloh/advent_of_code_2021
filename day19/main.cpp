@@ -39,26 +39,287 @@ bool contains(std::string const& token,std::string const& key) {
 extern char const* pTest;
 extern char const* pData;
 
+using Vector3D = std::array<int,3>;
+using Matrix3D = std::array<Vector3D,3>;
+Vector3D operator*(Matrix3D const& m, Vector3D const& v){
+  Vector3D result{};
+  for (int r=0;r<m.size();r++) {
+    for (int c=0;c<m[0].size();c++) {
+      result[r] += m[r][c]*v[c];
+    }
+  }
+  return result;
+}
+Matrix3D operator*(Matrix3D const& m1, Matrix3D const& m2){
+  Matrix3D result{};
+  for (int r=0;r<m1.size();r++) {
+    for (int c=0;c<m2[0].size();c++) {
+      for (int k=0;k<m1[0].size();k++) {
+        result[r][c] += m1[r][k]*m2[k][c];
+      }
+    }
+  }
+  return result;
+}
+
+Vector3D operator+(Vector3D const& v1,Vector3D const& v2) {
+  return {v1.at(0)+v2.at(0),v1.at(1)+v2.at(1),v1.at(2)+v2.at(2)};
+}
+
+Vector3D operator-(Vector3D const& v1,Vector3D const& v2) {
+  return {v1.at(0)-v2.at(0),v1.at(1)-v2.at(1),v1.at(2)-v2.at(2)};
+}
+
+class Orientations3D {
+public:
+  Orientations3D() {
+    // Generate all 24 rotations
+    int face_index{0};    
+    for (auto i : {1,2,3,4,5,6}) {
+      switch (i) {
+        case 1: rotations.push_back(RUNIT); break; // outward x
+        case 2: rotations.push_back(RZ90*rotations[face_index]); break; // outward y
+        case 3: rotations.push_back(RZ90*rotations[face_index]);break; // outward -x
+        case 4: rotations.push_back(RZ90*rotations[face_index]); break; // outward -y
+        case 5: rotations.push_back(RY90);break; // outward -z
+        case 6: rotations.push_back(RY90*RY90*rotations[face_index]); break; // outward z
+      }
+      face_index=rotations.size()-1;
+      for (auto j : {2,3,4}) {
+        switch (i) {
+          case 1: rotations.push_back(RX90*rotations.back()); break; // rotate x
+          case 2: rotations.push_back(RY90*rotations.back()); break; // rotate y
+          case 3: rotations.push_back(RX90*rotations.back()); break; // rotate x (should be -x but we get all rotations clockwise too)
+          case 4: rotations.push_back(RY90*rotations.back()); break; // rotate y (should be -y but we get all rotations clockwise too)
+          case 5: rotations.push_back(RZ90*rotations.back()); break; // rotate z (should be -z but we get all rotations clockwise too)
+          case 6: rotations.push_back(RZ90*rotations.back()); break; // rotate z 
+        }
+      }
+    }
+  }
+
+  // See 3d_rotations_matrices.png (https://github.com/kjelloh/advent_of_code_2021/tree/main/day19 )
+  // We can use these to gerenate all 24 possible rotations
+  // 6 for each "facing" out through a face of a die
+  // 4 rotations around the face normal
+  // 24 in total 
+  static constexpr Matrix3D const RUNIT = {{ // No rotation
+    {1,0,0}
+    ,{0,1,0}
+    ,{0,0,1}}};
+  static constexpr Matrix3D const RX90 = {{
+    {1,0,0}
+    ,{0,0,-1}
+    ,{0,1,0}}};
+  static constexpr Matrix3D const RY90 = {{
+    {0,0,1}
+    ,{0,1,0}
+    ,{-1,0,0}}};
+  static constexpr Matrix3D const RZ90 = {{
+    {0,-1,0}
+    ,{1,0,0}
+    ,{0,0,1}}};
+
+  auto begin() const {return rotations.begin();}
+  auto end() const {return rotations.end();}
+  auto size() {return rotations.size();}
+  auto operator[](auto i) {return rotations[i];}
+
+private:
+  std::vector<Matrix3D> rotations{};
+};
+
+using Vector = Vector3D;
+using Matrix = Matrix3D;
+using Orientations = Orientations3D;
+
+struct Scanner {
+  int id;
+  std::vector<Vector> beacons;
+};
+using Model = std::vector<Scanner>;
+
+Model parse(auto& in) {
+    Model result{};
+    std::string line{};
+    int state{0};
+    Scanner scanner{};
+    while (std::getline(in,line)) {
+      if (line.size()>0) {
+        if (contains(line,"scanner")) {
+          auto [left,right] = split(line,"scanner ");
+          auto [sId,tail] = split(right," ");
+          try {
+            auto id = std::stoi(sId);
+            scanner = Scanner{id,{}};
+          }
+          catch (std::exception const& e) {
+            std::cout << "\nERROR - parse scanner id failed. Excpetion=" << e.what();
+          }
+        }
+        else {
+          try {
+            auto [x,y,z] = split_ints(line);
+            scanner.beacons.push_back({x,y,z});
+          }
+          catch (std::exception const& e) {
+            std::cout << "\nERROR - parse ints falied. Excpetion=:" << e.what();
+          }
+        }
+      }
+      else if (scanner.beacons.size()>0) {
+        result.push_back(scanner);
+        scanner = {};    
+      }
+    }
+    if (scanner.beacons.size()>0) result.push_back(scanner);
+    return result;
+}
+
+struct Allignment {
+  Matrix rotation{Orientations::RUNIT};
+  Vector translation{{0,0,0}};
+};
+
+std::optional<Allignment> find_allignment(Scanner const& scanner_x, Scanner const& scanner_0) {
+  // finds allignment so that allignment(scanner_x) = scanner_0 
+  // where allignment(s) = rotation of s + translation of s
+  std::optional<Allignment> result{};
+  static Orientations const orientations{};
+  const int THRESHOLD = 12;
+  std::cout << "\nfind_allignment scanner " << scanner_x.id << " --> scanner " << scanner_0.id;
+  // try to find out what the rotation and translation of scanner_x is in relation to scanner_0?
+  // Apply each possible orientation of other scanner to see if any enables us to match with the first scanner?
+  for (auto const& orientation : orientations) {
+    // count the translaton vectors between beacons of scanner 1 and x until one translatition matches *all* seen beacons
+    std::map<Vector,int> translations_count{};
+    for (auto const& b0 : scanner_0.beacons) {
+      for (auto const& bx : scanner_x.beacons) {
+        // rotation*bx = b0
+        auto rotated_bx = orientation*bx;
+        // bx + translation = b0
+        // translation = b0-bx
+        Vector translation{b0-rotated_bx};
+        if (++translations_count[translation]>=THRESHOLD) {
+          result={orientation,translation};
+          goto done; // break out of all loops
+        }
+      }
+    }
+  }
+  done:
+  if (result) {
+    std::cout << "\nfound scanner_x " << scanner_x.id << " allignment to scanner_0 " << scanner_0.id;
+    std::cout << "\n\ttranslation (scanner_x+translation=scanner_0): {" << result->translation.at(0) << "," << result->translation.at(1) << "," << result->translation.at(2) << "}";
+    std::cout << "\n\trotation (rotation*scanner_x alligned with scanner_0): ";
+    for (auto const& row : result->rotation) {
+      std::cout << "\n(" << row.at(0) << " " << row.at(1) << " " << row.at(2) << ")";
+    }
+  }    
+
+  return result;
+}
+
+using Alligned = std::pair<Scanner,Allignment>;
+
+std::deque<Alligned> allign_scanners(std::vector<Scanner> const& scanners) {
+  std::cout << " scanner count " << scanners.size();
+  std::cout << "\nscanners size " << scanners.size();
+
+  std::deque<Scanner> unalligned{scanners.begin()+1,scanners.end()};
+  std::deque<std::pair<Scanner,Allignment>> alligned{{scanners[0],{}}};
+  while (unalligned.size()>0) {
+    std::cout << "\nunalligned count " << unalligned.size();
+    std::cout << "\nalligned count " << alligned.size();
+    auto unalligned_count_before = unalligned.size();
+    auto const [scanner_0,allignment_0] = alligned.back();
+    alligned.pop_back();
+    for (int i=0;i<unalligned.size();i++) {
+      auto const scanner_x = unalligned.front();
+      unalligned.pop_front();
+      auto allignment = find_allignment(scanner_x,scanner_0);
+      if (allignment) {
+        // allign x to 0
+        Scanner alligned_x{scanner_x.id,{}};
+        std::transform(scanner_x.beacons.begin(),scanner_x.beacons.end(),std::back_inserter(alligned_x.beacons),[&allignment](Vector const& bx){
+          auto& [rotation,translation] = allignment.value();
+          auto alligned_v = rotation*bx + translation;
+          return alligned_v; 
+        });
+        alligned.push_back({alligned_x,allignment.value()});
+      }
+      else {
+        unalligned.push_back(scanner_x); // may be alligned with other scanner later
+      }
+    }
+    alligned.push_front({scanner_0,allignment_0});
+  }
+  if (unalligned.size()!=0) std::cout << "\nERROR - Failed to allign all scanners.";
+  return alligned;
+}
+
 using Result = size_t;
-using Answers = std::vector<std::pair<std::string,Result>>;
+using Answers = std::vector<
+  std::pair<
+     std::string
+    ,std::pair<
+       std::deque<Alligned>
+      ,Result
+    >
+  >
+>;
 
+namespace part1 {
+  std::pair<std::deque<Alligned>,Result> solve_for(char const* pData) {
+    std::string caption{"\nsolve_for:"};
+    std::pair<std::deque<Alligned>,Result> result{};
+    std::stringstream in{ pData };
+    auto scanners = parse(in);
+    auto alligned = allign_scanners(scanners);
+    if (alligned.size()!=scanners.size()) std::cout << "\nERROR - Failed to allign all scanners.";
+    else {
+      result.first = alligned;
+      // count scanners
+      std::set<Vector> init{};
+      auto unique_beacons = std::accumulate(alligned.begin(),alligned.end(),init,[](auto acc,std::pair<Scanner,Allignment> const& entry) {
+        auto const& [scanner,allignment] = entry;
+        std::copy(scanner.beacons.begin(),scanner.beacons.end(),std::inserter(acc,acc.begin()));
+        return acc;
+      });
+      result.second = unique_beacons.size();
+    }
+    return result;
+  }
+}
 
-/*
-For a cartesian coordinate system the rotation matrices are
-
-Rx90 =  1  0  0   Rotate 90 degrees counter clockwise around x-axis
-        0  0 -1
-        0  1  0
-
-Ry90 =  0  0  1
-        0  1  0
-       -1  0  0
-
-Rz90 =  0 -1  0
-        1  0  0
-        0  0  1
-*/
-
+namespace part2 {
+  std::pair<std::deque<Alligned>,Result> solve_for(std::deque<Alligned> const& alligned) {
+    // Find max manhattan distance
+    std::pair<std::deque<Alligned>,Result> result{alligned,0};
+    std::deque<std::pair<Scanner,Allignment>> unvisited{alligned.begin()+1,alligned.end()};
+    std::deque<std::pair<Scanner,Allignment>> visited{alligned[0]};      
+    int max_distance{0};
+    while (unvisited.size()>0){
+      auto alligned_x = unvisited.back();
+      unvisited.pop_back();
+      auto const [scanner_x,allignment_x] = alligned_x;
+      for (int i=0;i<unvisited.size();i++) {
+        auto const alligned_y = unvisited.back();
+        unvisited.pop_back();
+        unvisited.push_front(alligned_y); // rotate deque
+        auto const& [scanner_y,allignment_y] = alligned_y;
+        auto translation = allignment_y.translation-allignment_x.translation;
+        auto distance = std::accumulate(translation.begin(),translation.end(),0,[](auto acc,int c){
+          return acc + std::abs(c);
+        });
+        max_distance = std::max(max_distance,distance);
+      }
+      visited.push_back(alligned_x);
+    }
+    result.second = max_distance;
+    return result;  
+  }
+} // namespace part2
 
 namespace prototype {
   /*
@@ -548,199 +809,8 @@ PROPOSED ALGORITHM
       }
     }    
   }
-
 } // namespace prototype
 
-namespace part1 {
-  using Vector = prototype::Vector3D;
-  using Matrix = prototype::Matrix3D;
-  using Orientations = prototype::Orientations3D;
-  using prototype::operator*;
-
-  Vector operator+(Vector const& v1,Vector const& v2) {
-    return {v1.at(0)+v2.at(0),v1.at(1)+v2.at(1),v1.at(2)+v2.at(2)};
-  }
-
-  Vector operator-(Vector const& v1,Vector const& v2) {
-    return {v1.at(0)-v2.at(0),v1.at(1)-v2.at(1),v1.at(2)-v2.at(2)};
-  }
-
-  struct Scanner {
-    int id;
-    std::vector<Vector> beacons;
-  };
-  using Model = std::vector<Scanner>;
-  
-  Model parse(auto& in) {
-      Model result{};
-      std::string line{};
-      int state{0};
-      Scanner scanner{};
-      while (std::getline(in,line)) {
-        if (line.size()>0) {
-          if (contains(line,"scanner")) {
-            auto [left,right] = split(line,"scanner ");
-            auto [sId,tail] = split(right," ");
-            try {
-              auto id = std::stoi(sId);
-              scanner = Scanner{id,{}};
-            }
-            catch (std::exception const& e) {
-              std::cout << "\nERROR - parse scanner id failed. Excpetion=" << e.what();
-            }
-          }
-          else {
-            try {
-              auto [x,y,z] = split_ints(line);
-              scanner.beacons.push_back({x,y,z});
-            }
-            catch (std::exception const& e) {
-              std::cout << "\nERROR - parse ints falied. Excpetion=:" << e.what();
-            }
-          }
-        }
-        else if (scanner.beacons.size()>0) {
-          result.push_back(scanner);
-          scanner = {};    
-        }
-      }
-      if (scanner.beacons.size()>0) result.push_back(scanner);
-      return result;
-  }
-
-  struct Allignment {
-    Matrix rotation{Orientations::RUNIT};
-    Vector translation{{0,0,0}};
-  };
-
-  std::optional<Allignment> find_allignment(Scanner const& scanner_x, Scanner const& scanner_0) {
-    // finds allignment so that allignment(scanner_x) = scanner_0 
-    // where allignment(s) = rotation of s + translation of s
-    std::optional<Allignment> result{};
-    static Orientations const orientations{};
-    const int THRESHOLD = 12;
-    std::cout << "\nfind_allignment scanner " << scanner_x.id << " --> scanner " << scanner_0.id;
-    // try to find out what the rotation and translation of scanner_x is in relation to scanner_0?
-    // Apply each possible orientation of other scanner to see if any enables us to match with the first scanner?
-    for (auto const& orientation : orientations) {
-      // count the translaton vectors between beacons of scanner 1 and x until one translatition matches *all* seen beacons
-      std::map<Vector,int> translations_count{};
-      for (auto const& b0 : scanner_0.beacons) {
-        for (auto const& bx : scanner_x.beacons) {
-          // rotation*bx = b0
-          auto rotated_bx = orientation*bx;
-          // bx + translation = b0
-          // translation = b0-bx
-          Vector translation{b0-rotated_bx};
-          if (++translations_count[translation]>=THRESHOLD) {
-            result={orientation,translation};
-            goto done; // break out of all loops
-          }
-        }
-      }
-    }
-    done:
-    if (result) {
-      std::cout << "\nfound scanner_x " << scanner_x.id << " allignment to scanner_0 " << scanner_0.id;
-      std::cout << "\n\ttranslation (scanner_x+translation=scanner_0): {" << result->translation.at(0) << "," << result->translation.at(1) << "," << result->translation.at(2) << "}";
-      std::cout << "\n\trotation (rotation*scanner_x alligned with scanner_0): ";
-      for (auto const& row : result->rotation) {
-        std::cout << "\n(" << row.at(0) << " " << row.at(1) << " " << row.at(2) << ")";
-      }
-    }    
-
-    return result;
-  }
-
-  std::deque<std::pair<Scanner,Allignment>> allign_scanners(std::vector<Scanner> const& scanners) {
-    std::cout << " scanner count " << scanners.size();
-    std::cout << "\nscanners size " << scanners.size();
-
-    std::deque<Scanner> unalligned{scanners.begin()+1,scanners.end()};
-    std::deque<std::pair<Scanner,Allignment>> alligned{{scanners[0],{}}};
-    while (unalligned.size()>0) {
-      std::cout << "\nunalligned count " << unalligned.size();
-      std::cout << "\nalligned count " << alligned.size();
-      auto unalligned_count_before = unalligned.size();
-      auto const [scanner_0,allignment_0] = alligned.back();
-      alligned.pop_back();
-      for (int i=0;i<unalligned.size();i++) {
-        auto const scanner_x = unalligned.front();
-        unalligned.pop_front();
-        auto allignment = find_allignment(scanner_x,scanner_0);
-        if (allignment) {
-          // allign x to 0
-          Scanner alligned_x{scanner_x.id,{}};
-          std::transform(scanner_x.beacons.begin(),scanner_x.beacons.end(),std::back_inserter(alligned_x.beacons),[&allignment](Vector const& bx){
-            auto& [rotation,translation] = allignment.value();
-            auto alligned_v = rotation*bx + translation;
-            return alligned_v; 
-          });
-          alligned.push_back({alligned_x,allignment.value()});
-        }
-        else {
-          unalligned.push_back(scanner_x); // may be alligned with other scanner later
-        }
-      }
-      alligned.push_front({scanner_0,allignment_0});
-    }
-    if (unalligned.size()!=0) std::cout << "\nERROR - Failed to allign all scanners.";
-    return alligned;
-  }
-
-  Result solve_for(char const* pData) {
-    std::string caption{"\nsolve_for:"};
-    Result result{};
-    std::stringstream in{ pData };
-    auto scanners = parse(in);
-    auto alligned = allign_scanners(scanners);
-    if (alligned.size()!=scanners.size()) std::cout << "\nERROR - Failed to allign all scanners.";
-    else {
-      // count scanners
-      std::set<Vector> init{};
-      auto unique_beacons = std::accumulate(alligned.begin(),alligned.end(),init,[](auto acc,std::pair<Scanner,Allignment> const& entry) {
-        auto const& [scanner,allignment] = entry;
-        std::copy(scanner.beacons.begin(),scanner.beacons.end(),std::inserter(acc,acc.begin()));
-        return acc;
-      });
-      result = unique_beacons.size();
-
-      // Find max manhattan distance
-      std::deque<std::pair<Scanner,Allignment>> unvisited{alligned.begin()+1,alligned.end()};
-      std::deque<std::pair<Scanner,Allignment>> visited{alligned[0]};      
-      int max_distance{0};
-      while (unvisited.size()>0){
-        auto alligned_x = unvisited.back();
-        unvisited.pop_back();
-        auto const [scanner_x,allignment_x] = alligned_x;
-        for (int i=0;i<unvisited.size();i++) {
-          auto const alligned_y = unvisited.back();
-          unvisited.pop_back();
-          unvisited.push_front(alligned_y); // rotate deque
-          auto const& [scanner_y,allignment_y] = alligned_y;
-          auto translation = allignment_y.translation-allignment_x.translation;
-          auto distance = std::accumulate(translation.begin(),translation.end(),0,[](auto acc,int c){
-            return acc + std::abs(c);
-          });
-          max_distance = std::max(max_distance,distance);
-        }
-        visited.push_back(alligned_x);
-      }
-      std::cout << "\nmax distance " << max_distance;
-    }
-    return result;
-  }
-}
-
-namespace part2 {
-  Result solve_for(char const* pData) {
-    Result result{};
-    std::stringstream in{ pData };
-    std::string caption{"\nsolve_for:"};
-    return result;
-  
-  }
-}
 
 int main(int argc, char *argv[])
 {
@@ -749,12 +819,12 @@ int main(int argc, char *argv[])
   // prototype::test4();
   // return 0;
   Answers answers{};
-  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
   answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  answers.push_back({"Part 2 Test",part2::solve_for(answers[0].second.first)});
+  answers.push_back({"Part 2     ",part2::solve_for(answers[1].second.first)});
   for (auto const& answer : answers) {
-    std::cout << "\nanswer[" << answer.first << "] " << answer.second;
+    std::cout << "\nanswer[" << answer.first << "] " << answer.second.second;
   }
   // std::cout << "\nPress <enter>...";
   // std::cin.get();
