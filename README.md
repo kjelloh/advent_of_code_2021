@@ -127,9 +127,8 @@ Pitfalls I fell into when solving this puzzle in C++17
     * It has something to do with what this article "Nested Initialiser Lists for Multidimensional Arrays" solves (https://christophercrouzet.com/blog/dev/nested-initializers)?
     * I have to come back to this Issue. But the bottom line is that I lost valuable time trying to get my code to compile...
     * The following code does NOT compile (however many curly braces I try to add in trial and error...)
+
 ```
-
-
 class Matrix {
   public:
   std::array<std::array<int,3>,3> m;
@@ -140,25 +139,73 @@ Matrix Rx90 = {{
   ,{0,1,0}}};
 ```
 
-
-
     * Compiler error "error: too many initializers for ‘std::array<std::array<int, 3>, 3>’"
     * The following code DOES compile :)
     * But WHY do I need so many curly braces?
 
 
 ```
-
-
 using Matrix = std::array<std::array<int,3>,3>;
 Matrix Rx90 = {{
    {1,0,0}
   ,{0,0,-1}
   ,{0,1,0}}};
 ```
+* Getting the signs correct on offsets between scanners.
+  * In the end we are looking for the offset so that scanner + offset = scanner 0
+  * Which gives us offset = "scanner 0" - "scanner".
+  * For some reason I am "dyslectic" in getting correct "mirroring" and had to perform testing until I had the sign correct through the whole chain.
+
+Lessons learned
+
+* I now know aligned is spelled with only one 'l'...
+* I now have the 3D rotation and translation algebra refreshed! It took some time to get the rotation matrices correct and also the generation of the 24 possible "dice orientations".
+* Prototyping is an art in itself! I got into some extra trouble when refactoring from prototype code into live code.
+* I identified a way to perform pairwise processing of symmetrical pairs (e.g., pairs of beacons where we want to process each pair only once).
+    * I ended up in code doing this on deques which was suboptimal but I did not take the time to refactor into a more sutabale data structure like a vector.
+
+```
+
+  std::deque<Scanner> unaligned{scanners.begin()+1,scanners.end()};
+  std::deque<std::pair<Scanner,Alignment>> aligned{{scanners[0],{}}};
+  while (unaligned.size()>0) {
+    std::cout << "\nunaligned count " << unaligned.size();
+    std::cout << "\naligned count " << aligned.size();
+    auto unaligned_count_before = unaligned.size();
+    auto const [scanner_0,alignment_0] = aligned.back();
+    aligned.pop_back();
+    for (int i=0;i<unaligned.size();i++) {
+      auto const scanner_x = unaligned.front();
+      unaligned.pop_front();
+      auto alignment = find_alignment(scanner_x,scanner_0);
+      if (alignment) {
+        // align x to 0
+        Scanner aligned_x{scanner_x.id,{}};
+        std::transform(scanner_x.beacons.begin(),scanner_x.beacons.end(),std::back_inserter(aligned_x.beacons),[&alignment](Vector const& bx){
+          auto& [rotation,translation] = alignment.value();
+          auto aligned_v = rotation*bx + translation;
+          return aligned_v; 
+        });
+        aligned.push_back({aligned_x,alignment.value()});
+      }
+      else {
+        unaligned.push_back(scanner_x); // may be aligned with other scanner later
+      }
+    }
+    aligned.push_front({scanner_0,alignment_0});
+  }
+  if (unaligned.size()!=0) std::cout << "\nERROR - Failed to align all scanners.";
 
 
+```
 
+* The main idea here is to keep all scanners used as left-hand-side in a visited deque. These are also the aligned ones.
+    * Then we can align each in the unaligned deque to any of the ones in the aligned deque.
+    * We then tray to align the back of the aligned deque with the front of the unaligned while rotating the unaligned.
+    * The rotation of the unaligned is accomplished by popping from the front and pushing to the back while aligning.
+    * NOTE: The for (int i=0;i<unalligned.size();i++) is just for safety reasons to prevent eternal looping should the search fail.
+* I left the code when it worked and was reasonably cleaned up.
+* I have not tried to refactor it to have the different phases fit more readily together (for example using a deque as the result to process for beacon count and best manhattan distance is for suer suboptimal...)
 
 # day 17
 Lessons learned in day 17.
