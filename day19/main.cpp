@@ -11,6 +11,8 @@
 #include <random>
 #include <cmath>
 #include <optional>
+#include <deque>
+#include <set>
 
 std::pair<std::string,std::string> split(std::string const& line,std::string delim) {
   if (auto pos = line.find(delim); pos != std::string::npos) {
@@ -401,19 +403,19 @@ PROPOSED ALGORITHM
     // 6 for each "facing" out through a face of a die
     // 4 rotations around the face normal
     // 24 in total 
-    Matrix3D const RUNIT = {{ // No rotation
+    static constexpr Matrix3D const RUNIT = {{ // No rotation
       {1,0,0}
       ,{0,1,0}
       ,{0,0,1}}};
-    Matrix3D const RX90 = {{
+    static constexpr Matrix3D const RX90 = {{
       {1,0,0}
       ,{0,0,-1}
       ,{0,1,0}}};
-    Matrix3D const RY90 = {{
+    static constexpr Matrix3D const RY90 = {{
       {0,0,1}
       ,{0,1,0}
       ,{-1,0,0}}};
-    Matrix3D const RZ90 = {{
+    static constexpr Matrix3D const RZ90 = {{
       {0,-1,0}
       ,{1,0,0}
       ,{0,0,1}}};
@@ -515,12 +517,12 @@ PROPOSED ALGORITHM
     std::cout << "\norientations size " << orientations.size();
     const int THRESHOLD = 6;
     auto scanner_0 = scanners[0];
+    std::optional<Deviation> deviation{};
     for (int i=1;i<scanners.size();i++) {
       auto scanner_x = scanners[i];
       std::cout << "\nscanner x";
       // Now try to find out what the rotation and translation is?
       // Apply each possible orientation of other scanner to see if any enables us to match with the first scanner?
-      std::optional<Deviation> deviation{};
       for (auto const& orientation : orientations) {
         // count the translaton vectors between beacons of scanner 1 and x until one translatition matches *all* seen beacons
         std::map<Vector3D,int> translations_count{};
@@ -536,26 +538,37 @@ PROPOSED ALGORITHM
           }
         }
       }
-      done:
-      if (deviation) {
-        std::cout << "\nfound translation (b0+translation=bx): {" << deviation->translation.at(0) << "," << deviation->translation.at(1) << "," << deviation->translation.at(2) << "}";
-        std::cout << "\nfound rotation (rotation*bx same rot as b0): ";
-        for (auto const& row : deviation->rotation) {
-          std::cout << "\n(" << row.at(0) << " " << row.at(1) << " " << row.at(2) << ")";
-        }
-      }    
     }
+    done:
+    if (deviation) {
+      std::cout << "\nfound translation (b0+translation=bx): {" << deviation->translation.at(0) << "," << deviation->translation.at(1) << "," << deviation->translation.at(2) << "}";
+      std::cout << "\nfound rotation (rotation*bx same rot as b0): ";
+      for (auto const& row : deviation->rotation) {
+        std::cout << "\n(" << row.at(0) << " " << row.at(1) << " " << row.at(2) << ")";
+      }
+    }    
   }
 
-} // namespace
+} // namespace prototype
 
 namespace part1 {
-  
-  struct Scanner3D {
+  using Vector = prototype::Vector3D;
+  using Matrix = prototype::Matrix3D;
+  using Orientations = prototype::Orientations3D;
+  using prototype::operator*;
+
+  Vector operator+(Vector const& v1,Vector const& v2) {
+    return {v1.at(0)+v2.at(0),v1.at(1)+v2.at(1),v1.at(2)+v2.at(2)};
+  }
+
+  Vector operator-(Vector const& v1,Vector const& v2) {
+    return {v1.at(0)-v2.at(0),v1.at(1)-v2.at(1),v1.at(2)-v2.at(2)};
+  }
+
+  struct Scanner {
     int id;
-    std::vector<prototype::Vector3D> beacons;
+    std::vector<Vector> beacons;
   };
-  using Scanner = Scanner3D;
   using Model = std::vector<Scanner>;
   
   Model parse(auto& in) {
@@ -595,9 +608,51 @@ namespace part1 {
       return result;
   }
 
-  Result solve_for(char const* pData) {
-  using namespace prototype;
+  struct Allignment {
+    Matrix rotation{Orientations::RUNIT};
+    Vector translation{{0,0,0}};
+  };
 
+  std::optional<Allignment> find_allignment(Scanner const& scanner_x, Scanner const& scanner_0) {
+    // finds allignment so that allignment(scanner_x) = scanner_0 
+    // where allignment(s) = rotation of s + translation of s
+    std::optional<Allignment> result{};
+    static Orientations const orientations{};
+    const int THRESHOLD = 12;
+    std::cout << "\nfind_allignment scanner " << scanner_x.id << " --> scanner " << scanner_0.id;
+    // try to find out what the rotation and translation of scanner_x is in relation to scanner_0?
+    // Apply each possible orientation of other scanner to see if any enables us to match with the first scanner?
+    for (auto const& orientation : orientations) {
+      // count the translaton vectors between beacons of scanner 1 and x until one translatition matches *all* seen beacons
+      std::map<Vector,int> translations_count{};
+      for (auto const& b0 : scanner_0.beacons) {
+        for (auto const& bx : scanner_x.beacons) {
+          // rotation*bx = b0
+          auto rotated_bx = orientation*bx;
+          // bx + translation = b0
+          // translation = b0-bx
+          Vector translation{b0-rotated_bx};
+          if (++translations_count[translation]>=THRESHOLD) {
+            result={orientation,translation};
+            goto done; // break out of all loops
+          }
+        }
+      }
+    }
+    done:
+    if (result) {
+      std::cout << "\nfound scanner_x " << scanner_x.id << " allignment to scanner_0 " << scanner_0.id;
+      std::cout << "\n\ttranslation (scanner_x+translation=scanner_0): {" << result->translation.at(0) << "," << result->translation.at(1) << "," << result->translation.at(2) << "}";
+      std::cout << "\n\trotation (rotation*scanner_x alligned with scanner_0): ";
+      for (auto const& row : result->rotation) {
+        std::cout << "\n(" << row.at(0) << " " << row.at(1) << " " << row.at(2) << ")";
+      }
+    }    
+
+    return result;
+  }
+
+  Result solve_for(char const* pData) {
     std::string caption{"\nsolve_for:"};
     Result result{};
     std::stringstream in{ pData };
@@ -605,44 +660,43 @@ namespace part1 {
     std::cout << caption << " scanner count " << scanners.size();
     std::cout << "\nscanners size " << scanners.size();
 
-    struct Deviation {
-      Matrix3D rotation;
-      Vector3D translation;
-    };
-
-    Orientations3D orientations{};
-    std::cout << "\norientations size " << orientations.size();
-    const int THRESHOLD = 12;
-    auto scanner_0 = scanners[0].beacons;
-    for (int i=1;i<scanners.size();i++) {
-      auto scanner_x = scanners[i].beacons;
-      std::cout << "\nscanner x";
-      // Now try to find out what the rotation and translation is?
-      // Apply each possible orientation of other scanner to see if any enables us to match with the first scanner?
-      std::optional<Deviation> deviation{};
-      for (auto const& orientation : orientations) {
-        // count the translaton vectors between beacons of scanner 1 and x until one translatition matches *all* seen beacons
-        std::map<Vector3D,int> translations_count{};
-        for (auto const& b0 : scanner_0) {
-          for (auto const& bx : scanner_x) {
-            auto rotated_bx = orientation*bx;
-            // b0 + translation = bx 
-            Vector3D translation{b0[0]-rotated_bx[0],b0[1]-rotated_bx[1],b0[2]-rotated_bx[2]};
-            if (++translations_count[translation]>=THRESHOLD) {
-              deviation={orientation,translation};
-              goto done;
-            }
-          }
+    std::deque<Scanner> unalligned{scanners.begin()+1,scanners.end()};
+    std::deque<Scanner> alligned{scanners[0]};
+    while (unalligned.size()>0) {
+      std::cout << "\nunalligned count " << unalligned.size();
+      std::cout << "\nalligned count " << alligned.size();
+      auto unalligned_count_before = unalligned.size();
+      auto const scanner_0 = alligned.back();
+      alligned.pop_back();
+      for (int i=0;i<unalligned.size();i++) {
+        auto const scanner_x = unalligned.front();
+        unalligned.pop_front();
+        auto allignment = find_allignment(scanner_x,scanner_0);
+        if (allignment) {
+          // allign x to 0
+          Scanner alligned_x{scanner_x.id,{}};
+          std::transform(scanner_x.beacons.begin(),scanner_x.beacons.end(),std::back_inserter(alligned_x.beacons),[&allignment](Vector const& bx){
+            auto& [rotation,translation] = allignment.value();
+            auto alligned_v = rotation*bx + translation;
+            return alligned_v; 
+          });
+          alligned.push_back(alligned_x);
+        }
+        else {
+          unalligned.push_back(scanner_x); // may be alligned with other scanner later
         }
       }
-      done:
-      if (deviation) {
-        std::cout << "\nfound translation (b0+translation=bx): {" << deviation->translation.at(0) << "," << deviation->translation.at(1) << "," << deviation->translation.at(2) << "}";
-        std::cout << "\nfound rotation (rotation*bx same rot as b0): ";
-        for (auto const& row : deviation->rotation) {
-          std::cout << "\n(" << row.at(0) << " " << row.at(1) << " " << row.at(2) << ")";
-        }
-      }    
+      alligned.push_front(scanner_0);
+    }
+    if (unalligned.size()!=0) std::cout << "\nERROR - Failed to allign all scanners.";
+    else {
+      // count scanners
+      std::set<Vector> init{};
+      auto unique_beacons = std::accumulate(alligned.begin(),alligned.end(),init,[](auto acc,Scanner const& scanner) {
+        std::copy(scanner.beacons.begin(),scanner.beacons.end(),std::inserter(acc,acc.begin()));
+        return acc;
+      });
+      result = unique_beacons.size();
     }
     return result;
   }
