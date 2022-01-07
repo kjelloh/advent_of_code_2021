@@ -652,21 +652,17 @@ namespace part1 {
     return result;
   }
 
-  Result solve_for(char const* pData) {
-    std::string caption{"\nsolve_for:"};
-    Result result{};
-    std::stringstream in{ pData };
-    auto scanners = parse(in);
-    std::cout << caption << " scanner count " << scanners.size();
+  std::deque<std::pair<Scanner,Allignment>> allign_scanners(std::vector<Scanner> const& scanners) {
+    std::cout << " scanner count " << scanners.size();
     std::cout << "\nscanners size " << scanners.size();
 
     std::deque<Scanner> unalligned{scanners.begin()+1,scanners.end()};
-    std::deque<Scanner> alligned{scanners[0]};
+    std::deque<std::pair<Scanner,Allignment>> alligned{{scanners[0],{}}};
     while (unalligned.size()>0) {
       std::cout << "\nunalligned count " << unalligned.size();
       std::cout << "\nalligned count " << alligned.size();
       auto unalligned_count_before = unalligned.size();
-      auto const scanner_0 = alligned.back();
+      auto const [scanner_0,allignment_0] = alligned.back();
       alligned.pop_back();
       for (int i=0;i<unalligned.size();i++) {
         auto const scanner_x = unalligned.front();
@@ -680,23 +676,57 @@ namespace part1 {
             auto alligned_v = rotation*bx + translation;
             return alligned_v; 
           });
-          alligned.push_back(alligned_x);
+          alligned.push_back({alligned_x,allignment.value()});
         }
         else {
           unalligned.push_back(scanner_x); // may be alligned with other scanner later
         }
       }
-      alligned.push_front(scanner_0);
+      alligned.push_front({scanner_0,allignment_0});
     }
     if (unalligned.size()!=0) std::cout << "\nERROR - Failed to allign all scanners.";
+    return alligned;
+  }
+
+  Result solve_for(char const* pData) {
+    std::string caption{"\nsolve_for:"};
+    Result result{};
+    std::stringstream in{ pData };
+    auto scanners = parse(in);
+    auto alligned = allign_scanners(scanners);
+    if (alligned.size()!=scanners.size()) std::cout << "\nERROR - Failed to allign all scanners.";
     else {
       // count scanners
       std::set<Vector> init{};
-      auto unique_beacons = std::accumulate(alligned.begin(),alligned.end(),init,[](auto acc,Scanner const& scanner) {
+      auto unique_beacons = std::accumulate(alligned.begin(),alligned.end(),init,[](auto acc,std::pair<Scanner,Allignment> const& entry) {
+        auto const& [scanner,allignment] = entry;
         std::copy(scanner.beacons.begin(),scanner.beacons.end(),std::inserter(acc,acc.begin()));
         return acc;
       });
       result = unique_beacons.size();
+
+      // Find max manhattan distance
+      std::deque<std::pair<Scanner,Allignment>> unvisited{alligned.begin()+1,alligned.end()};
+      std::deque<std::pair<Scanner,Allignment>> visited{alligned[0]};      
+      int max_distance{0};
+      while (unvisited.size()>0){
+        auto alligned_x = unvisited.back();
+        unvisited.pop_back();
+        auto const [scanner_x,allignment_x] = alligned_x;
+        for (int i=0;i<unvisited.size();i++) {
+          auto const alligned_y = unvisited.back();
+          unvisited.pop_back();
+          unvisited.push_front(alligned_y); // rotate deque
+          auto const& [scanner_y,allignment_y] = alligned_y;
+          auto translation = allignment_y.translation-allignment_x.translation;
+          auto distance = std::accumulate(translation.begin(),translation.end(),0,[](auto acc,int c){
+            return acc + std::abs(c);
+          });
+          max_distance = std::max(max_distance,distance);
+        }
+        visited.push_back(alligned_x);
+      }
+      std::cout << "\nmax distance " << max_distance;
     }
     return result;
   }
@@ -704,9 +734,11 @@ namespace part1 {
 
 namespace part2 {
   Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      return result;
+    Result result{};
+    std::stringstream in{ pData };
+    std::string caption{"\nsolve_for:"};
+    return result;
+  
   }
 }
 
