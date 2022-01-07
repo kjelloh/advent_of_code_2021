@@ -176,18 +176,18 @@ Model parse(auto& in) {
     return result;
 }
 
-struct Allignment {
+struct Alignment {
   Matrix rotation{Orientations::RUNIT};
   Vector translation{{0,0,0}};
 };
 
-std::optional<Allignment> find_allignment(Scanner const& scanner_x, Scanner const& scanner_0) {
-  // finds allignment so that allignment(scanner_x) = scanner_0 
-  // where allignment(s) = rotation of s + translation of s
-  std::optional<Allignment> result{};
+std::optional<Alignment> find_alignment(Scanner const& scanner_x, Scanner const& scanner_0) {
+  // finds alignment so that alignment(scanner_x) = scanner_0 
+  // where alignment(s) = rotation of s + translation of s
+  std::optional<Alignment> result{};
   static Orientations const orientations{};
   const int THRESHOLD = 12;
-  std::cout << "\nfind_allignment scanner " << scanner_x.id << " --> scanner " << scanner_0.id;
+  std::cout << "\nfind_alignment scanner " << scanner_x.id << " --> scanner " << scanner_0.id;
   // try to find out what the rotation and translation of scanner_x is in relation to scanner_0?
   // Apply each possible orientation of other scanner to see if any enables us to match with the first scanner?
   for (auto const& orientation : orientations) {
@@ -209,9 +209,9 @@ std::optional<Allignment> find_allignment(Scanner const& scanner_x, Scanner cons
   }
   done:
   if (result) {
-    std::cout << "\nfound scanner_x " << scanner_x.id << " allignment to scanner_0 " << scanner_0.id;
+    std::cout << "\nfound scanner_x " << scanner_x.id << " alignment to scanner_0 " << scanner_0.id;
     std::cout << "\n\ttranslation (scanner_x+translation=scanner_0): {" << result->translation.at(0) << "," << result->translation.at(1) << "," << result->translation.at(2) << "}";
-    std::cout << "\n\trotation (rotation*scanner_x alligned with scanner_0): ";
+    std::cout << "\n\trotation (rotation*scanner_x aligned with scanner_0): ";
     for (auto const& row : result->rotation) {
       std::cout << "\n(" << row.at(0) << " " << row.at(1) << " " << row.at(2) << ")";
     }
@@ -220,42 +220,42 @@ std::optional<Allignment> find_allignment(Scanner const& scanner_x, Scanner cons
   return result;
 }
 
-using Alligned = std::pair<Scanner,Allignment>;
+using Aligned = std::pair<Scanner,Alignment>;
 
-std::deque<Alligned> allign_scanners(std::vector<Scanner> const& scanners) {
+std::deque<Aligned> align_scanners(std::vector<Scanner> const& scanners) {
   std::cout << " scanner count " << scanners.size();
   std::cout << "\nscanners size " << scanners.size();
 
-  std::deque<Scanner> unalligned{scanners.begin()+1,scanners.end()};
-  std::deque<std::pair<Scanner,Allignment>> alligned{{scanners[0],{}}};
-  while (unalligned.size()>0) {
-    std::cout << "\nunalligned count " << unalligned.size();
-    std::cout << "\nalligned count " << alligned.size();
-    auto unalligned_count_before = unalligned.size();
-    auto const [scanner_0,allignment_0] = alligned.back();
-    alligned.pop_back();
-    for (int i=0;i<unalligned.size();i++) {
-      auto const scanner_x = unalligned.front();
-      unalligned.pop_front();
-      auto allignment = find_allignment(scanner_x,scanner_0);
-      if (allignment) {
-        // allign x to 0
-        Scanner alligned_x{scanner_x.id,{}};
-        std::transform(scanner_x.beacons.begin(),scanner_x.beacons.end(),std::back_inserter(alligned_x.beacons),[&allignment](Vector const& bx){
-          auto& [rotation,translation] = allignment.value();
-          auto alligned_v = rotation*bx + translation;
-          return alligned_v; 
+  std::deque<Scanner> unaligned{scanners.begin()+1,scanners.end()};
+  std::deque<std::pair<Scanner,Alignment>> aligned{{scanners[0],{}}};
+  while (unaligned.size()>0) {
+    std::cout << "\nunaligned count " << unaligned.size();
+    std::cout << "\naligned count " << aligned.size();
+    auto unaligned_count_before = unaligned.size();
+    auto const [scanner_0,alignment_0] = aligned.back();
+    aligned.pop_back();
+    for (int i=0;i<unaligned.size();i++) {
+      auto const scanner_x = unaligned.front();
+      unaligned.pop_front();
+      auto alignment = find_alignment(scanner_x,scanner_0);
+      if (alignment) {
+        // align x to 0
+        Scanner aligned_x{scanner_x.id,{}};
+        std::transform(scanner_x.beacons.begin(),scanner_x.beacons.end(),std::back_inserter(aligned_x.beacons),[&alignment](Vector const& bx){
+          auto& [rotation,translation] = alignment.value();
+          auto aligned_v = rotation*bx + translation;
+          return aligned_v; 
         });
-        alligned.push_back({alligned_x,allignment.value()});
+        aligned.push_back({aligned_x,alignment.value()});
       }
       else {
-        unalligned.push_back(scanner_x); // may be alligned with other scanner later
+        unaligned.push_back(scanner_x); // may be aligned with other scanner later
       }
     }
-    alligned.push_front({scanner_0,allignment_0});
+    aligned.push_front({scanner_0,alignment_0});
   }
-  if (unalligned.size()!=0) std::cout << "\nERROR - Failed to allign all scanners.";
-  return alligned;
+  if (unaligned.size()!=0) std::cout << "\nERROR - Failed to align all scanners.";
+  return aligned;
 }
 
 using Result = size_t;
@@ -263,26 +263,26 @@ using Answers = std::vector<
   std::pair<
      std::string
     ,std::pair<
-       std::deque<Alligned>
+       std::deque<Aligned>
       ,Result
     >
   >
 >;
 
 namespace part1 {
-  std::pair<std::deque<Alligned>,Result> solve_for(char const* pData) {
+  std::pair<std::deque<Aligned>,Result> solve_for(char const* pData) {
     std::string caption{"\nsolve_for:"};
-    std::pair<std::deque<Alligned>,Result> result{};
+    std::pair<std::deque<Aligned>,Result> result{};
     std::stringstream in{ pData };
     auto scanners = parse(in);
-    auto alligned = allign_scanners(scanners);
-    if (alligned.size()!=scanners.size()) std::cout << "\nERROR - Failed to allign all scanners.";
+    auto aligned = align_scanners(scanners);
+    if (aligned.size()!=scanners.size()) std::cout << "\nERROR - Failed to align all scanners.";
     else {
-      result.first = alligned;
+      result.first = aligned;
       // count scanners
       std::set<Vector> init{};
-      auto unique_beacons = std::accumulate(alligned.begin(),alligned.end(),init,[](auto acc,std::pair<Scanner,Allignment> const& entry) {
-        auto const& [scanner,allignment] = entry;
+      auto unique_beacons = std::accumulate(aligned.begin(),aligned.end(),init,[](auto acc,std::pair<Scanner,Alignment> const& entry) {
+        auto const& [scanner,alignment] = entry;
         std::copy(scanner.beacons.begin(),scanner.beacons.end(),std::inserter(acc,acc.begin()));
         return acc;
       });
@@ -293,28 +293,28 @@ namespace part1 {
 }
 
 namespace part2 {
-  std::pair<std::deque<Alligned>,Result> solve_for(std::deque<Alligned> const& alligned) {
+  std::pair<std::deque<Aligned>,Result> solve_for(std::deque<Aligned> const& aligned) {
     // Find max manhattan distance
-    std::pair<std::deque<Alligned>,Result> result{alligned,0};
-    std::deque<std::pair<Scanner,Allignment>> unvisited{alligned.begin()+1,alligned.end()};
-    std::deque<std::pair<Scanner,Allignment>> visited{alligned[0]};      
+    std::pair<std::deque<Aligned>,Result> result{aligned,0};
+    std::deque<std::pair<Scanner,Alignment>> unvisited{aligned.begin()+1,aligned.end()};
+    std::deque<std::pair<Scanner,Alignment>> visited{aligned[0]};      
     int max_distance{0};
     while (unvisited.size()>0){
-      auto alligned_x = unvisited.back();
+      auto aligned_x = unvisited.back();
       unvisited.pop_back();
-      auto const [scanner_x,allignment_x] = alligned_x;
+      auto const [scanner_x,alignment_x] = aligned_x;
       for (int i=0;i<unvisited.size();i++) {
-        auto const alligned_y = unvisited.back();
+        auto const aligned_y = unvisited.back();
         unvisited.pop_back();
-        unvisited.push_front(alligned_y); // rotate deque
-        auto const& [scanner_y,allignment_y] = alligned_y;
-        auto translation = allignment_y.translation-allignment_x.translation;
+        unvisited.push_front(aligned_y); // rotate deque
+        auto const& [scanner_y,alignment_y] = aligned_y;
+        auto translation = alignment_y.translation-alignment_x.translation;
         auto distance = std::accumulate(translation.begin(),translation.end(),0,[](auto acc,int c){
           return acc + std::abs(c);
         });
         max_distance = std::max(max_distance,distance);
       }
-      visited.push_back(alligned_x);
+      visited.push_back(aligned_x);
     }
     result.second = max_distance;
     return result;  
