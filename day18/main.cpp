@@ -76,11 +76,6 @@ Model parse(auto& in) {
   return result;
 }
 
-size_t magnitude(SnailFishNumber const& number) {
-  std::cout << "magnitide NOT YET IMPLEMENTED";
-  return 0;
-}
-
 class Tree {
 public:
   struct Node {
@@ -148,6 +143,25 @@ SnailFishNumbers to_snailfish_Numbers(auto lines) {
     result.push_back(to_snailfish_Number(line));
   }
   return result;
+}
+
+size_t magnitude(SnailFishNumber sfn) {
+  while (sfn.size()>1) {
+    std::cout << to_string(sfn);
+    for (auto level : {4,3,2,1}) {
+      auto left = std::find_if(sfn.begin(),sfn.end(),[&level](LeveledNumber const& ln){
+        return ln.level==level;
+      });
+      if (left!=sfn.end()) {
+        auto right = left+1;
+        if (right == sfn.end()) throw std::runtime_error("ERROR - magnitude failed for top number mot being a pair");
+        *left = {.level=left->level-1,.value=3*left->value + 2*right->value};
+        sfn.erase(right);
+        break;
+      }
+    }
+  }
+  return sfn.back().value;
 }
 
 namespace prototype {
@@ -226,7 +240,67 @@ namespace prototype {
     std::cout << to_string(sfnr);
     if (result == sfnr) std::cout << "\n ok";
     else std::cout << "\n FAILED";
+    auto size = magnitude(result);
+    std::cout << "\nmagnitude " << size;
+    auto sfn_x = to_snailfish_Number("[[[[6,6],[7,6]],[[7,7],[7,0]]],[[[7,7],[7,7]],[[7,8],[9,9]]]]");
+    auto size_x = magnitude(sfn_x);
+    if (size_x==4140) std::cout << "\nok";
+    else std::cout << "\nFAILED - magnitude " << size_x << " is NOT expected " << 4140;
   }
+
+  SnailFishNumbers to_snailfish_numbers(std::vector<std::string> const& rows) {
+    SnailFishNumbers result{};
+    for (auto const& row : rows) result.push_back(to_snailfish_Number(row));
+    return result;
+  }
+
+  SnailFishNumber sum(SnailFishNumbers const& sfns) {
+    auto result=sfns[0];
+    for (auto iter=sfns.begin()+1;iter!=sfns.end();iter++) {
+      auto sfn = *iter;
+      result = result + sfn;
+    }
+    return result;
+  }
+
+  bool sum_test(SnailFishNumbers const& numbers,SnailFishNumber const& expected) {
+    auto result = sum(numbers);
+    return (result==expected);
+  }
+
+  void test2() {
+    char const* pTest = R"([1,1]
+[2,2]
+[3,3]
+[4,4]
+[5,5])";
+    std::istringstream in{pTest};
+    auto puzzle_model = parse(in);
+    auto const& [tests,lines] = puzzle_model;
+    auto sfns = to_snailfish_numbers(lines);
+    if (sum_test(sfns, to_snailfish_Number("[[[[3,0],[5,3]],[4,4]],[5,5]]"))) std::cout << "\ntest2 SUCCESS";
+    else std::cout << "\ntest2 FAILED";
+  }
+
+  void test3() {
+    char const* pTest = R"([[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]
+[[[5,[2,8]],4],[5,[[9,9],0]]]
+[6,[[[6,2],[5,6]],[[7,6],[4,7]]]]
+[[[6,[0,7]],[0,9]],[4,[9,[9,0]]]]
+[[[7,[6,4]],[3,[1,3]]],[[[5,5],1],9]]
+[[6,[[7,3],[3,2]]],[[[3,8],[5,7]],4]]
+[[[[5,4],[7,7]],8],[[8,3],8]]
+[[9,3],[[9,9],[6,[4,9]]]]
+[[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]
+[[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]])";
+    std::istringstream in{pTest};
+    auto puzzle_model = parse(in);
+    auto const& [tests,lines] = puzzle_model;
+    auto sfns = to_snailfish_numbers(lines);
+    if (sum_test(sfns, to_snailfish_Number("[[[[8,7],[7,7]],[[8,6],[7,7]]],[[[0,7],[6,6]],[8,7]]]"))) std::cout << "\ntest2 SUCCESS";
+    else std::cout << "\ntest2 FAILED";
+  }
+
 }
 
 namespace part1 {
@@ -329,7 +403,9 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
-  prototype::test1();
+//  prototype::test1();
+//  prototype::test2();
+  prototype::test3();
   return 0;
   Answers answers{};
 //  for (auto const& entry : pTests) {
