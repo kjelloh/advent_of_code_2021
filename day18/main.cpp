@@ -7,6 +7,8 @@
 #include <memory>
 #include <optional>
 #include <map>
+#include <cmath>
+#include <compare>
 
 extern std::vector<char const*> pTests;
 extern char const* pData;
@@ -20,6 +22,7 @@ using Answers = std::vector<std::pair<std::string,Result>>;
 struct LeveledNumber {
   int level;
   int value;
+  auto operator<=>(LeveledNumber const&) const = default;
 };
 using SnailFishNumber = std::vector<LeveledNumber>;
 
@@ -103,19 +106,21 @@ private:
 
 
 std::string to_string(SnailFishNumber const& sfn) {
+  const int W = 3;
   std::string result{};
   std::vector<std::string> rows{};
-  rows.push_back(std::string((sfn.size()+1)*2+1,' '));
+  rows.push_back(std::string((sfn.size()+1)*W+W,' '));
   rows.back()[0] = '\n';
-  for (int i=0;i<sfn.size();i++) rows.back()[2*(i+1)+1] = static_cast<char>('0'+i%10);
+  for (int i=0;i<sfn.size();i++) rows.back()[W*(i+1)+1] = static_cast<char>('0'+i%10);
   for (auto level : {1,2,3,4,5}) {
-    rows.push_back(std::string((sfn.size()+1)*2+1,'.'));
+    rows.push_back(std::string((sfn.size()+1)*W+W,'.'));
     rows.back()[0] = '\n';
     rows.back()[1] = static_cast<char>('0'+level);
     for (int i=0;i<sfn.size();i++) {
       auto ln = sfn[i];
       if (ln.level==level) {
-        rows.back()[2*(i+1)+1] = std::to_string(ln.value)[0];
+        auto s = std::to_string(ln.value);
+        std::copy(s.begin(),s.end(),&rows.back()[W*(i+1)+1]);
       }
     }
   }
@@ -158,15 +163,69 @@ namespace prototype {
       ++ln.level;
       return ln;
     });
+    std::optional<std::pair<SnailFishNumber*,int>> reduced{};
+    while (!reduced) {
+      std::optional<std::pair<SnailFishNumber*,int>> exploded{};
+      int count{0};
+      while (!exploded) {
+        // explode until all exploded
+        std::cout << to_string(result);
+        auto exploding_left = std::find_if(result.begin(), result.end(), [](LeveledNumber const& ln){
+          return (ln.level==5);
+        });
+        if (exploding_left!=result.end()) {
+          ++count;
+          if (exploding_left!=result.begin()) {
+            auto left = exploding_left-1;
+            left->value += exploding_left->value;
+          }
+          auto exploding_right = exploding_left+1; // puzzles assures it will exist
+          auto level = exploding_right->level;
+          auto right = exploding_right+1;
+          if (right!=result.end()) {
+            right->value += exploding_right->value;
+          }
+          *exploding_left = LeveledNumber{.level=4,.value=0};
+          result.erase(exploding_right);
+        }
+        else {
+          exploded = {&result,count};
+        }
+      }
+      std::optional<std::pair<SnailFishNumber*,int>> split{};
+      count = 0;
+      while (!split) {
+        // split until all splits
+        std::cout << to_string(result);
+        auto to_split = std::find_if(result.begin(), result.end(), [](LeveledNumber const& ln){
+          return ln.value>=10;
+        });
+        if (to_split!=result.end()) {
+          ++count;
+          LeveledNumber left{.level=to_split->level+1,.value=static_cast<int>(std::floor(to_split->value/2.0))};
+          LeveledNumber right{.level=to_split->level+1,.value=static_cast<int>(std::ceil(to_split->value/2.0))};
+          *to_split = right;
+          result.insert(to_split, left);
+        }
+        else {
+          split = {&result,count};
+        }
+      }
+      if (split.value().second==0) reduced = {&result,0};
+    }
     return result;
   }
   
   void test1() {
     auto sfn1 = to_snailfish_Number("[[[[4,3],4],4],[7,[[8,4],9]]]");
     auto sfn2 = to_snailfish_Number("[1,1]");
-    // Expected initial sum [[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]
+    // Expected initial sum before reduction [[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]
     auto result = sfn1+sfn2;
     std::cout << "\n" << to_string(sfn1) << " + " << to_string(sfn2) << " = " << to_string(result);
+    auto sfnr = to_snailfish_Number("[[[[0,7],4],[[7,8],[6,0]]],[8,1]]]");
+    std::cout << to_string(sfnr);
+    if (result == sfnr) std::cout << "\n ok";
+    else std::cout << "\n FAILED";
   }
 }
 
