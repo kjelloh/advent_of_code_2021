@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <map>
 
 extern std::vector<char const*> pTests;
 extern char const* pData;
@@ -22,9 +23,6 @@ struct LeveledNumber {
 };
 using SnailFishNumber = std::vector<LeveledNumber>;
 
-//struct SnailFishNumber {
-//  std::shared_ptr<SnailFishNumber> left,right;
-//};
 using SnailFishNumbers = std::vector<SnailFishNumber>;
 
 enum TestType {
@@ -92,9 +90,9 @@ public:
     // the sequence of numbers are preserved.
     // NOTE: We expect this insert to be called in sequence
     // for numbers 0...n
-    // NOTE: Teh inserted node MUST be at the depth in the tree
+    // NOTE: The inserted node MUST be at the depth in the tree
     // as defined by the 'level' property of the provided leveled number.
-    // This ensures that tis tree represents the nesting structure of the
+    // This ensures that this tree represents the nesting structure of the
     // pairs of the corresponding SnailFishNumber.
     
     // TODO: Implement this insert :)
@@ -103,18 +101,30 @@ private:
   std::shared_ptr<Node> root{std::make_shared<Node>()};
 };
 
-std::string to_string(SnailFishNumber const& snf) {
-  // We need to re-create the binary tree from the vector
-  // of leveled values.
-  Tree tree{};
+
+std::string to_string(SnailFishNumber const& sfn) {
   std::string result{};
-  for (auto const& ln : snf) {
-    tree.insert(ln);
+  std::vector<std::string> rows{};
+  rows.push_back(std::string((sfn.size()+1)*2+1,' '));
+  rows.back()[0] = '\n';
+  for (int i=0;i<sfn.size();i++) rows.back()[2*(i+1)+1] = static_cast<char>('0'+i%10);
+  for (auto level : {1,2,3,4,5}) {
+    rows.push_back(std::string((sfn.size()+1)*2+1,'.'));
+    rows.back()[0] = '\n';
+    rows.back()[1] = static_cast<char>('0'+level);
+    for (int i=0;i<sfn.size();i++) {
+      auto ln = sfn[i];
+      if (ln.level==level) {
+        rows.back()[2*(i+1)+1] = std::to_string(ln.value)[0];
+      }
+    }
   }
+  for (auto const& row : rows) std::cout << row;
+  // for (auto const row : rows) result += row;
   return result;
 }
 
-SnailFishNumber to_snailfish_Number(auto line) {
+SnailFishNumber to_snailfish_Number(std::string const& line) {
   SnailFishNumber result{};
   // Parse [[3,4],5] to {{2,3}{2,4}{1,5}} i.e., a flat array of level,value pairs
   int nest_level{0};
@@ -133,6 +143,31 @@ SnailFishNumbers to_snailfish_Numbers(auto lines) {
     result.push_back(to_snailfish_Number(line));
   }
   return result;
+}
+
+namespace prototype {
+
+
+  SnailFishNumber operator+(SnailFishNumber const& sfn1,SnailFishNumber const& sfn2) {
+    // The sum [1,2] + [[3,4],5] = [[1,2],[[3,4],5]]
+    // becomes {{1,1},{1,2}} appended with {{2,3}{2,4}{1,5}} with all levels incremented
+    // = {{2,1}{2,2}{3,3}{3,4}{2,5}} := [[1,2],[[3,4],5]]
+    SnailFishNumber result{sfn1};
+    std::copy(sfn2.begin(),sfn2.end(),std::back_inserter(result));
+    std::transform(result.begin(),result.end(),result.begin(),[](LeveledNumber ln){
+      ++ln.level;
+      return ln;
+    });
+    return result;
+  }
+  
+  void test1() {
+    auto sfn1 = to_snailfish_Number("[[[[4,3],4],4],[7,[[8,4],9]]]");
+    auto sfn2 = to_snailfish_Number("[1,1]");
+    // Expected initial sum [[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]
+    auto result = sfn1+sfn2;
+    std::cout << "\n" << to_string(sfn1) << " + " << to_string(sfn2) << " = " << to_string(result);
+  }
 }
 
 namespace part1 {
@@ -166,8 +201,10 @@ namespace part1 {
       // But lets try a representation of a number paired with its nest level?
       // [1,2] := {{1,1}{1,2}} i.e., level 1 value 1, level 1 value 2
       // [[3,4],5] := {{2,3}{2,4}{1,5}}
-      // The sum becomes {{1,1},{1,2}} appended with {{2,3}{2,4}{1,5}} with all levels incremented
-      // ={{2,1}{2,2}{3,3}{3,4}{2,5}} := [[1,2],[[3,4],5]]
+      
+      // The sum [1,2] + [[3,4],5] = [[1,2],[[3,4],5]]
+      // becomes {{1,1},{1,2}} appended with {{2,3}{2,4}{1,5}} with all levels incremented
+      // = {{2,1}{2,2}{3,3}{3,4}{2,5}} := [[1,2],[[3,4],5]]
       //
       // Explode is now a flat array manipulation
       // [[[[[9,8],1],2],3],4] := {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}}
@@ -207,7 +244,7 @@ namespace part1 {
               std::cout << " egual :)";
             }
             else {
-              std::cout << " ERROR ";
+              std::cout << " ERROR - to_string(number model) is not the originial string";
             }
           }
         }
@@ -233,10 +270,12 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
+  prototype::test1();
+  return 0;
   Answers answers{};
-  for (auto const& entry : pTests) {
-    answers.push_back({"Part 1 Test",part1::solve_for(entry)});
-  }
+//  for (auto const& entry : pTests) {
+//    answers.push_back({"Part 1 Test",part1::solve_for(entry)});
+//  }
   answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
