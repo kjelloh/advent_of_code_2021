@@ -119,8 +119,7 @@ std::string to_string(SnailFishNumber const& sfn) {
       }
     }
   }
-  for (auto const& row : rows) std::cout << row;
-  // for (auto const row : rows) result += row;
+//  for (auto const& row : rows) std::cout << row;
   return result;
 }
 
@@ -234,8 +233,8 @@ namespace prototype {
       ++ln.level;
       return ln;
     });
-    std::cout << "\n<INITIAL SUM>";
-    std::cout << to_string(result);
+//    std::cout << "\n<INITIAL SUM>";
+//    std::cout << to_string(result);
     bool reduced{false};
     // During reduction, at most one action applies, after which the process returns to the top of the list of actions.
     // For example, if split produces a pair that meets the explode criteria, that pair explodes before other splits occur.
@@ -514,38 +513,11 @@ namespace part1 {
       // Note that magnitude reduces a pair into a number and thus a nuber with decreased level
       // = magnitude {{1,3*9+2*1}{1,3*1+2*9}} = magnitude {{1,29}{1,21}} = {0,3*29+2*21} = 129
       //
-      auto snail_fish_numbers = to_snailfish_Numbers(puzzle_model.lines);
-      
-      // test that our representation preserves the nesting structure of the input snailfish numbers!
-    
-      {
-        if (snail_fish_numbers.size() == puzzle_model.lines.size()) {
-          for (int i=0;i<snail_fish_numbers.size();i++) {
-            auto snf = snail_fish_numbers[i];
-            auto snf_s = to_string(snf);
-            auto line_s = puzzle_model.lines[i];
-            std::cout << "\n" << line_s;
-            std::cout << " -> {";
-            for (auto const& ln : snf) {
-              std::cout << "{level:" << ln.level << ",val:" << ln.value << "}";
-            }
-            std::cout << "}";
-            std::cout << " -> "<< snf_s;
-            // The representation is correct if our string representation is equal to the original input string :)
-            if (snf_s == line_s) {
-              std::cout << " egual :)";
-            }
-            else {
-              std::cout << " ERROR - to_string(number model) is not the originial string";
-            }
-          }
-        }
-        else {
-          std::cout << "\nERROR lines count " << puzzle_model.lines.size() << " != numbers count " << snail_fish_numbers.size();
-        }
-      }
-      
-      result.value = magnitude(snailfishnumbers.back());
+      auto const& [tests,lines] = puzzle_model;
+      auto numbers = prototype::to_snailfish_numbers(lines);
+      auto answer = prototype::sum(numbers);
+      auto size = magnitude(answer);
+      result.value = magnitude(answer);
     }
     return result;
   }
@@ -569,9 +541,9 @@ int main(int argc, char *argv[])
 //  prototype::test5();
 //  prototype::test6();
 //  prototype::test7();
-  prototype::test8();
-  std::cout << "\nmax level " << prototype::max_level;
-  return 0;
+//  prototype::test8();
+//  std::cout << "\nmax level " << prototype::max_level;
+//  return 0;
   Answers answers{};
 //  for (auto const& entry : pTests) {
 //    answers.push_back({"Part 1 Test",part1::solve_for(entry)});
