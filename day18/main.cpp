@@ -9,6 +9,7 @@
 #include <map>
 #include <cmath>
 #include <compare>
+#include <numeric>
 
 extern std::vector<char const*> pTests;
 extern char const* pData;
@@ -76,30 +77,6 @@ Model parse(auto& in) {
   return result;
 }
 
-class Tree {
-public:
-  struct Node {
-    int index{};
-    std::optional<int> value{};
-    std::pair<std::shared_ptr<Node>,std::shared_ptr<Node>> childs{};
-  };
-  void insert(LeveledNumber const& ln){
-    // insert a new node for provided number so that
-    // the sequence of numbers are preserved.
-    // NOTE: We expect this insert to be called in sequence
-    // for numbers 0...n
-    // NOTE: The inserted node MUST be at the depth in the tree
-    // as defined by the 'level' property of the provided leveled number.
-    // This ensures that this tree represents the nesting structure of the
-    // pairs of the corresponding SnailFishNumber.
-    
-    // TODO: Implement this insert :)
-  }
-private:
-  std::shared_ptr<Node> root{std::make_shared<Node>()};
-};
-
-
 std::string to_string(SnailFishNumber const& sfn) {
   const int W = 3;
   std::string result{};
@@ -163,89 +140,103 @@ size_t magnitude(SnailFishNumber sfn) {
   return sfn.back().value;
 }
 
-namespace prototype {
+static int max_level{0}; // Investigate / Debug
 
-  static int max_level{0}; // Investigate / Debug
-
-  bool explode(SnailFishNumber& result) {
-    bool exploded{false};
-    int explode_count{0};
-    while (!exploded) {
-      // explode until all exploded
+bool explode(SnailFishNumber& result) {
+  bool exploded{false};
+  int explode_count{0};
+  while (!exploded) {
+    // explode until all exploded
 //      std::cout << "\n<EXPLODE>";
 //      std::cout << to_string(result);
-      auto exploding_left = std::adjacent_find(result.begin(), result.end(), [](LeveledNumber const& ln1,LeveledNumber const& ln2){
-        return (ln1.level==ln2.level and ln1.level>4);
-      });
-      auto exploding_right = exploding_left+1;
-      if (exploding_left!=result.end() and exploding_right!=result.end() and exploding_left->level==exploding_right->level) {
-        max_level = std::max(max_level,exploding_left->level);
-        // We have a valid pair on level > 4
-        explode_count++;
-        if (exploding_left!=result.begin()) {
-          auto left = exploding_left-1;
-          left->value += exploding_left->value;
-        }
-        auto right = exploding_right+1;
-        if (right!=result.end()) {
-          right->value += exploding_right->value;
-        }
-        *exploding_left = LeveledNumber{.level=exploding_left->level-1,.value=0};
-        result.erase(exploding_right);
+    auto exploding_left = std::adjacent_find(result.begin(), result.end(), [](LeveledNumber const& ln1,LeveledNumber const& ln2){
+      return (ln1.level==ln2.level and ln1.level>4);
+    });
+    auto exploding_right = exploding_left+1;
+    if (exploding_left!=result.end() and exploding_right!=result.end() and exploding_left->level==exploding_right->level) {
+      max_level = std::max(max_level,exploding_left->level);
+      // We have a valid pair on level > 4
+      explode_count++;
+      if (exploding_left!=result.begin()) {
+        auto left = exploding_left-1;
+        left->value += exploding_left->value;
       }
-      else {
-        exploded = true;
+      auto right = exploding_right+1;
+      if (right!=result.end()) {
+        right->value += exploding_right->value;
       }
+      *exploding_left = LeveledNumber{.level=exploding_left->level-1,.value=0};
+      result.erase(exploding_right);
     }
-    return explode_count>0;
+    else {
+      exploded = true;
+    }
   }
+  return explode_count>0;
+}
 
-  bool split(SnailFishNumber& result) {
-    bool split{false};
-    int split_count{0};
-    while (!split) {
-      // split until all splits
+bool split(SnailFishNumber& result) {
+  bool split{false};
+  int split_count{0};
+  while (!split) {
+    // split until all splits
 //      std::cout << "\n<SPLIT>";
 //      std::cout << to_string(result);
-      auto to_split = std::find_if(result.begin(), result.end(), [](LeveledNumber const& ln){
-        return ln.value>=10;
-      });
-      if (to_split!=result.end()) {
-        ++split_count;
-        auto new_level = to_split->level+1;
-        max_level = std::max(max_level,new_level);
-        LeveledNumber left{.level=new_level,.value=static_cast<int>(std::floor(to_split->value/2.0))};
-        LeveledNumber right{.level=new_level,.value=static_cast<int>(std::ceil(to_split->value/2.0))};
-        *to_split = right;
-        result.insert(to_split, left);
-        split = new_level>4; // break to have this new pair explode
-      }
-      else {
-        split = true;
-      }
-    }
-    return split_count>0;
-  }
-
-  SnailFishNumber& operator+=(SnailFishNumber& result,SnailFishNumber const& sfn2) {
-    std::copy(sfn2.begin(),sfn2.end(),std::back_inserter(result));
-    std::transform(result.begin(),result.end(),result.begin(),[](LeveledNumber ln){
-      ++ln.level;
-      return ln;
+    auto to_split = std::find_if(result.begin(), result.end(), [](LeveledNumber const& ln){
+      return ln.value>=10;
     });
+    if (to_split!=result.end()) {
+      ++split_count;
+      auto new_level = to_split->level+1;
+      max_level = std::max(max_level,new_level);
+      LeveledNumber left{.level=new_level,.value=static_cast<int>(std::floor(to_split->value/2.0))};
+      LeveledNumber right{.level=new_level,.value=static_cast<int>(std::ceil(to_split->value/2.0))};
+      *to_split = right;
+      result.insert(to_split, left);
+      split = new_level>4; // break to have this new pair explode
+    }
+    else {
+      split = true;
+    }
+  }
+  return split_count>0;
+}
+
+SnailFishNumber& operator+=(SnailFishNumber& result,SnailFishNumber const& sfn2) {
+  std::copy(sfn2.begin(),sfn2.end(),std::back_inserter(result));
+  std::transform(result.begin(),result.end(),result.begin(),[](LeveledNumber ln){
+    ++ln.level;
+    return ln;
+  });
 //    std::cout << "\n<INITIAL SUM>";
 //    std::cout << to_string(result);
-    bool reduced{false};
-    // During reduction, at most one action applies, after which the process returns to the top of the list of actions.
-    // For example, if split produces a pair that meets the explode criteria, that pair explodes before other splits occur.
-    while (explode(result) and split(result));
-    return result;
-  }
+  // During reduction, at most one action applies, after which the process returns to the top of the list of actions.
+  // For example, if split produces a pair that meets the explode criteria, that pair explodes before other splits occur.
+  while (explode(result) and split(result));
+  return result;
+}
 
-  SnailFishNumber operator+(SnailFishNumber const& sfn1,SnailFishNumber const& sfn2) {
-    auto result = sfn1;
-    return result += sfn2;
+SnailFishNumber operator+(SnailFishNumber const& sfn1,SnailFishNumber const& sfn2) {
+  auto result = sfn1;
+  return result += sfn2;
+}
+
+SnailFishNumbers to_snailfish_numbers(std::vector<std::string> const& rows) {
+  SnailFishNumbers result{};
+  for (auto const& row : rows) result.push_back(to_snailfish_Number(row));
+  return result;
+}
+
+SnailFishNumber sum(SnailFishNumbers const& sfns) {
+  auto result=sfns[0];
+  for (auto iter=sfns.begin()+1;iter!=sfns.end();iter++) {
+    auto sfn = *iter;
+    result = result + sfn;
   }
+  return result;
+}
+
+namespace prototype {
   
   void test1() {
     auto sfn1 = to_snailfish_Number("[[[[4,3],4],4],[7,[[8,4],9]]]");
@@ -263,21 +254,6 @@ namespace prototype {
     auto size_x = magnitude(sfn_x);
     if (size_x==4140) std::cout << "\nok";
     else std::cout << "\nFAILED - magnitude " << size_x << " is NOT expected " << 4140;
-  }
-
-  SnailFishNumbers to_snailfish_numbers(std::vector<std::string> const& rows) {
-    SnailFishNumbers result{};
-    for (auto const& row : rows) result.push_back(to_snailfish_Number(row));
-    return result;
-  }
-
-  SnailFishNumber sum(SnailFishNumbers const& sfns) {
-    auto result=sfns[0];
-    for (auto iter=sfns.begin()+1;iter!=sfns.end();iter++) {
-      auto sfn = *iter;
-      result = result + sfn;
-    }
-    return result;
   }
 
   bool sum_test(SnailFishNumbers const& numbers,SnailFishNumber const& expected) {
@@ -514,8 +490,8 @@ namespace part1 {
       // = magnitude {{1,3*9+2*1}{1,3*1+2*9}} = magnitude {{1,29}{1,21}} = {0,3*29+2*21} = 129
       //
       auto const& [tests,lines] = puzzle_model;
-      auto numbers = prototype::to_snailfish_numbers(lines);
-      auto answer = prototype::sum(numbers);
+      auto numbers = to_snailfish_numbers(lines);
+      auto answer = sum(numbers);
       auto size = magnitude(answer);
       result.value = magnitude(answer);
     }
@@ -525,10 +501,20 @@ namespace part1 {
 
 namespace part2 {
   Result solve_for(char const* pData) {
-      Result result{};
-      std::stringstream in{ pData };
-      auto data_model = parse(in);
-      return result;
+    Result result{};
+    std::stringstream in{ pData };
+    auto puzzle_model = parse(in);
+    auto const& [tests,lines] = puzzle_model;
+    auto numbers = to_snailfish_numbers(lines);
+    size_t answer{0};
+    for (int i=0;i<numbers.size();i++) {
+      for (int j=0;j<numbers.size();j++) {
+        auto mag = magnitude(numbers[i]+numbers[j]);
+        answer = std::max(answer,mag);
+      }
+    }
+    result.value = answer;
+    return result;
   }
 }
 
@@ -550,7 +536,7 @@ int main(int argc, char *argv[])
 //  }
   answers.push_back({"Part 1     ",part1::solve_for(pData)});
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+   answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second.value;
   }
