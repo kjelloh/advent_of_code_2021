@@ -220,6 +220,47 @@ Lessons learned in day 18.
 * I initially misunderstood that a pair that splits to level 5 must immediately trigger an explosion of this pair.
     * I found this error when performing tests against the examples in the puzzle description.
     * Lesson learned: Be sure to test everything that is possible to test from the information provided to find all corner cases.
+* I learned to go for a data representation that sutis the problem at hand. Maybe I could have solved it using an expression tree for the snailfish numbers.
+
+  A snailfish number is a pair p
+  add p1,p2 = [p1,p2]
+  reduce p = explode p* | split n*
+  p* is first level 4 pair in p
+  n* is first number >= 10
+  explode p =
+            left_of_p.right += p.left
+            right_of_p.left += p.right
+            p is replaced by number 0
+  split n = [round_down(n/2),round_up(n/2)]
+
+  We need a data structure to represent p so that we can
+  add p1,p2 (p can be a std::pair)
+  reduce p  (we need to be able to find level 4 p*, find pair left_of_p and right_of_p)
+  magnitude p (p can be a std::pair)
+
+  Let's try a representation of a number paired with its nest level?
+  [1,2] := {{1,1}{1,2}} i.e., level 1 value 1, level 1 value 2
+  [[3,4],5] := {{2,3}{2,4}{1,5}}
+
+  The sum [1,2] + [[3,4],5] = [[1,2],[[3,4],5]]
+  becomes {{1,1},{1,2}} appended with {{2,3}{2,4}{1,5}} with all levels incremented
+  = {{2,1}{2,2}{3,3}{3,4}{2,5}}
+
+  Explode is now a flat array manipulation
+  [[[[[9,8],1],2],3],4] := {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}}
+  The pair nested in level is easily found as being on level 5
+  So the {5,9},{5,8} "explodes" to the '9' adds to the left and the '8' adds to the right
+  {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}} explodes to {{4,0}{4,9}{3,2}{2,3}{1,4}} := [[[[0,9],2],3],4]
+
+  Split is now also a flat array manipulation
+  [[[[0,7],4],[15,[0,13]]],[1,1]] := {{4,0}{4,7}{3,4}{3,15}{4,0}{4,13}{2,1}{2,1}}
+  {{4,0}{4,7}{3,4}{3,15}{4,0}{4,13}{2,1}{2,1}} splits to {{4,0}{4,7}{3,4}{3,round_down(15/2)}{3,round_up(15/2)}{4,0}{4,13}{2,1}{2,1}}
+
+  Finally the magnitude is an iterative reduction on the flat array (top level and down)
+  [[9,1],[1,9]] := {{2,9}{2,1}{2,1}{2,9}}
+  magnitude {{2,9}{2,1}{2,1}{2,9}} = magnitude {magnitude {2,9}{2,1} magnitude {2,1}{2,9}}
+  Note that magnitude reduces a pair into a number and thus a number with decreased level
+  = magnitude {{1,3*9+2*1}{1,3*1+2*9}} = magnitude {{1,29}{1,21}} = {0,3*29+2*21} = 129
 
 # day 17
 Lessons learned in day 17.
