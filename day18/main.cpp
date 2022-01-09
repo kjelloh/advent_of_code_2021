@@ -107,7 +107,7 @@ std::string to_string(SnailFishNumber const& sfn) {
   rows.push_back(std::string((sfn.size()+1)*W+W,' '));
   rows.back()[0] = '\n';
   for (int i=0;i<sfn.size();i++) rows.back()[W*(i+1)+1] = static_cast<char>('0'+i%10);
-  for (auto level : {1,2,3,4,5}) {
+  for (auto level : {1,2,3,4,5,6,7}) {
     rows.push_back(std::string((sfn.size()+1)*W+W,'.'));
     rows.back()[0] = '\n';
     rows.back()[1] = static_cast<char>('0'+level);
@@ -166,68 +166,84 @@ size_t magnitude(SnailFishNumber sfn) {
 
 namespace prototype {
 
+  bool explode(SnailFishNumber& result) {
+    bool exploded{false};
+    int explode_count{0};
+    while (!exploded) {
+      // explode until all exploded
+      std::cout << "\n<EXPLODE>";
+      std::cout << to_string(result);
+      auto exploding_left = std::adjacent_find(result.begin(), result.end(), [](LeveledNumber const& ln1,LeveledNumber const& ln2){
+        return (ln1.level==ln2.level and ln1.level>4);
+      });
+      auto exploding_right = exploding_left+1;
+      if (exploding_left!=result.end() and exploding_right!=result.end() and exploding_left->level==exploding_right->level) {
+        // We have a valid pair on level > 4
+        explode_count++;
+        if (exploding_left!=result.begin()) {
+          auto left = exploding_left-1;
+          left->value += exploding_left->value;
+        }
+        auto right = exploding_right+1;
+        if (right!=result.end()) {
+          right->value += exploding_right->value;
+        }
+        *exploding_left = LeveledNumber{.level=exploding_left->level-1,.value=0};
+        result.erase(exploding_right);
+      }
+      else {
+        exploded = true;
+      }
+    }
+    return explode_count>0;
+  }
 
-  SnailFishNumber operator+(SnailFishNumber const& sfn1,SnailFishNumber const& sfn2) {
-    // The sum [1,2] + [[3,4],5] = [[1,2],[[3,4],5]]
-    // becomes {{1,1},{1,2}} appended with {{2,3}{2,4}{1,5}} with all levels incremented
-    // = {{2,1}{2,2}{3,3}{3,4}{2,5}} := [[1,2],[[3,4],5]]
-    SnailFishNumber result{sfn1};
+  bool split(SnailFishNumber& result) {
+    bool split{false};
+    int split_count{0};
+    while (!split) {
+      // split until all splits
+      std::cout << "\n<SPLIT>";
+      std::cout << to_string(result);
+      auto to_split = std::find_if(result.begin(), result.end(), [](LeveledNumber const& ln){
+        return ln.value>=10;
+      });
+      if (to_split!=result.end()) {
+        ++split_count;
+        auto new_level = to_split->level+1;
+        LeveledNumber left{.level=new_level,.value=static_cast<int>(std::floor(to_split->value/2.0))};
+        LeveledNumber right{.level=new_level,.value=static_cast<int>(std::ceil(to_split->value/2.0))};
+        *to_split = right;
+        result.insert(to_split, left);
+        split = new_level>4; // break to explode
+      }
+      else {
+        split = true;
+      }
+    }
+    return split_count>0;
+  }
+
+  SnailFishNumber& operator+=(SnailFishNumber& result,SnailFishNumber const& sfn2) {
     std::copy(sfn2.begin(),sfn2.end(),std::back_inserter(result));
     std::transform(result.begin(),result.end(),result.begin(),[](LeveledNumber ln){
       ++ln.level;
       return ln;
     });
-    std::optional<std::pair<SnailFishNumber*,int>> reduced{};
+    std::cout << "\n<INITIAL SUM>";
+    std::cout << to_string(result);
+    bool reduced{false};
+    // During reduction, at most one action applies, after which the process returns to the top of the list of actions.
+    // For example, if split produces a pair that meets the explode criteria, that pair explodes before other splits occur.
     while (!reduced) {
-      std::optional<std::pair<SnailFishNumber*,int>> exploded{};
-      int count{0};
-      while (!exploded) {
-        // explode until all exploded
-        std::cout << to_string(result);
-        auto exploding_left = std::find_if(result.begin(), result.end(), [](LeveledNumber const& ln){
-          return (ln.level==5);
-        });
-        if (exploding_left!=result.end()) {
-          ++count;
-          if (exploding_left!=result.begin()) {
-            auto left = exploding_left-1;
-            left->value += exploding_left->value;
-          }
-          auto exploding_right = exploding_left+1; // puzzles assures it will exist
-          auto level = exploding_right->level;
-          auto right = exploding_right+1;
-          if (right!=result.end()) {
-            right->value += exploding_right->value;
-          }
-          *exploding_left = LeveledNumber{.level=4,.value=0};
-          result.erase(exploding_right);
-        }
-        else {
-          exploded = {&result,count};
-        }
-      }
-      std::optional<std::pair<SnailFishNumber*,int>> split{};
-      count = 0;
-      while (!split) {
-        // split until all splits
-        std::cout << to_string(result);
-        auto to_split = std::find_if(result.begin(), result.end(), [](LeveledNumber const& ln){
-          return ln.value>=10;
-        });
-        if (to_split!=result.end()) {
-          ++count;
-          LeveledNumber left{.level=to_split->level+1,.value=static_cast<int>(std::floor(to_split->value/2.0))};
-          LeveledNumber right{.level=to_split->level+1,.value=static_cast<int>(std::ceil(to_split->value/2.0))};
-          *to_split = right;
-          result.insert(to_split, left);
-        }
-        else {
-          split = {&result,count};
-        }
-      }
-      if (split.value().second==0) reduced = {&result,0};
+      if (explode(result)) reduced = !split(result);
     }
     return result;
+  }
+
+  SnailFishNumber operator+(SnailFishNumber const& sfn1,SnailFishNumber const& sfn2) {
+    auto result = sfn1;
+    return result += sfn2;
   }
   
   void test1() {
@@ -283,24 +299,107 @@ namespace prototype {
   }
 
   void test3() {
-    char const* pTest = R"([[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]
-[[[5,[2,8]],4],[5,[[9,9],0]]]
-[6,[[[6,2],[5,6]],[[7,6],[4,7]]]]
-[[[6,[0,7]],[0,9]],[4,[9,[9,0]]]]
-[[[7,[6,4]],[3,[1,3]]],[[[5,5],1],9]]
-[[6,[[7,3],[3,2]]],[[[3,8],[5,7]],4]]
-[[[[5,4],[7,7]],8],[[8,3],8]]
-[[9,3],[[9,9],[6,[4,9]]]]
-[[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]
-[[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]])";
+    char const* pTest = R"([1,1]
+[2,2]
+[3,3]
+[4,4]
+[5,5]
+[6,6])";
     std::istringstream in{pTest};
     auto puzzle_model = parse(in);
     auto const& [tests,lines] = puzzle_model;
     auto sfns = to_snailfish_numbers(lines);
-    if (sum_test(sfns, to_snailfish_Number("[[[[8,7],[7,7]],[[8,6],[7,7]]],[[[0,7],[6,6]],[8,7]]]"))) std::cout << "\ntest2 SUCCESS";
+    if (sum_test(sfns, to_snailfish_Number("[[[[5,0],[7,4]],[5,5]],[6,6]]"))) std::cout << "\ntest2 SUCCESS";
     else std::cout << "\ntest2 FAILED";
   }
 
+  // explode test
+  void test4() {
+    char const* pAnswers = R"([[[[0,9],2],3],4]
+[7,[6,[5,[7,0]]]]
+[[6,[5,[7,0]]],3]
+[[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]
+[[3,[2,[8,0]]],[9,[5,[7,0]]]])";
+    char const* pTest = R"([[[[[9,8],1],2],3],4]
+[7,[6,[5,[4,[3,2]]]]]
+[[6,[5,[4,[3,2]]]],1]
+[[3,[2,[1,[7,3]]]],[6,[5,[4,[3,2]]]]]
+[[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]])";
+    std::istringstream in{pTest};
+    auto puzzle_model = parse(in);
+    auto const& [tests,lines] = puzzle_model;
+    auto to_explode = to_snailfish_numbers(lines);
+    std::istringstream an{pAnswers};
+    auto answer_model = parse(an);
+    auto answers = to_snailfish_numbers(answer_model.lines);
+    for (int i=0;i<answers.size();i++) {
+      auto number = to_explode[i];
+      explode(number);
+      auto const& expected = answers[i];
+      std::cout << "\n<EXPECTED>";
+      std::cout << to_string(expected);
+      if (number==expected) std::cout << "\n TEST " << i << " approved";
+      else std::cout << "\n TEST " << i << " FAILED";
+    }
+  }
+
+  // Test of single more complex sum
+  void test5() {
+    char const* pTest = R"([[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]
+[7,[[[3,7],[4,3]],[[6,3],[8,8]]]])";
+    std::istringstream in{pTest};
+    auto puzzle_model = parse(in);
+    auto const& [tests,lines] = puzzle_model;
+    auto sfns = to_snailfish_numbers(lines);
+    auto answer = to_snailfish_Number("[[[[4,0],[5,4]],[[7,7],[6,0]]],[[8,[7,7]],[[7,9],[5,0]]]]");
+    auto success = sum_test(sfns,answer);
+    std::cout << "\n<EXPECTED>";
+    std::cout << to_string(answer);
+    if (success) std::cout << "\ntest2 SUCCESS";
+    else std::cout << "\ntest2 FAILED";
+  }
+
+  void test6() {
+    char const* pAnswers = R"([[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]
+[[[[4,0],[5,4]],[[7,7],[6,0]]],[[8,[7,7]],[[7,9],[5,0]]]])
+[[[[6,7],[6,7]],[[7,7],[0,7]]],[[[8,7],[7,7]],[[8,8],[8,0]]]]
+[[[[7,0],[7,7]],[[7,7],[7,8]]],[[[7,7],[8,8]],[[7,7],[8,7]]]]
+[[[[7,7],[7,8]],[[9,5],[8,7]]],[[[6,8],[0,8]],[[9,9],[9,0]]]]
+[[[[6,6],[6,6]],[[6,0],[6,7]]],[[[7,7],[8,9]],[8,[8,1]]]]
+[[[[6,6],[7,7]],[[0,7],[7,7]]],[[[5,5],[5,6]],9]]
+[[[[7,8],[6,7]],[[6,8],[0,8]]],[[[7,7],[5,0]],[[5,5],[5,6]]]]
+[[[[7,7],[7,7]],[[8,7],[8,7]]],[[[7,0],[7,7]],9]]
+[[[[8,7],[7,7]],[[8,6],[7,7]]],[[[0,7],[6,6]],[8,7]]])";
+    char const* pTest = R"([[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]
+[7,[[[3,7],[4,3]],[[6,3],[8,8]]]]
+[[2,[[0,8],[3,4]]],[[[6,7],1],[7,[1,6]]]]
+[[[[2,4],7],[6,[0,5]]],[[[6,8],[2,8]],[[2,1],[4,5]]]]
+[7,[5,[[3,8],[1,4]]]]
+[[2,[2,2]],[8,[8,1]]]
+[2,9]
+[1,[[[9,3],9],[[9,0],[0,7]]]]
+[[[5,[7,4]],7],1]
+[[[[4,2],2],6],[8,7]])";
+    std::istringstream in{pTest};
+    auto puzzle_model = parse(in);
+    auto const& [tests,lines] = puzzle_model;
+    auto sfns = to_snailfish_numbers(lines);
+    std::istringstream an{pAnswers};
+    auto answer_model = parse(an);
+    auto sfnas = to_snailfish_numbers(answer_model.lines);
+    auto sum = sfns[0];
+    for (int i=0;i<sfns.size();i++) {
+      std::cout << "\n = ";
+      auto const& sub_sum = sfnas[i];
+      std::cout << to_string(sub_sum);
+      std::cout << to_string(sum);
+      if (sum == sub_sum) std::cout << "\nTEST " << i << " passed";
+      else std::cout << "\nTEST " << i << " FAILED";
+      std::cout << "\n + ";
+      std::cout << to_string(sfns[i+1]);
+      sum = sum + sfns[i];
+    }
+  }
 }
 
 namespace part1 {
@@ -403,10 +502,12 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
-//  prototype::test1();
+//prototype::test1();
 //  prototype::test2();
-  prototype::test3();
-  return 0;
+//  prototype::test3();
+//  prototype::test4();
+  prototype::test5();
+return 0;
   Answers answers{};
 //  for (auto const& entry : pTests) {
 //    answers.push_back({"Part 1 Test",part1::solve_for(entry)});
