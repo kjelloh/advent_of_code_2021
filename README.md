@@ -73,7 +73,7 @@ std::vector<std::pair<Move,Cost>> apply_strategy(std::pair<State,Cost> const& st
 ```
 # day 22
 Pitfalls I fell into when solving this puzzle
-* I was blinded by atuto type deduction...
+* I was blinded by auto type deduction...
 * I used auto for the volume type calculations from int coordinates, causing silent and devastating integer overflow for part 2!
 
 ```
@@ -162,7 +162,7 @@ Lessons learned
 * I now have the 3D rotation and translation algebra refreshed! It took some time to get the rotation matrices correct and also the generation of the 24 possible "dice orientations".
 * Prototyping is an art in itself! I got into some extra trouble when refactoring from prototype code into live code.
 * I identified a way to perform pairwise processing of symmetrical pairs (e.g., pairs of beacons where we want to process each pair only once).
-    * I ended up in code doing this on deques which was suboptimal but I did not take the time to refactor into a more sutabale data structure like a vector.
+    * I ended up in code doing this on deques which was suboptimal but I did not take the time to refactor into a more suitable data structure like a vector.
 
 ```
 
@@ -203,9 +203,23 @@ Lessons learned
     * Then we can align each in the unaligned deque to any of the ones in the aligned deque.
     * We then tray to align the back of the aligned deque with the front of the unaligned while rotating the unaligned.
     * The rotation of the unaligned is accomplished by popping from the front and pushing to the back while aligning.
-    * NOTE: The for (int i=0;i<unalligned.size();i++) is just for safety reasons to prevent eternal looping should the search fail.
+    * NOTE: The for (int i=0;i<unaligned.size();i++) is just for safety reasons to prevent eternal looping should the search fail.
 * I left the code when it worked and was reasonably cleaned up.
 * I have not tried to refactor it to have the different phases fit more readily together (for example using a deque as the result to process for beacon count and best manhattan distance is for suer suboptimal...)
+
+# day18
+Lessons learned in day 18.
+
+* I should learn to not be to clever initially and write "stupid" but resilient code.
+    * I initially assumed (correctly) that no pair could go beyond level 5 (as they will all explode above level 4).
+    * So I wrote the code to identify level==5 instead of level>4.
+    * But due to an error I got pairs above level 5.
+    * I incorrectly then thought my assumption was wrong.
+    * So I changed my code to work even for higher levels.
+    * Lesson learned: If I had written the original code less clever (not assuming 5 is the highest level) I would have saved time not chasing the wrong bug.
+* I initially misunderstood that a pair that splits to level 5 must immediately trigger an explosion of this pair.
+    * I found this error when performing tests against the examples in the puzzle description.
+    * Lesson learned: Be sure to test everything that is possible to test from the information provided to find all corner cases.
 
 # day 17
 Lessons learned in day 17.
@@ -393,7 +407,7 @@ Originally - The day 3 puzzle was one of those I easily stumble on due to all sm
 
 # day2
 For this puzzle I struggled mostly with parsing the input.
-* I stuck with the std::sregex_token_iterator IContainer from day 1 as I thought maybe I could use this approach to parse all puzzle inout to come. But the result was that parsing become overly complicated.
+* I stuck with the std::sregex_token_iterator IContainer from day 1 as I thought maybe I could use this approach to parse all puzzle input to come. But the result was that parsing become overly complicated.
 
 # day1
 Pitfalls for me in C++ for this puzzle.
