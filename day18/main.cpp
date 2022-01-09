@@ -4,14 +4,55 @@
 #include <utility>
 #include <sstream>
 #include <algorithm>
-#include <memory>
-#include <optional>
-#include <map>
 #include <cmath>
 #include <compare>
 #include <numeric>
 
-extern std::vector<char const*> pTests;
+  /*
+  A snailfish number is a pair p
+  add p1,p2 = [p1,p2]
+  reduce p = explode p* | split n*
+  p* is first level 4 pair in p
+  n* is first number >= 10
+  explode p =
+            left_of_p.right += p.left
+            right_of_p.left += p.right
+            p is replaced by number 0
+  split n = [round_down(n/2),round_up(n/2)]
+
+  We need a datastructure to represent p so that we can
+  add p1,p2 (p can be a std::pair)
+  reduce p  (we need to be able to find level 4 p*, find pair left_of_p and right_of_p)
+  magnitude p (p can be a std::pair)
+
+  Lets try a representation of a number paired with its nest level?
+  [1,2] := {{1,1}{1,2}} i.e., level 1 value 1, level 1 value 2
+  [[3,4],5] := {{2,3}{2,4}{1,5}}
+
+  The sum [1,2] + [[3,4],5] = [[1,2],[[3,4],5]]
+  becomes {{1,1},{1,2}} appended with {{2,3}{2,4}{1,5}} with all levels incremented
+  = {{2,1}{2,2}{3,3}{3,4}{2,5}}
+
+  Explode is now a flat array manipulation
+  [[[[[9,8],1],2],3],4] := {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}}
+  The pair nested in level is easilly found as being on level 5
+  So the {5,9},{5,8} "explodes" to the '9' adds to the left and the '8' adds to the right
+  {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}} explodes to {{4,0}{4,9}{3,2}{2,3}{1,4}} := [[[[0,9],2],3],4]
+
+  Split is now also a flat array manipulation
+  [[[[0,7],4],[15,[0,13]]],[1,1]] := {{4,0}{4,7}{3,4}{3,15}{4,0}{4,13}{2,1}{2,1}}
+  {{4,0}{4,7}{3,4}{3,15}{4,0}{4,13}{2,1}{2,1}} splits to {{4,0}{4,7}{3,4}{3,round_down(15/2)}{3,round_up(15/2)}{4,0}{4,13}{2,1}{2,1}}
+
+  Finally the magnitude is an iterative reduction on the flat array (top level and down)
+  [[9,1],[1,9]] := {{2,9}{2,1}{2,1}{2,9}}
+  magnitude {{2,9}{2,1}{2,1}{2,9}} = magnitude {magnitude {2,9}{2,1} magnitude {2,1}{2,9}}
+  Note that magnitude reduces a pair into a number and thus a number with decreased level
+  = magnitude {{1,3*9+2*1}{1,3*1+2*9}} = magnitude {{1,29}{1,21}} = {0,3*29+2*21} = 129
+  */
+
+
+extern std::vector<char const*> pTests; // Ended up never used...
+extern char const* pTest;
 extern char const* pData;
 
 struct Result {
@@ -26,53 +67,29 @@ struct LeveledNumber {
   auto operator<=>(LeveledNumber const&) const = default;
 };
 using SnailFishNumber = std::vector<LeveledNumber>;
-
 using SnailFishNumbers = std::vector<SnailFishNumber>;
 
-enum TestType {
-  unknown_test
-  ,sum_test
-  ,undefined_test
-};
-struct Test {
-  int type;
-  std::vector<std::string> lines;
-};
-struct Model {
-  std::vector<Test> tests;
-  std::vector<std::string> lines;
-};
+SnailFishNumber to_snailfish_Number(std::string const& line) {
+  SnailFishNumber result{};
+  // Parse [[3,4],5] to {{2,3}{2,4}{1,5}} i.e., a flat array of level,value pairs
+  int nest_level{0};
+  for (auto const& ch : line) {
+    if (ch=='[') {++nest_level; continue;}
+    if (ch==']') {--nest_level; continue;}
+    if (ch==',') continue;
+    result.push_back(LeveledNumber{nest_level,ch-'0'});
+  }
+  return result;
+}
 
-bool contains(std::string const& key,std::string const& token) {
-  return (token.find(key) != std::string::npos);
-}
-bool is_not_test_entries(auto stack) {
-  if (contains("=",stack.back())) return false;
-  if (contains("becomes",stack.back())) return false;
-  return true;
-}
+using Model = SnailFishNumbers;
 
 Model parse(auto& in) {
   Model result{};
   std::string line{};
   std::vector<std::string> stack{};
   while (std::getline(in,line)) {
-      stack.push_back(line);
-  }
-  if (is_not_test_entries(stack)) {
-    std::copy(stack.begin(), stack.end(), std::back_inserter(result.lines));
-  }
-  else {
-    TestType test_type{};
-    if (contains("=",stack.back())) {
-      test_type=sum_test;
-    }
-    else if (contains("becomes",stack.back())) {
-      std::cout << "\nbecomes test NOT YET PARSED";
-    }
-    Test test{test_type,{}};
-    std::copy(stack.begin(), stack.end(), std::back_inserter(test.lines));
-    result.tests.push_back(test);
+    result.push_back(to_snailfish_Number(line));
   }
   return result;
 }
@@ -96,28 +113,6 @@ std::string to_string(SnailFishNumber const& sfn) {
       }
     }
   }
-//  for (auto const& row : rows) std::cout << row;
-  return result;
-}
-
-SnailFishNumber to_snailfish_Number(std::string const& line) {
-  SnailFishNumber result{};
-  // Parse [[3,4],5] to {{2,3}{2,4}{1,5}} i.e., a flat array of level,value pairs
-  int nest_level{0};
-  for (auto const& ch : line) {
-    if (ch=='[') {++nest_level; continue;}
-    if (ch==']') {--nest_level; continue;}
-    if (ch==',') continue;
-    result.push_back(LeveledNumber{nest_level,ch-'0'});
-  }
-  return result;
-}
-
-SnailFishNumbers to_snailfish_Numbers(auto lines) {
-  SnailFishNumbers result{};
-  for (auto const& line : lines) {
-    result.push_back(to_snailfish_Number(line));
-  }
   return result;
 }
 
@@ -130,7 +125,6 @@ size_t magnitude(SnailFishNumber sfn) {
       });
       if (left!=sfn.end()) {
         auto right = left+1;
-        if (right == sfn.end()) throw std::runtime_error("ERROR - magnitude failed for top number mot being a pair");
         *left = {.level=left->level-1,.value=3*left->value + 2*right->value};
         sfn.erase(right);
         break;
@@ -140,21 +134,15 @@ size_t magnitude(SnailFishNumber sfn) {
   return sfn.back().value;
 }
 
-static int max_level{0}; // Investigate / Debug
-
 bool explode(SnailFishNumber& result) {
   bool exploded{false};
   int explode_count{0};
   while (!exploded) {
-    // explode until all exploded
-//      std::cout << "\n<EXPLODE>";
-//      std::cout << to_string(result);
     auto exploding_left = std::adjacent_find(result.begin(), result.end(), [](LeveledNumber const& ln1,LeveledNumber const& ln2){
       return (ln1.level==ln2.level and ln1.level>4);
     });
     auto exploding_right = exploding_left+1;
     if (exploding_left!=result.end() and exploding_right!=result.end() and exploding_left->level==exploding_right->level) {
-      max_level = std::max(max_level,exploding_left->level);
       // We have a valid pair on level > 4
       explode_count++;
       if (exploding_left!=result.begin()) {
@@ -179,16 +167,12 @@ bool split(SnailFishNumber& result) {
   bool split{false};
   int split_count{0};
   while (!split) {
-    // split until all splits
-//      std::cout << "\n<SPLIT>";
-//      std::cout << to_string(result);
     auto to_split = std::find_if(result.begin(), result.end(), [](LeveledNumber const& ln){
       return ln.value>=10;
     });
     if (to_split!=result.end()) {
       ++split_count;
       auto new_level = to_split->level+1;
-      max_level = std::max(max_level,new_level);
       LeveledNumber left{.level=new_level,.value=static_cast<int>(std::floor(to_split->value/2.0))};
       LeveledNumber right{.level=new_level,.value=static_cast<int>(std::ceil(to_split->value/2.0))};
       *to_split = right;
@@ -208,11 +192,9 @@ SnailFishNumber& operator+=(SnailFishNumber& result,SnailFishNumber const& sfn2)
     ++ln.level;
     return ln;
   });
-//    std::cout << "\n<INITIAL SUM>";
-//    std::cout << to_string(result);
   // During reduction, at most one action applies, after which the process returns to the top of the list of actions.
   // For example, if split produces a pair that meets the explode criteria, that pair explodes before other splits occur.
-  while (explode(result) and split(result));
+  while (explode(result) and split(result)); // C++11 rules explode is evaluated before split in and expression (there is a "sequence point" after evaluation of a in "a and b")
   return result;
 }
 
@@ -268,9 +250,7 @@ namespace prototype {
 [4,4]
 [5,5])";
     std::istringstream in{pTest};
-    auto puzzle_model = parse(in);
-    auto const& [tests,lines] = puzzle_model;
-    auto sfns = to_snailfish_numbers(lines);
+    auto sfns = parse(in);
     if (sum_test(sfns, to_snailfish_Number("[[[[3,0],[5,3]],[4,4]],[5,5]]"))) std::cout << "\ntest2 SUCCESS";
     else std::cout << "\ntest2 FAILED";
   }
@@ -283,9 +263,7 @@ namespace prototype {
 [5,5]
 [6,6])";
     std::istringstream in{pTest};
-    auto puzzle_model = parse(in);
-    auto const& [tests,lines] = puzzle_model;
-    auto sfns = to_snailfish_numbers(lines);
+    auto sfns = parse(in);
     if (sum_test(sfns, to_snailfish_Number("[[[[5,0],[7,4]],[5,5]],[6,6]]"))) std::cout << "\ntest2 SUCCESS";
     else std::cout << "\ntest2 FAILED";
   }
@@ -303,12 +281,9 @@ namespace prototype {
 [[3,[2,[1,[7,3]]]],[6,[5,[4,[3,2]]]]]
 [[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]])";
     std::istringstream in{pTest};
-    auto puzzle_model = parse(in);
-    auto const& [tests,lines] = puzzle_model;
-    auto to_explode = to_snailfish_numbers(lines);
+    auto to_explode = parse(in);
     std::istringstream an{pAnswers};
-    auto answer_model = parse(an);
-    auto answers = to_snailfish_numbers(answer_model.lines);
+    auto answers = parse(an);
     for (int i=0;i<answers.size();i++) {
       auto number = to_explode[i];
       explode(number);
@@ -325,9 +300,7 @@ namespace prototype {
     char const* pTest = R"([[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]
 [7,[[[3,7],[4,3]],[[6,3],[8,8]]]])";
     std::istringstream in{pTest};
-    auto puzzle_model = parse(in);
-    auto const& [tests,lines] = puzzle_model;
-    auto sfns = to_snailfish_numbers(lines);
+    auto sfns = parse(in);
     auto answer = to_snailfish_Number("[[[[4,0],[5,4]],[[7,7],[6,0]]],[[8,[7,7]],[[7,9],[5,0]]]]");
     auto success = sum_test(sfns,answer);
     std::cout << "\n<EXPECTED>";
@@ -341,9 +314,7 @@ namespace prototype {
     char const* pTest = R"([[[[7,0],[7,7]],[[7,7],[7,8]]],[[[7,7],[8,8]],[[7,7],[8,7]]]]
 [7,[5,[[3,8],[1,4]]]])";
     std::istringstream in{pTest};
-    auto puzzle_model = parse(in);
-    auto const& [tests,lines] = puzzle_model;
-    auto sfns = to_snailfish_numbers(lines);
+    auto sfns = parse(in);
     auto answer = to_snailfish_Number("[[[[7,7],[7,8]],[[9,5],[8,7]]],[[[6,8],[0,8]],[[9,9],[9,0]]]]");
     auto success = sum_test(sfns,answer);
     std::cout << "\n<EXPECTED>";
@@ -374,12 +345,9 @@ namespace prototype {
 [[[5,[7,4]],7],1]
 [[[[4,2],2],6],[8,7]])";
     std::istringstream in{pTest};
-    auto puzzle_model = parse(in);
-    auto const& [tests,lines] = puzzle_model;
-    auto numbers = to_snailfish_numbers(lines);
+    auto numbers = parse(in);
     std::istringstream an{pAnswers};
-    auto answer_model = parse(an);
-    auto answers = to_snailfish_numbers(answer_model.lines);
+    auto answers = parse(an);
     auto sum = numbers[0];
     for (int i=1;i<answers.size();i++) {
       auto number = numbers[i];
@@ -422,9 +390,7 @@ namespace prototype {
 [[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]
 [[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]])";
     std::istringstream in{pTest};
-    auto puzzle_model = parse(in);
-    auto const& [tests,lines] = puzzle_model;
-    auto numbers = to_snailfish_numbers(lines);
+    auto numbers = parse(in);
     auto expected = to_snailfish_Number("[[[[6,6],[7,6]],[[7,7],[7,0]]],[[[7,7],[7,7]],[[7,8],[9,9]]]]");
     auto result = sum(numbers);
     std::cout << "\n <SUM>";
@@ -441,60 +407,10 @@ namespace part1 {
   Result solve_for(char const* pData) {
     Result result{};
     std::stringstream in{ pData };
-    auto puzzle_model = parse(in);
-    if (puzzle_model.lines.size()==0) {
-      std::cout << "\n\tis Test with entry count " << puzzle_model.tests.size();
-      result.caption=" NOP";
-    }
-    else {
-      std::cout << "\n\tis Puzzle with entry count " << puzzle_model.lines.size();
-      SnailFishNumbers snailfishnumbers{};
-      // A snailfish number is a pair p
-      // add p1,p2 = [p1,p2]
-      // reduce p = explode p* | split n*
-      // p* is first level 4 pair in p
-      // n* is first number >= 10
-      // explode p =
-      //            left_of_p.right += p.left
-      //            right_of_p.left += p.right
-      //            p is replaced by number 0
-      // split n = [round_down(n/2),round_up(n/2)]
-      
-      // We need a datastructure to represent p so that we can
-      // add p1,p2 (p can be a std::pair)
-      // reduce p  (we need to be able to find level 4 p*, find pair left_of_p and right_of_p)
-      // magnitude p (p can be a std::pair)
-      
-      // But lets try a representation of a number paired with its nest level?
-      // [1,2] := {{1,1}{1,2}} i.e., level 1 value 1, level 1 value 2
-      // [[3,4],5] := {{2,3}{2,4}{1,5}}
-      
-      // The sum [1,2] + [[3,4],5] = [[1,2],[[3,4],5]]
-      // becomes {{1,1},{1,2}} appended with {{2,3}{2,4}{1,5}} with all levels incremented
-      // = {{2,1}{2,2}{3,3}{3,4}{2,5}} := [[1,2],[[3,4],5]]
-      //
-      // Explode is now a flat array manipulation
-      // [[[[[9,8],1],2],3],4] := {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}}
-      // The pair nested in level is easilly found as being on level 5
-      // So the {5,9},{5,8} "explodes" to the '9' adds to the left and the '8' adds to the right
-      // {{5,9}{5,8}{4,1}{3,2}{2,3}{1,4}} explodes to {{4,0}{4,9}{3,2}{2,3}{1,4}} := [[[[0,9],2],3],4]
-      //
-      // Split is now also a flat array manipulation
-      // [[[[0,7],4],[15,[0,13]]],[1,1]] := {{4,0}{4,7}{3,4}{3,15}{4,0}{4,13}{2,1}{2,1}}
-      // {{4,0}{4,7}{3,4}{3,15}{4,0}{4,13}{2,1}{2,1}} splits to {{4,0}{4,7}{3,4}{3,round_down(15/2)}{3,round_up(15/2)}{4,0}{4,13}{2,1}{2,1}}
-      //
-      // Finally the magnitude is an iterative reduction on the flat array (bottom level and up)
-      // [[9,1],[1,9]] := {{2,9}{2,1}{2,1}{2,9}}
-      // magnitude {{2,9}{2,1}{2,1}{2,9}} = magnitude {magnitude {2,9}{2,1} magnitude {2,1}{2,9}}
-      // Note that magnitude reduces a pair into a number and thus a nuber with decreased level
-      // = magnitude {{1,3*9+2*1}{1,3*1+2*9}} = magnitude {{1,29}{1,21}} = {0,3*29+2*21} = 129
-      //
-      auto const& [tests,lines] = puzzle_model;
-      auto numbers = to_snailfish_numbers(lines);
-      auto answer = sum(numbers);
-      auto size = magnitude(answer);
-      result.value = magnitude(answer);
-    }
+    auto numbers = parse(in);
+    auto answer = sum(numbers);
+    auto size = magnitude(answer);
+    result.value = size;
     return result;
   }
 }
@@ -503,10 +419,9 @@ namespace part2 {
   Result solve_for(char const* pData) {
     Result result{};
     std::stringstream in{ pData };
-    auto puzzle_model = parse(in);
-    auto const& [tests,lines] = puzzle_model;
-    auto numbers = to_snailfish_numbers(lines);
+    auto numbers = parse(in);
     size_t answer{0};
+    // search all permutations of pairwise sums
     for (int i=0;i<numbers.size();i++) {
       for (int j=0;j<numbers.size();j++) {
         auto mag = magnitude(numbers[i]+numbers[j]);
@@ -520,25 +435,26 @@ namespace part2 {
 
 int main(int argc, char *argv[])
 {
-//prototype::test1();
-//  prototype::test2();
-//  prototype::test3();
-//  prototype::test4();
-//  prototype::test5();
-//  prototype::test6();
-//  prototype::test7();
-//  prototype::test8();
-//  std::cout << "\nmax level " << prototype::max_level;
-//  return 0;
-  Answers answers{};
-//  for (auto const& entry : pTests) {
-//    answers.push_back({"Part 1 Test",part1::solve_for(entry)});
-//  }
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-   answers.push_back({"Part 2     ",part2::solve_for(pData)});
-  for (auto const& answer : answers) {
-    std::cout << "\nanswer[" << answer.first << "] " << answer.second.value;
+  if (false) {
+    prototype::test1();
+    prototype::test2();
+    prototype::test3();
+    prototype::test4();
+    prototype::test5();
+    prototype::test6();
+    prototype::test7();
+    prototype::test8();
+    return 0;
+  }
+  else {
+    Answers answers{};
+    answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+    answers.push_back({"Part 1     ",part1::solve_for(pData)});
+    answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+    answers.push_back({"Part 2     ",part2::solve_for(pData)});
+    for (auto const& answer : answers) {
+      std::cout << "\nanswer[" << answer.first << "] " << answer.second.value;
+    }
   }
   // std::cout << "\nPress <enter>...";
   // std::cin.get();
@@ -546,8 +462,19 @@ int main(int argc, char *argv[])
   return 0;
 }
 
+char const* pTest = R"([[[0,[5,8]],[[1,7],[9,6]]],[[4,[1,2]],[[1,4],2]]]
+[[[5,[2,8]],4],[5,[[9,9],0]]]
+[6,[[[6,2],[5,6]],[[7,6],[4,7]]]]
+[[[6,[0,7]],[0,9]],[4,[9,[9,0]]]]
+[[[7,[6,4]],[3,[1,3]]],[[[5,5],1],9]]
+[[6,[[7,3],[3,2]]],[[[3,8],[5,7]],4]]
+[[[[5,4],[7,7]],8],[[8,3],8]]
+[[9,3],[[9,9],[6,[4,9]]]]
+[[2,[[7,7],7]],[[5,8],[[9,3],[0,2]]]]
+[[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]])";
+
 std::vector<char const*> pTests = {
-  "[1,2] + [[3,4],5] becomes [[1,2],[[3,4],5]]"
+  R"([1,2] + [[3,4],5] becomes [[1,2],[[3,4],5]]"
   ,"[[[[[9,8],1],2],3],4] becomes [[[[0,9],2],3],4]"
   ,"[7,[6,[5,[4,[3,2]]]]] becomes [7,[6,[5,[7,0]]]]"
   ,"[[6,[5,[4,[3,2]]]],1] becomes [[6,[5,[7,0]]],3]"
