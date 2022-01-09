@@ -207,6 +207,20 @@ Lessons learned
 * I left the code when it worked and was reasonably cleaned up.
 * I have not tried to refactor it to have the different phases fit more readily together (for example using a deque as the result to process for beacon count and best manhattan distance is for suer suboptimal...)
 
+# day18
+Lessons learned in day 18.
+
+* I should learn to not be to clever initially and write "stupid" but resilient code.
+    * I initially assumed (correctly) that no pair could go beyond level 5 (as they will all explode above level 4).
+    * So I wrote the code to identify level==5 insetad of level>4.
+    * But due to an error I got pairs above level 5.
+    * I incorrectly then thought my assumption was wrong.
+    * So I changed my code to work even for higher levels.
+    * Lesson leaarned: If I had written the original code less clever (not assuming 5 is the highest level) I would have saved time not chasing the wrong bug.
+* I initiall missunderstood that a pair that splits to level 5 must emmidietaly trigger an explosion of this pair.
+    * I found this error when performng tests against the examples in the puzzle description.
+    * Lesson learned: Be sure to test everything that is possible to test from the information provided to find all corber cases.
+
 # day 17
 Lessons learned in day 17.
 * Don't try to be clever and define a range so that start is closer to 0 than end!
