@@ -8,6 +8,9 @@
 #include <set>
 #include <deque>
 #include <iterator>
+#include <map>
+#include <queue>
+#include <compare>
 
 char const* pTest0 = R"(11637517422274862853338597396444961841755517295286
 13813736722492484783351359589446246169155735727126
@@ -77,7 +80,11 @@ Model parse(auto& in) {
     return result;
 }
 
-using Position = std::pair<int,int>;
+using Coord=int;
+struct Position {
+  Coord row,col;
+  auto operator<=>(Position const&) const = default;
+};
 using Cost = size_t;
 using CostRow = std::vector<Cost>;
 using CostMap = std::vector<CostRow>;
@@ -108,8 +115,8 @@ namespace part1 {
       visit_cost.push_back(cost_row);
     }
     // Grid size
-    auto max_row = visit_cost.size()-1;
-    auto max_col = visit_cost[0].size()-1;
+    auto max_row = static_cast<Coord>(visit_cost.size()-1);
+    auto max_col = static_cast<Coord>(visit_cost[0].size()-1);
     // // print
     // {
     //   for (auto const& cost_row : visit_cost) {
@@ -140,11 +147,11 @@ namespace part1 {
         for (auto delta_row : {0,1}) {
           for (auto delta_col : {0,1}){
             if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip origin and diagonals
-            Position adj{pos.first+delta_row,pos.second+delta_col};
-            if ((adj.first<0) or (adj.first>max_row) or (adj.second<0) or (adj.second > max_col)) continue; // skip out-of-bounds
-            if (cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second] <= cost_map[adj.first][adj.second]) {
-              cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
-              parent_map[adj.first][adj.second] = pos;
+            Position adj{pos.row+delta_row,pos.col+delta_col};
+            if ((adj.row<0) or (adj.row>max_row) or (adj.col<0) or (adj.col > max_col)) continue; // skip out-of-bounds
+            if (cost_map[pos.row][pos.col] + visit_cost[adj.row][adj.col] <= cost_map[adj.row][adj.col]) {
+              cost_map[adj.row][adj.col] = cost_map[pos.row][pos.col] + visit_cost[adj.row][adj.col];
+              parent_map[adj.row][adj.col] = pos;
             }
             new_frontiere.insert(adj);
           }
@@ -159,12 +166,12 @@ namespace part1 {
       std::deque<Position> path{};
       while (pos != Position{0,0}) {        
         path.push_front(pos);
-        pos = parent_map[pos.first][pos.second];
+        pos = parent_map[pos.row][pos.col];
       }
       // print
       std::cout << "\ncheapest steps:";
       for (auto const& pos : path) {
-        std::cout << " " << visit_cost[pos.first][pos.second];
+        std::cout << " " << visit_cost[pos.row][pos.col];
       }      
     }
     result = cost_map.back().back();
@@ -212,82 +219,38 @@ namespace part2 {
     Result result{};
     std::stringstream in{ pData };
     auto tile = parse(in);
-    auto puzzle_model = entire_cave(tile);
-    // initiate visit cost map 
-    CostMap visit_cost{};
-    for (auto const& row : puzzle_model) {
-      CostRow cost_row{};
-      for (auto const& cost_digit : row) {
-        cost_row.push_back(cost_digit-'0');
-      }
-      visit_cost.push_back(cost_row);
-    }
+    auto cave = entire_cave(tile);
     // Grid size
-    auto max_row = visit_cost.size()-1;
-    auto max_col = visit_cost[0].size()-1;
-    // print
-    {
-      std::cout << visit_cost.size() << " times " << visit_cost[0].size();
-      for (auto const& cost_row : visit_cost) {
-        std::cout << "\n";
-        for (auto const& cost : cost_row) {
-          std::cout << cost;
-        }
+    auto max_row = static_cast<Coord>(cave.size()-1);
+    auto max_col = static_cast<Coord>(cave[0].size()-1);
+    Position upper_left_corner{0,0};
+    Position lower_right_corner{.row=max_row,.col=max_col};
+    // TODO: Implement lowest risk path
+    using Risk = int;
+    struct State {
+      Risk enter_risk{0};
+      Risk risk_acc{std::numeric_limits<Risk>::max()};
+      Position from{-1,-1};
+      bool visited{false};
+    };
+    // Initiate a risk map
+    std::map<Position,State> risk_map{};
+    for (int row=0;row<=max_row;row++) {
+      for (int col=0;col<=max_col;col++){
+        risk_map[Position{row,col}].enter_risk = cave[row][col];
       }
     }
-    // initiate cost map
-    CostMap cost_map{};
-    for (auto const& row : visit_cost) {
-      CostRow cost_row{};
-      for (auto const& cost : row) {
-        cost_row.push_back(std::numeric_limits<Cost>::max());
-      }
-      cost_map.push_back(cost_row);
-    }
-    cost_map[0][0] = 0;
+    // Find the path from {0,0} to {end,end} on risk_map with lowest risk
+    // Initiate unvisited priority queue to have lowest risk so far at the front
+    auto lower_risk = [&risk_map](Position const& p1, Position const& p2) {
+      return risk_map.at(p1).risk_acc>risk_map.at(p2).risk_acc; // priority_queue will prefer "false" i.e. place p2 before p1 in the queue
+    };
+    std::priority_queue<Position, std::vector<Position>, decltype(lower_risk)> unvisited(lower_risk);
+    std::set<Position> visited{};
+    while (unvisited.size()>0) {
 
-    // helper to track cheapest path
-    std::vector<std::vector<Position>> parent_map{500,{500,{0,0}}};
-    // Flood fill with min costs from {0,0} to {max_row,max_col}
-    std::set<Position> frontiere{};
-    frontiere.insert({0,0});
-    while (frontiere.size()>0) {
-      std::set<Position> new_frontiere{};
-      std::cout << "\nfrontiere\t";
-      for (auto const& pos : frontiere) {
-        std::cout << " " << cost_map[pos.first][pos.second];
-        for (auto delta_row : {1,0}) {
-          for (auto delta_col : {1,0}){
-            if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip origin and diagonals
-            Position adj{pos.first+delta_row,pos.second+delta_col};
-            if (adj.first<0 or adj.first>max_row or adj.second<0 or adj.second > max_col) continue; // skip out-of-bounds
-            if (cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second] < cost_map[adj.first][adj.second]) {
-              cost_map[adj.first][adj.second] = cost_map[pos.first][pos.second] + visit_cost[adj.first][adj.second];
-              parent_map[adj.first][adj.second] = pos;
-            }
-            new_frontiere.insert(adj);
-          }
-        }
-      }
-      frontiere = new_frontiere;
     }
-
-    // backtrack cheapest path
-    {
-      Position pos{max_row,max_col}; // end node
-      std::deque<Position> path{};
-      do {        
-        path.push_front(pos);
-        pos = parent_map[pos.first][pos.second];
-      } while (pos != Position{0,0});
-      path.push_front(pos);
-      // print
-      std::cout << "\ncheapest steps:";
-      for (auto const& pos : path) {
-        std::cout << " " << visit_cost[pos.first][pos.second];
-      }      
-    }
-    result = cost_map.back().back();
+    result = risk_map.at(lower_right_corner).risk_acc;
     return result;
   }
 }
