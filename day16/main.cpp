@@ -223,7 +223,7 @@ EvalResult eval_packet(Bin& bin) {
     }
     indent.resize(indent.size()-2);
   }
-  std::cout << indent << "\nvals:";
+  std::cout << indent << "vals:";
   for (auto const& val : result.val) std::cout << " " << val;
   auto result_val = vals_eval(result.val); // reduce val array of sub-packets into single value
   std::cout << " evals to " << result_val;
@@ -313,20 +313,20 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  answers.push_back({"Part 1 Test1",part1::solve_for(pTest1)});
-  answers.push_back({"Part 1 Test2",part1::solve_for(pTest2)});
-  answers.push_back({"Part 1 Test3",part1::solve_for(pTest3)}); // sum 16
-  answers.push_back({"Part 1 Test4",part1::solve_for(pTest4)}); // sum 12
-  answers.push_back({"Part 1 Test5",part1::solve_for(pTest5)}); // sum 23
-  answers.push_back({"Part 1 Test6",part1::solve_for(pTest6)}); // sum 31
-  answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  for (int i=0;i<part_2_test_data.size();i++) {
-    std::string label{std::string{"Part 2 Test"} + std::to_string(i)};
-    answers.push_back({label,part2::solve_for(part_2_test_data[i].c_str())});
-  }
+  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  // answers.push_back({"Part 1 Test1",part1::solve_for(pTest1)});
+  // answers.push_back({"Part 1 Test2",part1::solve_for(pTest2)});
+  // answers.push_back({"Part 1 Test3",part1::solve_for(pTest3)}); // sum 16
+  // answers.push_back({"Part 1 Test4",part1::solve_for(pTest4)}); // sum 12
+  // answers.push_back({"Part 1 Test5",part1::solve_for(pTest5)}); // sum 23
+  // answers.push_back({"Part 1 Test6",part1::solve_for(pTest6)}); // sum 31
+  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  // for (int i=0;i<part_2_test_data.size();i++) {
+  //   std::string label{std::string{"Part 2 Test"} + std::to_string(i)};
+  //   answers.push_back({label,part2::solve_for(part_2_test_data[i].c_str())});
+  // }
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
-  // answers.push_back({"Part 2     ",part2::solve_for(pData)});
+  answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
