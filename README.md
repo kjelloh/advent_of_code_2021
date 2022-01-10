@@ -359,13 +359,13 @@ I really struggled with this puzzle!
     * In hindsight I think the "not move diagonally" was one of the hurdles?
     * I mean, I did make sure NOT to expand the search diagonally.
     * Still, I think I managed to still get an algorithm that chose a diagonal step although I did not e x p a n d diagonally.
-    * But I am still not sure what small errors I kept doing that prevented me from getting the right path ans answer?
+    * But I am still not sure what small errors I kept doing that prevented me from getting the right path answer?
 * I struggled debugging this problem.
-    * The layers of indirection made it har to produce debug outputs that pointed me to problems.
+    * The layers of indirection made it hard to produce debug outputs that pointed me to problems.
     * The algorithm will search several paths at once and Dijkstra will switch path when one with a lower risk is found.
     * Finding log outputs to follow this behavior was not easy to my experience.
 * I can still not grasp why my algorithm does NOT work if I expand only right and down?
-    * I have to expand left/right and up/down.
+    * I have to expand left/right and up/down to get the right answer for part 2.
     * But my intuition is that left and up should always be an already visited node?
 
 * Here is the expand part of my search where I generate -1,0,1 row step as well as column step.
@@ -406,7 +406,7 @@ I really struggled with this puzzle!
 
 ```
 * Maybe the answer to this puzzle will come to me after a nights sleep?
-* WAIT!! Aha - I need to reach a new node from EVERY DIRECTION!
+* **WAIT!!** Aha - I need to reach a new node from **EVERY DIRECTION**!
     * Why did it take me so long to realize this?
     * I AM allowed to go down, left and then up again (even up and then right...) and so on!
     * And Dijkstra-like searching along the currently least risky path may take the algorithm so far into the map that there IS unvisited nodes up and left :)
