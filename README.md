@@ -348,7 +348,7 @@ EvalResult eval_packet(Bin& bin);
 EvalResult eval_packets_size(Bin& bin,int bit_count);
 EvalResult eval_packets_count(Bin& bin,int package_count);
 ```
-* I think it is worth noting that we had only to change the return type up back the chain of recursion. The arguments pushed down the call stack remained the same for part 1.
+* I think it is worth noting that we had only to change the return type up back the chain of recursion. The arguments pushed down the call stack remained the same for part 2.
 * In hind sight, the arguments going down the recursion is the input stream and the constraint on how much to read (parse or evaluate)
     * And this constraint can be either a measure of bits to read or a measure of the package count to read. 
 * The EvalResult for part 2 accumulates (assembles) the data we are searching for plus the data required to implement the read constraint (bit count for the bit count constraint).  
