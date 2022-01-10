@@ -353,6 +353,65 @@ EvalResult eval_packets_count(Bin& bin,int package_count);
     * And this constraint can be either a measure of bits to read or a measure of the package count to read. 
 * The EvalResult for part 2 accumulates (assembles) the data we are searching for plus the data required to implement the read constraint (bit count for the bit count constraint).  
 
+# day 15
+I really struggled with this puzzle!
+* For one I implemented the shortest-path algorithm over and over and continuously got different answers.
+    * In hindsight I think the "not move diagonally" was one of the hurdles?
+    * I mean, I did make sure NOT to expand the search diagonally.
+    * Still, I think I managed to still get an algorithm that chose a diagonal step although I did not e x p a n d diagonally.
+    * But I am still not sure what small errors I kept doing that prevented me from getting the right path ans answer?
+* I struggled debugging this problem.
+    * The layers of indirection made it har to produce debug outputs that pointed me to problems.
+    * The algorithm will search several paths at once and Dijkstra will switch path when one with a lower risk is found.
+    * Finding log outputs to follow this behavior was not easy to my experience.
+* I can still not grasp why my algorithm does NOT work if I expand only right and down?
+    * I have to expand left/right and up/down.
+    * But my intuition is that left and up should always be an already visited node?
+
+* Here is the expand part of my search where I generate -1,0,1 row step as well as column step.
+```
+    for (auto delta_row : {-1,0,1}) {
+      for (auto delta_col : {-1,0,1}) {
+        if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip self and diagonal
+        Position adj{.row=pos.row+delta_row,.col=pos.col+delta_col};
+        if (adj.row<0 or adj.row>max_row or adj.col<0 or adj.col>max_col) continue; // skip out of bounds 
+        if (state_map.at(adj).visited) continue; // skip visited
+        auto& adj_state = state_map.at(adj);
+        auto path_to_adj_risk = pos_state.risk_acc+adj_state.enter_risk;
+        if (path_to_adj_risk<adj_state.risk_acc) {
+          adj_state.risk_acc = path_to_adj_risk;
+          adj_state.from = pos;
+          unvisited.push(adj); // expand graph with this candidate
+          // std::cout << " +{" << adj.row << "," << adj.col << "}";
+        }
+      }
+```
+* If I try and other combination I get different answers for part 2!
+
+```
+    // This fails to find the shortest path...
+    for (auto delta_row : {0,1}) {
+      for (auto delta_col : {-1,0,1}) {
+```
+```
+    // This also fails to find the shortest path...
+    for (auto delta_row : {-1,0,1}) {
+      for (auto delta_col : {0,1}) {
+```
+```
+    // ...so does this...
+    for (auto delta_row : {0,1}) {
+      for (auto delta_col : {0,1}) {
+        if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip self and diagonal
+
+```
+* Maybe the answer to this puzzle will come to me after a nights sleep?
+* WAIT!! Aha - I need to reach a new node from EVERY DIRECTION!
+    * Why did it take me so long to realize this?
+    * I AM allowed to go down, left and then up again (even up and then right...) and so on!
+    * And Dijkstra-like searching along the currently least risky path may take the algorithm so far into the map that there IS unvisited nodes up and left :)
+* Thanks Advent of Code - I learned something today :)
+
 # day 12
 * At first I came this far. But this does not work. Why?
 
