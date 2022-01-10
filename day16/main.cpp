@@ -8,14 +8,16 @@
 #include <functional>
 #include <numeric>
 
-char const* pTest = R"(D2FE28)";
-char const* pTest1 = R"(38006F45291200)";
-char const* pTest2 = R"(EE00D40C823060)";
+std::vector<std::string> part_1_test_data = {
+   R"(D2FE28)"
+  ,R"(38006F45291200)"
+  ,R"(EE00D40C823060)"
+  ,R"(8A004A801A8002F478)" // this packet has a version sum of 16
+  ,R"(620080001611562C8802118E34)" // this packet has a version sum of 12
+  ,R"(C0015000016115A2E0802F182340)" // this packet has a version sum of 23
+  ,R"(A0016C880162017C3686B18A3D4780)" // this packet has a version sum of 31
+};
 
-char const* pTest3 = R"(8A004A801A8002F478)"; // 16
-char const* pTest4 = R"(620080001611562C8802118E34)"; // 12
-char const* pTest5 = R"(C0015000016115A2E0802F182340)"; // 23
-char const* pTest6 = R"(A0016C880162017C3686B18A3D4780)"; // 31
 
 std::vector<std::string> part_2_test_data = {
   {"C200B40A82"} // finds the sum of 1 and 2, resulting in the value 3.
@@ -313,19 +315,15 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1 Test1",part1::solve_for(pTest1)});
-  // answers.push_back({"Part 1 Test2",part1::solve_for(pTest2)});
-  // answers.push_back({"Part 1 Test3",part1::solve_for(pTest3)}); // sum 16
-  // answers.push_back({"Part 1 Test4",part1::solve_for(pTest4)}); // sum 12
-  // answers.push_back({"Part 1 Test5",part1::solve_for(pTest5)}); // sum 23
-  // answers.push_back({"Part 1 Test6",part1::solve_for(pTest6)}); // sum 31
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // for (int i=0;i<part_2_test_data.size();i++) {
-  //   std::string label{std::string{"Part 2 Test"} + std::to_string(i)};
-  //   answers.push_back({label,part2::solve_for(part_2_test_data[i].c_str())});
-  // }
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+  for (int i=0;i<part_1_test_data.size();i++) {
+    std::string label{std::string{"Part 2 Test"} + std::to_string(i)};
+    answers.push_back({label,part1::solve_for(part_1_test_data[i].c_str())});
+  }
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  for (int i=0;i<part_2_test_data.size();i++) {
+    std::string label{std::string{"Part 2 Test"} + std::to_string(i)};
+    answers.push_back({label,part2::solve_for(part_2_test_data[i].c_str())});
+  }
   answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
