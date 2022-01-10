@@ -319,6 +319,40 @@ bool in_range(int coord, CoordRange const& range) {
     * It took me a little longer to realise that this was NOT the task at all.
 * I am a meta-thinker. Meaning, I do what I experience is the intention, not what is actually said...
 
+# day 16
+Lessons learned for day 16
+* It is quite easy to cut the path up from recursive calls and lose the result
+    * For part 2 I refactored recursive parsing to recursive evaluation.
+    * I did this by replacing the part 1 parse result being the bits read counter, to a struct also carrying the evaluated values.
+    * This was a good idea but it took me some time to get the re-assembly of values up the call stack again.
+    * I suppose I can find a better way to express the re-assembly operations so I don't have to repeat the same code in so many places?
+
+* For part 2 it worked well to refactor part 1 recursive parse functions and turn them into recursive evaluation functions.
+
+From:
+
+```
+int parse_packet(Bin& bin);
+int parse_packets_size(Bin& bin,int bit_count);
+int parse_packets_count(Bin& bin,int package_count);
+```
+To:
+```
+struct EvalResult {
+  std::vector<size_t> val;
+  size_t version_acc{0};
+  int bits_read{0};
+};
+
+EvalResult eval_packet(Bin& bin);
+EvalResult eval_packets_size(Bin& bin,int bit_count);
+EvalResult eval_packets_count(Bin& bin,int package_count);
+```
+* I think it is worth noting that we had only to change the return type up back the chain of recursion. The arguments pushed down the call stack remained the same for part 1.
+* In hind sight, the arguments going down the recursion is the input stream and the constraint on how much to read (parse or evaluate)
+    * And this constraint can be either a measure of bits to read or a measure of the package count to read. 
+* The EvalResult for part 2 accumulates (assembles) the data we are searching for plus the data required to implement the read constraint (bit count for the bit count constraint).  
+
 # day 12
 * At first I came this far. But this does not work. Why?
 
