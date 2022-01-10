@@ -5,6 +5,8 @@
 #include <sstream>
 #include <algorithm>
 #include <bitset>
+#include <functional>
+#include <numeric>
 
 char const* pTest = R"(D2FE28)";
 char const* pTest1 = R"(38006F45291200)";
@@ -97,6 +99,8 @@ EvalResult eval_packet(Bin& bin) {
   auto packet_type_ID_bs = read_bits(3,bin,result.bits_read);
   std::cout << indent << "packet type ID:" << packet_type_ID_bs;
   auto packet_type_ID = std::bitset<3>{packet_type_ID_bs}.to_ulong();
+
+  std::function<size_t(std::vector<size_t>)> vals_eval = [](std::vector<size_t> const& vals){return 4711;};
   
   if (packet_type_ID ==4) {
     /*
@@ -108,15 +112,17 @@ EvalResult eval_packet(Bin& bin) {
     indent += "  ";
     std::cout << indent << "<Literal Value>";
     bool not_last_package = true;
-    BitString literal_value{};
+    BitString literal_bs{};
     while (not_last_package) {
       not_last_package = read_bits(1, bin,result.bits_read) == "1";
-      std::copy_n(std::istream_iterator<char>{bin},4,std::back_inserter(literal_value));
+      std::copy_n(std::istream_iterator<char>{bin},4,std::back_inserter(literal_bs));
       result.bits_read += 4;
-      std::cout << indent << "*" << literal_value;
+      std::cout << indent << "*" << literal_bs;
     }
-    if (literal_value.size()<=64) {
-      std::cout << indent << "= " << std::bitset<64>{literal_value}.to_ullong();
+    if (literal_bs.size()<=64) {
+      auto literal_value = std::bitset<64>{literal_bs}.to_ullong();
+      std::cout << indent << "= " << literal_value;
+      vals_eval = [&literal_value](std::vector<size_t> const& vals) {return literal_value;};
     }
     else {
       std::cout << indent <<  "OVERFLOW ERROR";
@@ -139,24 +145,45 @@ EvalResult eval_packet(Bin& bin) {
     switch (packet_type_ID) {
       case 0:
         std::cout << indent << "operation SUM";
+        vals_eval = [](std::vector<size_t> const& vals){
+          return std::accumulate(vals.begin(),vals.end(),size_t{0});
+        };
         break;
       case 1:
         std::cout << indent << "operation MULTIPLY";
+        vals_eval = [](std::vector<size_t> const& vals){
+          return std::accumulate(vals.begin(),vals.end(),size_t{1},std::multiplies{});
+        };
         break;
       case 2:
         std::cout << indent << "operation MINIMUM";
+        vals_eval = [](std::vector<size_t> const& vals){
+          return *std::min_element(vals.begin(),vals.end());
+        };
         break;
       case 3:
         std::cout << indent << "operation MAXIMUM";
+        vals_eval = [](std::vector<size_t> const& vals){
+          return *std::max_element(vals.begin(),vals.end());
+        };
         break;
       case 5:
         std::cout << indent << "operation IS GREATER";
+        vals_eval = [](std::vector<size_t> const& vals){
+          return (vals[0] > vals[1])?1:0;
+        };
         break;
       case 6:
         std::cout << indent << "operation IS LESS";
+        vals_eval = [](std::vector<size_t> const& vals){
+          return (vals[0] < vals[1])?1:0;
+        };
         break;
       case 7:
         std::cout << indent << "operation IS EQUAL";
+        vals_eval = [](std::vector<size_t> const& vals){
+          return (vals[0] == vals[1])?1:0;
+        };
         break;
       default:
         std::cout << indent << "ERROR - packet_type_ID = ??";
@@ -196,8 +223,12 @@ EvalResult eval_packet(Bin& bin) {
     }
     indent.resize(indent.size()-2);
   }
-  // TODO: Evaluate this packet from evaluated sub-packages
-  result.val.push_back(17); // DUMMY!
+  std::cout << indent << "\nvals:";
+  for (auto const& val : result.val) std::cout << " " << val;
+  auto result_val = vals_eval(result.val); // reduce val array of sub-packets into single value
+  std::cout << " evals to " << result_val;
+  result.val.clear();
+  result.val.push_back(result_val);
   indent.resize(indent.size()-2);
   return result;
 }
@@ -207,10 +238,9 @@ EvalResult eval_packets_size(Bin& bin,int bit_count) {
   EvalResult result{};
   try {
     while (result.bits_read < bit_count) {
-      result.val.push_back({});
       auto eval_result = eval_packet(bin); // Recurse
       result.bits_read += eval_result.bits_read;
-      result.val = eval_result.val;
+      result.val.push_back(eval_result.val[0]);
       result.version_acc += eval_result.version_acc;
       std::cout << indent << "bits_read:" << result.bits_read;
     }
@@ -229,7 +259,7 @@ EvalResult eval_packets_count(std::istream& bin,int package_count) {
     for (int i=0;i<package_count;i++) {
       auto eval_result = eval_packet(bin); // Recurse
       result.bits_read += eval_result.bits_read;
-      result.val = eval_result.val;
+      result.val.push_back(eval_result.val[0]);
       result.version_acc += eval_result.version_acc;
     }
   }
@@ -293,7 +323,7 @@ int main(int argc, char *argv[])
   answers.push_back({"Part 1     ",part1::solve_for(pData)});
   for (int i=0;i<part_2_test_data.size();i++) {
     std::string label{std::string{"Part 2 Test"} + std::to_string(i)};
-    answers.push_back({label,part2::solve_for(pTest)});
+    answers.push_back({label,part2::solve_for(part_2_test_data[i].c_str())});
   }
   // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   // answers.push_back({"Part 2     ",part2::solve_for(pData)});
