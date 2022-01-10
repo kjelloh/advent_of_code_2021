@@ -412,6 +412,8 @@ I really struggled with this puzzle!
     * And Dijkstra-like searching along the currently least risky path may take the algorithm so far into the map that there IS unvisited nodes up and left :)
 * Thanks Advent of Code - I learned something today :)
 
+Final note: To my delight I was not alone in falling into the trap of "down and right is enough"! I found out Jonathan Paulson made the same asumption and also had ti struggle before getting it (https://youtu.be/hig93Etxims?t=1085 ).
+
 # day 12
 * At first I came this far. But this does not work. Why?
 
