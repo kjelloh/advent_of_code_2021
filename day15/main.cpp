@@ -172,11 +172,7 @@ namespace part1 {
   }
 }
 
-namespace part2 {
-  Result solve_for(char const* pData) {
-    Result result{};
-    std::stringstream in{ pData };
-    auto puzzle_model = parse(in);
+Model entire_cave(Model const& puzzle_model) {
     // Create the ten possible tiles to expand our map with
     std::vector<Model> tile{puzzle_model};
     for (int i=1;i<10;i++) { // 9 more tiles
@@ -188,27 +184,35 @@ namespace part2 {
       }
       tile.push_back(new_tile);
     }
-    // expand our model
+    // expand our model with the ten possible "tiles"
     Model expanded_model{};
     auto const in_model_width = puzzle_model[0].size();
     auto const in_model_height = puzzle_model.size();
     for (int tile_row=0;tile_row<5;tile_row++) {
       for (int row=0;row<in_model_height;row++) {
         expanded_model.push_back("");
+        // Expand according to the following
+        // tile_row 0: tile[0]...tile[4]
+        // tile_row 1: tile[1]...tile[6]
+        // tile_row 2: tile[2]...tile[7]
+        // tile_row 3: tile[3]...tile[8]
+        // tile_row 4: tile[4]...tile[9]
         for (int tile_column=0;tile_column<5;tile_column++) {
-          // tile_row 0: tile[0]...tile[4]
-          // tile_row 1: tile[1]...tile[6]
-          // tile_row 2: tile[2]...tile[7]
-          // tile_row 3: tile[3]...tile[8]
-          // tile_row 4: tile[4]...tile[9]
-
           // expanded_model[tile_row*row][tile_column*col] = tile[tile_row][row][col]
           std::copy(tile[tile_row + tile_column][row].begin(),tile[tile_row+tile_column][row].end()
             ,std::back_inserter(expanded_model[tile_row*in_model_height + row]));
         }
       }
     }
-    puzzle_model = expanded_model; // bam!
+    return expanded_model;
+}
+
+namespace part2 {
+  Result solve_for(char const* pData) {
+    Result result{};
+    std::stringstream in{ pData };
+    auto tile = parse(in);
+    auto puzzle_model = entire_cave(tile);
     // initiate visit cost map 
     CostMap visit_cost{};
     for (auto const& row : puzzle_model) {
