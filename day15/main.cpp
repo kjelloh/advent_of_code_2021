@@ -91,90 +91,111 @@ using CostMap = std::vector<CostRow>;
 using Queue = std::deque<Position>;
 using Visited = std::set<Position>;
 
+using Risk = unsigned int;
+struct State {
+  Risk enter_risk{0};
+  Risk risk_acc{std::numeric_limits<Risk>::max()};
+  Position from{0,0};
+  bool visited{false};
+};
+
+std::pair<Risk,std::string> safest_path(Model const& cave) {
+  std::pair<Risk,std::string> result{};
+  // Grid size
+  auto max_row = static_cast<Coord>(cave.size()-1);
+  auto max_col = static_cast<Coord>(cave[0].size()-1);
+  Position upper_left_corner{0,0};
+  Position lower_right_corner{.row=max_row,.col=max_col};
+  // TODO: Implement lowest risk path
+  // Initiate a risk map
+  std::map<Position,State> state_map{};
+  for (int row=0;row<=max_row;row++) {
+    for (int col=0;col<=max_col;col++){
+      state_map[Position{row,col}].enter_risk = static_cast<Risk>(cave[row][col]-'0');
+    }
+  }
+  state_map.at(upper_left_corner).risk_acc=0;
+  // Find the path from {0,0} to {end,end} on risk_map with lowest risk
+  // Initiate unvisited priority queue to have lowest risk so far at the front
+  auto lower_risk = [&state_map](Position const& p1, Position const& p2) {
+    return state_map.at(p1).risk_acc>state_map.at(p2).risk_acc; // priority_queue will prefer "false" i.e. place p2 before p1 in the queue
+  };
+  std::priority_queue<Position, std::vector<Position>, decltype(lower_risk)> unvisited(lower_risk);
+  unvisited.push(upper_left_corner);
+  int progress_count{0};
+  std::cout << "\nsearching " << cave[0].size() << " x " << cave.size() << " grid ";
+  while (unvisited.size()>0) {
+    if (progress_count++%10000==0) std::cout << "."  << std::flush;
+    // // Debug
+    // {
+    //   for (int row=0;row<=max_row;row++) {
+    //     std::cout << "\n";
+    //     std::string visited_s{};
+    //     std::string risk_s{};
+    //     std::string risk_acc_s{};
+    //     for (int col=0;col<=max_col;col++){
+    //       visited_s += state_map.at({.row=row,.col=col}).visited?'1':'0'; 
+    //       risk_s += ' ' + std::to_string(state_map.at({.row=row,.col=col}).enter_risk);
+    //       if (auto acc = state_map.at({.row=row,.col=col}).risk_acc;acc<1000000) {
+    //         risk_acc_s += ' ' + std::to_string(acc);            
+    //       }
+    //       else risk_acc_s += " @";
+    //     }
+    //     std::cout << visited_s << " " << risk_s << " " << risk_acc_s;
+    //   }
+    // }
+    // std::cout << "\n" << unvisited.size();
+    auto pos = unvisited.top();unvisited.pop();
+    auto const& pos_state = state_map.at(pos);
+    // std::cout << " {" << pos.row << "," << pos.col << "} " << pos_state.risk_acc;
+    for (auto delta_row : {-1,0,1}) {
+      for (auto delta_col : {-1,0,1}) {
+        if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip self and diagonal
+        Position adj{.row=pos.row+delta_row,.col=pos.col+delta_col};
+        if (adj.row<0 or adj.row>max_row or adj.col<0 or adj.col>max_col) continue; // skip out of bounds 
+        if (state_map.at(adj).visited) continue; // skip visited
+        auto& adj_state = state_map.at(adj);
+        auto path_to_adj_risk = pos_state.risk_acc+adj_state.enter_risk;
+        if (path_to_adj_risk<adj_state.risk_acc) {
+          adj_state.risk_acc = path_to_adj_risk;
+          adj_state.from = pos;
+          unvisited.push(adj); // expand graph with this candidate
+          // std::cout << " +{" << adj.row << "," << adj.col << "}";
+        }
+      }
+    }
+    state_map.at(pos).visited=true;
+  }
+  result.first = state_map.at(lower_right_corner).risk_acc;
+  // recreate the path found
+  Position pos = lower_right_corner;
+  std::deque<Position> path{};
+  while (pos!=upper_left_corner) {
+    path.push_front(pos);
+    auto const& from_state = state_map.at(pos);
+    pos = from_state.from;
+  }
+  Risk path_risk{};
+  std::ostringstream os{};
+  for (auto const& pos : path) {
+    auto const& state = state_map.at(pos);
+    os << " " << std::to_string(state.enter_risk);
+    path_risk += state.enter_risk;
+  }
+  // std::cout << "\npath risk " << path_risk;
+  result.second = os.str();
+  return result;
+}
+
 namespace part1 {
   Result solve_for(char const* pData) {
     Result result{};
     std::stringstream in{ pData };
-    auto puzzle_model = parse(in);
-    // // print
-    // {
-    //   for (int row=0;row<puzzle_model.size();row++) {
-    //     std::cout << "\n";
-    //     for (int col=0;col<puzzle_model[0].size();col++) {
-    //       std::cout << " " << puzzle_model[row][col];
-    //     }
-    //   }
-    // }
-    // initiate visit cost map 
-    CostMap visit_cost{};
-    for (auto const& row : puzzle_model) {
-      CostRow cost_row{};
-      for (auto const& cost_digit : row) {
-        cost_row.push_back(cost_digit-'0');
-      }
-      visit_cost.push_back(cost_row);
-    }
-    // Grid size
-    auto max_row = static_cast<Coord>(visit_cost.size()-1);
-    auto max_col = static_cast<Coord>(visit_cost[0].size()-1);
-    // // print
-    // {
-    //   for (auto const& cost_row : visit_cost) {
-    //     std::cout << "\n";
-    //     for (auto const& cost : cost_row) {
-    //       std::cout << " visit_cost:" << cost;
-    //     }
-    //   }
-    // }
-    // initiate cost map
-    CostMap cost_map{};
-    for (auto const& row : visit_cost) {
-      CostRow cost_row{};
-      for (auto const& cost : row) {
-        cost_row.push_back(std::numeric_limits<Cost>::max());
-      }
-      cost_map.push_back(cost_row);
-    }
-    cost_map[0][0] = 0;
-    // helper to track cheapest path
-    std::vector<std::vector<Position>> parent_map{100,{100,{0,0}}};
-    // Flood fill with min costs from {0,0} to {max_row,max_col}
-    std::set<Position> frontiere{};
-    frontiere.insert({0,0});
-    while (frontiere.size()>0) {
-      std::set<Position> new_frontiere{};
-      for (auto const& pos : frontiere) {
-        for (auto delta_row : {0,1}) {
-          for (auto delta_col : {0,1}){
-            if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip origin and diagonals
-            Position adj{pos.row+delta_row,pos.col+delta_col};
-            if ((adj.row<0) or (adj.row>max_row) or (adj.col<0) or (adj.col > max_col)) continue; // skip out-of-bounds
-            if (cost_map[pos.row][pos.col] + visit_cost[adj.row][adj.col] <= cost_map[adj.row][adj.col]) {
-              cost_map[adj.row][adj.col] = cost_map[pos.row][pos.col] + visit_cost[adj.row][adj.col];
-              parent_map[adj.row][adj.col] = pos;
-            }
-            new_frontiere.insert(adj);
-          }
-        }
-      }
-      frontiere = new_frontiere;
-    }
-
-    // backtrack cheapest path
-    {
-      Position pos{max_row,max_col}; // end node
-      std::deque<Position> path{};
-      while (pos != Position{0,0}) {        
-        path.push_front(pos);
-        pos = parent_map[pos.row][pos.col];
-      }
-      // print
-      std::cout << "\ncheapest steps:";
-      for (auto const& pos : path) {
-        std::cout << " " << visit_cost[pos.row][pos.col];
-      }      
-    }
-    result = cost_map.back().back();
+    auto tile = parse(in);
+    auto [lowest_risk,path] = safest_path(tile);
+    std::cout << "\npath " << path;
+    std::cout << "\nrisk " << lowest_risk;
+    result = lowest_risk;
     return result;
   }
 }
@@ -220,96 +241,10 @@ namespace part2 {
     std::stringstream in{ pData };
     auto tile = parse(in);
     auto cave = entire_cave(tile);
-    // auto cave = tile;
-    // Grid size
-    auto max_row = static_cast<Coord>(cave.size()-1);
-    auto max_col = static_cast<Coord>(cave[0].size()-1);
-    Position upper_left_corner{0,0};
-    Position lower_right_corner{.row=max_row,.col=max_col};
-    // TODO: Implement lowest risk path
-    using Risk = unsigned int;
-    struct State {
-      Risk enter_risk{0};
-      Risk risk_acc{std::numeric_limits<Risk>::max()};
-      Position from{0,0};
-      bool visited{false};
-    };
-    // Initiate a risk map
-    std::map<Position,State> state_map{};
-    for (int row=0;row<=max_row;row++) {
-      for (int col=0;col<=max_col;col++){
-        state_map[Position{row,col}].enter_risk = static_cast<Risk>(cave[row][col]-'0');
-      }
-    }
-    state_map.at(upper_left_corner).risk_acc=0;
-    // Find the path from {0,0} to {end,end} on risk_map with lowest risk
-    // Initiate unvisited priority queue to have lowest risk so far at the front
-    auto lower_risk = [&state_map](Position const& p1, Position const& p2) {
-      return state_map.at(p1).risk_acc>state_map.at(p2).risk_acc; // priority_queue will prefer "false" i.e. place p2 before p1 in the queue
-    };
-    std::priority_queue<Position, std::vector<Position>, decltype(lower_risk)> unvisited(lower_risk);
-    unvisited.push(upper_left_corner);
-    while (unvisited.size()>0) {
-      // // Debug
-      // {
-      //   for (int row=0;row<=max_row;row++) {
-      //     std::cout << "\n";
-      //     std::string visited_s{};
-      //     std::string risk_s{};
-      //     std::string risk_acc_s{};
-      //     for (int col=0;col<=max_col;col++){
-      //       visited_s += state_map.at({.row=row,.col=col}).visited?'1':'0'; 
-      //       risk_s += ' ' + std::to_string(state_map.at({.row=row,.col=col}).enter_risk);
-      //       if (auto acc = state_map.at({.row=row,.col=col}).risk_acc;acc<1000000) {
-      //         risk_acc_s += ' ' + std::to_string(acc);            
-      //       }
-      //       else risk_acc_s += " @";
-      //     }
-      //     std::cout << visited_s << " " << risk_s << " " << risk_acc_s;
-      //   }
-      // }
-      std::cout << "\n" << unvisited.size();
-      auto pos = unvisited.top();unvisited.pop();
-      auto const& pos_state = state_map.at(pos);
-      std::cout << " {" << pos.row << "," << pos.col << "} " << pos_state.risk_acc;
-      for (auto delta_row : {-1,0,1}) {
-        for (auto delta_col : {-1,0,1}) {
-          if (std::abs(delta_row) == std::abs(delta_col)) continue; // skip self and diagonal
-          Position adj{.row=pos.row+delta_row,.col=pos.col+delta_col};
-          if (adj.row<0 or adj.row>max_row or adj.col<0 or adj.col>max_col) continue; // skip out of bounds 
-          if (state_map.at(adj).visited) continue; // skip visited
-          auto& adj_state = state_map.at(adj);
-          auto path_to_adj_risk = pos_state.risk_acc+adj_state.enter_risk;
-          if (path_to_adj_risk<adj_state.risk_acc) {
-            adj_state.risk_acc = path_to_adj_risk;
-            adj_state.from = pos;
-            unvisited.push(adj); // expand graph with this candidate
-            std::cout << " +{" << adj.row << "," << adj.col << "}";
-          }
-        }
-      }
-      state_map.at(pos).visited=true;
-    }
-    result = state_map.at(lower_right_corner).risk_acc;
-    // debug
-    {
-      // recreate the path found
-      Position pos = lower_right_corner;
-      std::deque<Position> path{};
-      while (pos!=upper_left_corner) {
-        path.push_front(pos);
-        auto const& from_state = state_map.at(pos);
-        pos = from_state.from;
-      }
-      Risk path_risk{};
-      std::cout << "\npath ";
-      for (auto const& pos : path) {
-        auto const& state = state_map.at(pos);
-        std::cout << " " << std::to_string(state.enter_risk);
-        path_risk += state.enter_risk;
-      }
-      std::cout << "\npath risk " << path_risk;
-    }
+    auto [lowest_risk,path] = safest_path(cave);
+    std::cout << "\npath " << path;
+    std::cout << "\nrisk " << lowest_risk;
+    result = lowest_risk;
     return result;
   }
 }
@@ -317,15 +252,15 @@ namespace part2 {
 int main(int argc, char *argv[])
 {
   Answers answers{};
-  // answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
-  // answers.push_back({"Part 1     ",part1::solve_for(pData)});
-  // answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
+  answers.push_back({"Part 1 Test",part1::solve_for(pTest)});
+  answers.push_back({"Part 1     ",part1::solve_for(pData)});
+  answers.push_back({"Part 2 Test",part2::solve_for(pTest)});
   answers.push_back({"Part 2     ",part2::solve_for(pData)});
   for (auto const& answer : answers) {
     std::cout << "\nanswer[" << answer.first << "] " << answer.second;
   }
-  std::cout << "\nPress <enter>...";
-  std::cin.get();
+  // std::cout << "\nPress <enter>...";
+  // std::cin.get();
   std::cout << "\n";
   return 0;
 }
