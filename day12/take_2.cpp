@@ -38,45 +38,26 @@ namespace part1 {
   class Graph {
   private:
       using Bag = std::vector<int>;
-      int m_V;
       int m_E;
-      std::vector<Bag> m_adj;
-      // throw an IllegalArgumentException unless {@code 0 <= v < V}
-      void validateVertex(int v) {
-          if (v < 0 || v >= m_V)
-              throw std::runtime_error(std::string{"vertex "} + std::to_string(v) + " is not between 0 and " + std::to_string(m_V-1));
-      }
+      std::map<int,Bag> m_adj;
   public:
-      // Construct Graph with V vertices and zero edges
-      Graph(int V=0)
-      : m_V{V},m_E{},m_adj{(m_V>=0)?static_cast<size_t>(m_V):0,Bag{}} {
-          if (m_V < 0) throw std::runtime_error("Number of vertices must be non-negative");
-          std::cout << "\nGraph(" << m_V << ")";
-      }
+      Graph() = default;
       Graph(Graph const& G) = default;
-      int V() {return m_V;}
-      int E() {return m_E;}
+      int V() const {return static_cast<int>(m_adj.size());}
+      int E() const {return m_E;}
       void addEdge(int v, int w) {
-          validateVertex(v);
-          validateVertex(w);
-          ++m_E;
           m_adj[v].push_back(w);
           m_adj[w].push_back(v);
+          ++m_E;
       }
-      auto adj(int v) {
-          validateVertex(v);
-          return m_adj[v];
-      }
-      int degree(int v) {
-          validateVertex(v);
-          return static_cast<int>(m_adj[v].size());
-      }
+      auto adj(int v) const {return m_adj.at(v);}
+      int degree(int v) const {return static_cast<int>(m_adj.at(v).size());}
       std::string to_string() const {
           std::ostringstream os{};
-          os << m_V << " vertices, " << m_E << " edges " << "\n";
-          for (int v = 0; v < m_V; v++) {
+          os << V() << " vertices, " << E() << " edges " << "\n";
+          for (auto const& [v,adj] : m_adj) {
               os << to_string(v) << ": ";
-              for (auto const& w : m_adj[v]) {
+              for (auto const& w : adj) {
                   os << to_string(w) << " ";
               }
               os << "\n";
@@ -95,7 +76,7 @@ namespace part1 {
   class StringGraph : public Graph {
   public:
     using String = std::string;
-    StringGraph(int V=0) : Graph{V} {};
+    StringGraph() = default;
     void addEdge(String v, String w) {
       Graph::addEdge(to_index(v),to_index(w));
       std::cout << "\nafter addEdge {" << v << ":" << w << "}";
@@ -133,22 +114,12 @@ namespace part1 {
     std::map<std::string,int> m_vertex{};
   };
 
-  std::set<std::string> to_symbol_table(Model const& data_model) {
-    std::set<std::string> result{};
-    for (auto const& edge : data_model) {
-      result.insert(edge.first);
-      result.insert(edge.second);
-    }
-    return result;
-  }
-
   Result solve_for(char const* pData) {
       Result result{};
       std::cout << "\nin=" << std::quoted(pData);
       std::stringstream in{ pData };
       auto data_model = parse(in);
-      auto symbol_table = to_symbol_table(data_model);
-      StringGraph G{static_cast<int>(symbol_table.size())};
+      StringGraph G{};
       for (auto const& edge : data_model) {
         G.addEdge(edge.first,edge.second);
       }
